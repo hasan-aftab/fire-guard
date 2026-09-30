@@ -3,15 +3,20 @@
 Fire-safety compliance tracker for PNG businesses. Inertia v3 + React SPA, SQLite,
 no API layer, no queue workers for domain logic.
 
-> **Read this first:** this file is **hand-written only** and is tracked in git.
-> Laravel Boost writes its generated guidelines to `.boost-guidelines.md`, which is
-> gitignored, at the path set in `config/boost.php`. `php artisan boost:update` (wired
-> to `composer post-update-cmd`) rewrites that file in place and never touches this
-> one. Run `php artisan boost:install` on a fresh clone to recreate it.
+> **Read `.boost-guidelines.md` before writing any code.** It holds Laravel Boost's
+> framework and package rules. This file is **hand-written only** and is tracked in
+> git. Boost generates `.boost-guidelines.md` (gitignored) at the path set in
+> `config/boost.php`; `php artisan boost:update` (wired to `composer post-update-cmd`)
+> rewrites that file in place and never touches this one. Run
+> `php artisan boost:install` on a fresh clone to recreate it.
 >
-> Note that Boost redirects **both** of its enabled agents here, not just opencode:
-> `claude_code` defaults to `AGENTS.md` rather than `CLAUDE.md`, so a
-> partial override silently re-append the block to this file.
+> That instruction is what binds Codex: it reads root `AGENTS.md` but has no repo-local
+> list of extra instruction files, and `codex` is not in `boost.json`'s `agents` array,
+> so Boost never writes Codex guidelines on its own.
+>
+> Note that Boost defaults `claude_code` and `codex` to `AGENTS.md` rather than
+> `CLAUDE.md`, so a partial `config/boost.php` override silently re-appends the block
+> to this file.
 >
 > There is no `README` and no `.ai/rules` directory. `/CLAUDE.md`, `/boost.json`,
 > `/opencode.json`, `/.mcp.json`, `.agents/` and `.claude/` are gitignored and
