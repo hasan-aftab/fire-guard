@@ -1,0 +1,184 @@
+export type Client = {
+    id: number;
+    company_name: string;
+    contact_name: string | null;
+    phone: string | null;
+    email: string | null;
+    billing_address: string | null;
+    notes: string | null;
+    is_active: boolean;
+    sites: Site[];
+    sites_count: number;
+};
+
+export type Site = {
+    id: number;
+    client_id: number;
+    site_name: string;
+    address: string;
+    suburb_region: string | null;
+    access_notes: string | null;
+    site_contact: string | null;
+    site_phone: string | null;
+    client?: Client;
+};
+
+export type CertificateSite = Pick<Site, 'id' | 'client_id' | 'site_name'> & {
+    client: Pick<Client, 'id' | 'company_name'>;
+};
+
+export type AssetType = {
+    id: number;
+    type_name: string;
+    category: string | null;
+    default_interval_months: number;
+};
+
+export type Asset = {
+    id: number;
+    site_id: number;
+    asset_type_id: number;
+    serial_number: string | null;
+    location_desc: string | null;
+    install_date: string | null;
+    last_service_date: string | null;
+    next_service_due: string | null;
+    status: string;
+    site: Site;
+    asset_type: AssetType;
+};
+
+export type Technician = {
+    id: number;
+    full_name: string;
+    phone: string | null;
+    email: string | null;
+    license_number: string | null;
+    license_expiry: string | null;
+    is_active: boolean;
+};
+
+export type Inspection = {
+    id: number;
+    asset_id: number;
+    technician_id: number | null;
+    inspection_date: string;
+    result: string;
+    notes: string | null;
+    next_due_date: string | null;
+    photo_url: string | null;
+    asset: Pick<Asset, 'id' | 'serial_number' | 'location_desc'>;
+    technician: Pick<Technician, 'id' | 'full_name'> | null;
+};
+
+export type InspectionAssetOption = Pick<
+    Asset,
+    'id' | 'site_id' | 'serial_number' | 'location_desc'
+> & { site: Pick<Site, 'id' | 'site_name'> };
+
+export type Certificate = {
+    id: number;
+    site_id: number;
+    asset_id: number | null;
+    certificate_type: string;
+    issue_date: string;
+    expiry_date: string;
+    issued_by: string | null;
+    document_url: string | null;
+    status: string;
+    site: CertificateSite;
+};
+
+export type FireNotification = {
+    id: number;
+    type:
+        | 'overdue_asset'
+        | 'due_soon_asset'
+        | 'expiring_cert'
+        | 'expired_cert'
+        | 'failed_inspection';
+    title: string;
+    message: string;
+    entity_id: number;
+    entity_type: 'asset' | 'certificate' | 'inspection';
+    is_read: boolean;
+    created_at: string;
+};
+
+export type Counts = Record<
+    | 'clients'
+    | 'sites'
+    | 'assets'
+    | 'inspections'
+    | 'certificates'
+    | 'technicians',
+    number
+>;
+export type NotificationData = {
+    items: FireNotification[];
+    unreadCount: number;
+};
+export type Paginated<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+};
+export type TrackerFilters = Partial<
+    Record<
+        | 'search'
+        | 'status'
+        | 'result'
+        | 'from'
+        | 'to'
+        | 'issue_from'
+        | 'issue_to',
+        string
+    >
+>;
+export type UpcomingInspection = {
+    assetId: number;
+    serialNumber: string | null;
+    locationDesc: string | null;
+    nextServiceDue: string;
+    typeName: string;
+    siteName: string;
+};
+export type ExpiringCertificate = {
+    certificateId: number;
+    certificateType: string;
+    expiryDate: string;
+    siteName: string;
+};
+export type DashboardSummary = {
+    asOfDate: string;
+    stats: {
+        activeClients: number;
+        totalAssets: number;
+        overdueInspections: number;
+        expiringCerts: number;
+    };
+    upcomingTotal: number;
+    upcomingDates: string[];
+    upcomingInspections: UpcomingInspection[];
+    complianceRate: {
+        pass: number;
+        fail: number;
+        needs_repair: number;
+        total: number;
+    };
+};
+
+export type DashboardFilters = Partial<
+    Record<
+        | 'attention_from'
+        | 'attention_to'
+        | 'attention_page'
+        | 'cert_from'
+        | 'cert_to'
+        | 'cert_page',
+        string | number
+    >
+>;
