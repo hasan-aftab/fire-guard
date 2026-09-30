@@ -1,0 +1,299 @@
+import { Head, router } from '@inertiajs/react';
+import { Eye, Pencil, Plus, Trash2 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { DataTable } from '@/components/data-table';
+import type { Column } from '@/components/data-table';
+import { EmptyState } from '@/components/empty-state';
+import { PageHeader } from '@/components/page-header';
+import { Pagination } from '@/components/pagination';
+import { RecordForm, recordValues } from '@/components/record-form';
+import type { FormField } from '@/components/record-form';
+import { TrackerFilters } from '@/components/tracker-filters';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
+import { ViewField, ViewModal } from '@/components/view-modal';
+import type {
+    Paginated,
+    TrackerFilters as FilterValues,
+} from '@/types/fire-tracker';
+import type { RouteDefinition } from '@/wayfinder';
+
+type ResourceRoutes = {
+    index: () => RouteDefinition<'get'>;
+    store: () => RouteDefinition<'post'>;
+    update: (id: number) => RouteDefinition<'put' | 'patch'>;
+    destroy: (id: number) => RouteDefinition<'delete'>;
+};
+
+export function RecordPage<T extends { id: number }>({
+    title,
+    description,
+    noun,
+    icon,
+    records,
+    filters,
+    routes,
+    columns,
+    fields,
+    defaults,
+    dateLabel,
+    issueDates,
+    statusOptions,
+    statusKey,
+    searchPlaceholder,
+    addLabel,
+    createTitle,
+    addDisabled = false,
+    addHint,
+    emptyDescription,
+    deleteDescription,
+    rowActions,
+    viewContent,
+}: {
+    title: string;
+    description: string;
+    noun: string;
+    icon: LucideIcon;
+    records: Paginated<T>;
+    filters: FilterValues;
+    routes: ResourceRoutes;
+    columns: Column<T>[];
+    fields: FormField[];
+    defaults: Record<string, string>;
+    dateLabel?: string;
+    issueDates?: boolean;
+    statusOptions?: { value: string; label: string }[];
+    statusKey?: 'status' | 'result';
+    searchPlaceholder: string;
+    addLabel?: string;
+    createTitle?: string;
+    addDisabled?: boolean;
+    addHint?: ReactNode;
+    emptyDescription?: string;
+    deleteDescription?: string;
+    rowActions?: (record: T) => ReactNode;
+    viewContent?: (record: T) => ReactNode;
+}) {
+    const [editing, setEditing] = useState<T | null | undefined>();
+    const [viewing, setViewing] = useState<T | null>(null);
+    const [deleting, setDeleting] = useState<T | null>(null);
+    const [deletePending, setDeletePending] = useState(false);
+    const createButton = (
+        <Button onClick={() => setEditing(null)} disabled={addDisabled}>
+            <Plus data-icon="inline-start" />
+            {addLabel || `Add ${noun}`}
+        </Button>
+    );
+    const start = (records.current_page - 1) * records.per_page;
+    const allColumns: Column<T>[] = [
+        {
+            key: 'number',
+            header: '#',
+            className: 'w-10 text-xs text-muted-foreground',
+            render: (_, index) => start + index + 1,
+        },
+        ...columns,
+        {
+            key: 'actions',
+            header: 'Actions',
+            render: (record) => (
+                <div className="flex gap-0.5">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1 text-xs has-[>svg]:px-2"
+                        onClick={() => setViewing(record)}
+                    >
+                        <Eye data-icon="inline-start" />
+                        View
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1 text-xs has-[>svg]:px-2"
+                        onClick={() => setEditing(record)}
+                    >
+                        <Pencil data-icon="inline-start" />
+                        Edit
+                    </Button>
+                    {rowActions?.(record)}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        aria-label={`Delete ${noun} #${record.id}`}
+                        onClick={() => setDeleting(record)}
+                    >
+                        <Trash2 />
+                    </Button>
+                </div>
+            ),
+        },
+    ];
+    const confirmDelete = () => {
+        if (!deleting) return;
+        setDeletePending(true);
+        router.delete(routes.destroy(deleting.id), {
+            preserveScroll: true,
+            onSuccess: () => setDeleting(null),
+            onFinish: () => setDeletePending(false),
+        });
+    };
+
+    return (
+        <>
+            <Head title={title} />
+            <PageHeader
+                title={title}
+                description={description}
+                actions={createButton}
+            />
+            {addDisabled && addHint && (
+                <p className="mb-4 text-sm text-muted-foreground" role="status">
+                    {addHint}
+                </p>
+            )}
+            <TrackerFilters
+                filters={filters}
+                route={routes.index()}
+                searchPlaceholder={searchPlaceholder}
+                dateLabel={dateLabel}
+                issueDates={issueDates}
+                statusOptions={statusOptions}
+                statusKey={statusKey}
+                total={records.total}
+                noun={noun}
+            />
+            {records.total === 0 &&
+            !Object.values(filters).some(
+                (value) => value && value !== 'all',
+            ) ? (
+                <EmptyState
+                    icon={icon}
+                    title={`No ${noun}s yet`}
+                    description={emptyDescription || description}
+                    action={addDisabled ? undefined : createButton}
+                />
+            ) : (
+                <Card className="gap-0 overflow-hidden py-0">
+                    <CardHeader className="sr-only">
+                        <CardTitle>{title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <DataTable
+                            columns={allColumns}
+                            data={records.data}
+                            scrollLabel={`${title} table`}
+                            rowKey={(record) => record.id}
+                            emptyMessage={`No ${noun}s match your filters.`}
+                        />
+                    </CardContent>
+                    {records.total > records.per_page && (
+                        <>
+                            <Separator />
+                            <Pagination
+                                currentPage={records.current_page}
+                                totalItems={records.total}
+                                pageSize={records.per_page}
+                                onPageChange={(page) =>
+                                    router.get(
+                                        routes.index(),
+                                        { ...filters, page },
+                                        {
+                                            preserveState: true,
+                                            preserveScroll: true,
+                                        },
+                                    )
+                                }
+                            />
+                        </>
+                    )}
+                </Card>
+            )}
+            <Sheet
+                open={editing !== undefined}
+                onOpenChange={(open) => {
+                    if (!open) setEditing(undefined);
+                }}
+            >
+                <SheetContent className="w-full sm:max-w-md">
+                    <SheetHeader>
+                        <SheetTitle>
+                            {editing
+                                ? `Edit ${noun}`
+                                : createTitle || `New ${noun}`}
+                        </SheetTitle>
+                        <SheetDescription>{description}</SheetDescription>
+                    </SheetHeader>
+                    {editing !== undefined && (
+                        <div className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+                            <RecordForm
+                                key={editing?.id ?? 'new'}
+                                fields={fields}
+                                initialValues={
+                                    editing
+                                        ? recordValues(editing, defaults)
+                                        : defaults
+                                }
+                                action={
+                                    editing
+                                        ? routes.update(editing.id)
+                                        : routes.store()
+                                }
+                                saveLabel={
+                                    editing
+                                        ? `Update ${noun}`
+                                        : addLabel || `Create ${noun}`
+                                }
+                                onSuccess={() => setEditing(undefined)}
+                                onCancel={() => setEditing(undefined)}
+                            />
+                        </div>
+                    )}
+                </SheetContent>
+            </Sheet>
+            <ConfirmDialog
+                open={!!deleting}
+                onOpenChange={(open) => {
+                    if (!open) setDeleting(null);
+                }}
+                title={`Delete ${noun}?`}
+                description={
+                    deleteDescription ||
+                    `This will permanently delete this ${noun}${noun === 'asset' ? ' and all associated inspections' : noun === 'client' ? ' and all associated sites, assets, inspections, and certificates' : ''}. This action cannot be undone.`
+                }
+                onConfirm={confirmDelete}
+                loading={deletePending}
+            />
+            <ViewModal
+                open={!!viewing}
+                onClose={() => setViewing(null)}
+                title={`${noun.charAt(0).toUpperCase() + noun.slice(1)} Details`}
+            >
+                {viewing && (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {columns.map((column) => (
+                            <ViewField
+                                key={column.key}
+                                label={column.header}
+                                value={column.render(viewing, 0)}
+                            />
+                        ))}
+                    </div>
+                )}
+                {viewing && viewContent?.(viewing)}
+            </ViewModal>
+        </>
+    );
+}
