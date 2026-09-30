@@ -6,20 +6,17 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('asset_types', function (Blueprint $table) {
+        Schema::create('asset_types', function (Blueprint $table): void {
             $table->id();
+            $table->string('type_name')->unique();
+            $table->string('category')->nullable();
+            $table->unsignedSmallInteger('default_interval_months')->default(12);
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('asset_types');
