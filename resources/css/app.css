@@ -161,7 +161,8 @@
 
 .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
+    scrollbar-color: var(--muted-foreground) var(--muted);
+    scrollbar-gutter: stable;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -170,11 +171,11 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--muted);
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: var(--border);
+    background-color: var(--muted-foreground);
     border-radius: 3px;
 }
 
