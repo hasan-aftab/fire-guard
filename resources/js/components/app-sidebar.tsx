@@ -68,7 +68,7 @@ export function AppSidebar() {
     };
     return (
         <Sidebar collapsible="icon">
-            <SidebarHeader className="border-b border-sidebar-border p-4">
+            <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
@@ -85,9 +85,7 @@ export function AppSidebar() {
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>
-                    <SidebarGroupLabel className="text-[10px] tracking-widest text-sidebar-foreground/40 uppercase">
-                        Main
-                    </SidebarGroupLabel>
+                    <SidebarGroupLabel>Main</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
                             <SidebarMenuItem>
@@ -111,9 +109,7 @@ export function AppSidebar() {
                 </SidebarGroup>
                 <SidebarSeparator className="max-w-[calc(100%_-_1rem)]" />
                 <SidebarGroup>
-                    <SidebarGroupLabel className="text-[10px] tracking-widest text-sidebar-foreground/40 uppercase">
-                        Management
-                    </SidebarGroupLabel>
+                    <SidebarGroupLabel>Management</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {management.map((item) => (
@@ -124,7 +120,6 @@ export function AppSidebar() {
                                         isActive={
                                             currentPath === item.href.url()
                                         }
-                                        className="data-[active=true]:border-l-2 data-[active=true]:border-sidebar-primary data-[active=true]:text-sidebar-primary"
                                     >
                                         <Link
                                             href={item.href()}
@@ -136,7 +131,7 @@ export function AppSidebar() {
                                         </Link>
                                     </SidebarMenuButton>
                                     {!!counts?.[item.count] && (
-                                        <SidebarMenuBadge className="bg-sidebar-foreground/10 text-sidebar-foreground">
+                                        <SidebarMenuBadge className="bg-sidebar-accent text-sidebar-accent-foreground">
                                             {counts[item.count]}
                                         </SidebarMenuBadge>
                                     )}
@@ -148,11 +143,6 @@ export function AppSidebar() {
             </SidebarContent>
             <SidebarFooter>
                 <NavUser />
-                <SidebarSeparator className="max-w-[calc(100%_-_1rem)]" />
-                <div className="flex items-center gap-2 px-2 py-2 text-[11px] text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
-                    <ShieldCheck className="size-3.5" />
-                    <span>v1.0 — Fire Safety Compliance</span>
-                </div>
             </SidebarFooter>
         </Sidebar>
     );
