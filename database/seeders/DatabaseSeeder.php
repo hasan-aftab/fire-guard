@@ -15,8 +15,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
         User::factory()->create([
             'name' => 'Hasan Aftab',
             'email' => 'hasanaftab007@gmail.com',
@@ -28,5 +26,11 @@ class DatabaseSeeder extends Seeder
             'email' => 'rory@gmail.com',
             'password' => bcrypt('rory@gmail.com'),
         ]);
+
+        $this->call([
+            AssetTypeSeeder::class,
+            FireTrackerDemoSeeder::class,
+        ]);
+
     }
 }
