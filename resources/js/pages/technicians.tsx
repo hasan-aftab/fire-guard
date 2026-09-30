@@ -1,0 +1,105 @@
+import { Users } from 'lucide-react';
+import {
+    index,
+    store,
+    update,
+    destroy,
+} from '@/actions/App/Http/Controllers/TechnicianController';
+import { RecordPage } from '@/components/record-page';
+import { Badge } from '@/components/ui/badge';
+import type {
+    Paginated,
+    Technician,
+    TrackerFilters,
+} from '@/types/fire-tracker';
+
+export default function Technicians({
+    records,
+    filters,
+}: {
+    records: Paginated<Technician>;
+    filters: TrackerFilters;
+}) {
+    return (
+        <RecordPage
+            title="Technicians"
+            description="Manage fire safety technicians and their licences"
+            noun="technician"
+            icon={Users}
+            emptyDescription="Add your first technician to start assigning inspections."
+            deleteDescription="This will permanently delete this technician and leave their inspections unassigned. Inspection history will remain. This action cannot be undone."
+            records={records}
+            filters={filters}
+            routes={{ index, store, update, destroy }}
+            searchPlaceholder="Search technicians..."
+            statusOptions={[
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+            ]}
+            columns={[
+                {
+                    key: 'name',
+                    header: 'Name',
+                    render: (technician) => technician.full_name,
+                },
+                {
+                    key: 'phone',
+                    header: 'Phone',
+                    render: (technician) => technician.phone || '—',
+                },
+                {
+                    key: 'email',
+                    header: 'Email',
+                    render: (technician) => technician.email || '—',
+                },
+                {
+                    key: 'license',
+                    header: 'Licence',
+                    render: (technician) => technician.license_number || '—',
+                },
+                {
+                    key: 'expiry',
+                    header: 'Licence expiry',
+                    render: (technician) => technician.license_expiry || '—',
+                },
+                {
+                    key: 'active',
+                    header: 'Status',
+                    render: (technician) => (
+                        <Badge
+                            variant={
+                                technician.is_active ? 'secondary' : 'outline'
+                            }
+                        >
+                            {technician.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                    ),
+                },
+            ]}
+            defaults={{
+                full_name: '',
+                phone: '',
+                email: '',
+                license_number: '',
+                license_expiry: '',
+                is_active: '1',
+            }}
+            fields={[
+                { name: 'full_name', label: 'Full name', required: true },
+                { name: 'phone', label: 'Phone', type: 'tel' },
+                { name: 'email', label: 'Email', type: 'email' },
+                { name: 'license_number', label: 'Licence number' },
+                {
+                    name: 'license_expiry',
+                    label: 'Licence expiry',
+                    type: 'date',
+                },
+                {
+                    name: 'is_active',
+                    label: 'Active technician',
+                    type: 'checkbox',
+                },
+            ]}
+        />
+    );
+}
