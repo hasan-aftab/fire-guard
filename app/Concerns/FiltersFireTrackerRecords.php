@@ -44,10 +44,10 @@ trait FiltersFireTrackerRecords
      *
      * @param  Builder<TModel>  $query
      */
-    private function filterServiceStatus(Builder $query, TrackerFilterRequest $request, string $column): void
+    private function filterServiceStatus(Builder $query, TrackerFilterRequest $request, string $column, int $soonDays): void
     {
         $today = today()->toDateString();
-        $soon = today()->addDays(14)->toDateString();
+        $soon = today()->addDays($soonDays)->toDateString();
 
         match ($request->string('status')->toString()) {
             'overdue' => $query->where($column, '<', $today),
