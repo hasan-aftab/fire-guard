@@ -20,7 +20,7 @@ class AssetController extends Controller
     {
         $query = Asset::query()
             ->select(['id', 'site_id', 'asset_type_id', 'serial_number', 'location_desc', 'install_date', 'last_service_date', 'next_service_due', 'status'])
-            ->with(['site:id,client_id,site_name', 'site.client:id,company_name', 'assetType:id,type_name,category']);
+            ->with(['site:id,client_id,site_name,is_active', 'site.client:id,company_name,is_active', 'assetType:id,type_name,category']);
         if ($request->filled('search')) {
             $pattern = $this->searchPattern($request);
             $query->where(function ($query) use ($pattern): void {
@@ -42,6 +42,11 @@ class AssetController extends Controller
         if ($request->filled('equipment_status') && $request->input('equipment_status') !== 'all') {
             $query->where('status', $request->string('equipment_status')->toString());
         }
+        if (in_array($request->string('status')->toString(), ['overdue', 'due_soon', 'ok'], true)) {
+            $query->where('status', 'active')
+                ->whereHas('site', fn ($site) => $site->where('is_active', true)
+                    ->whereHas('client', fn ($client) => $client->where('is_active', true)));
+        }
         $this->filterServiceStatus($query, $request, 'next_service_due');
         $this->filterDates($query, $request, 'next_service_due');
 
@@ -60,7 +65,7 @@ class AssetController extends Controller
 
         return Inertia::render('assets', [
             'records' => $records,
-            'sites' => Site::select(['id', 'client_id', 'site_name'])->with('client:id,company_name')->orderBy('site_name')->orderBy('id')->get(),
+            'sites' => Site::select(['id', 'client_id', 'site_name', 'is_active'])->with('client:id,company_name,is_active')->orderBy('site_name')->orderBy('id')->get(),
             'assetTypes' => AssetType::select(['id', 'type_name', 'category'])->orderBy('type_name')->orderBy('id')->get(),
             'filters' => $filters,
         ]);
@@ -84,8 +89,16 @@ class AssetController extends Controller
 
     public function destroy(Asset $asset): RedirectResponse
     {
-        $asset->delete();
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Asset deleted.']);
+        $asset->update(['status' => 'decommissioned']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Equipment decommissioned.']);
+
+        return back();
+    }
+
+    public function restore(Asset $asset): RedirectResponse
+    {
+        $asset->update(['status' => 'active']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Equipment reactivated.']);
 
         return back();
     }
