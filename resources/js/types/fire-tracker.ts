@@ -1,3 +1,5 @@
+import type { DateStatus } from '@/components/status-badge';
+
 export type Client = {
     id: number;
     company_name: string;
@@ -59,6 +61,7 @@ export type Asset = {
     last_service_date: string | null;
     next_service_due: string | null;
     status: string;
+    service_status: DateStatus;
     entered_in_error_at: string | null;
     inspections_count?: number;
     certificates_count?: number;
@@ -120,7 +123,7 @@ export type Certificate = {
     expiry_date: string;
     issued_by: string | null;
     document_url: string | null;
-    status: string;
+    status: DateStatus;
     entered_in_error_at: string | null;
     site: CertificateSite;
 };
@@ -186,6 +189,7 @@ export type UpcomingInspection = {
     serialNumber: string | null;
     locationDesc: string | null;
     nextServiceDue: string;
+    serviceStatus: DateStatus;
     typeName: string;
     siteName: string;
 };
@@ -193,6 +197,7 @@ export type ExpiringCertificate = {
     certificateId: number;
     certificateType: string;
     expiryDate: string;
+    status: DateStatus;
     siteName: string;
 };
 export type DashboardSummary = {
