@@ -4,6 +4,8 @@ import {
     index,
     store,
     update,
+    markError,
+    restoreError,
 } from '@/actions/App/Http/Controllers/CertificateController';
 import { RecordPage } from '@/components/record-page';
 import { StatusBadge } from '@/components/status-badge';
@@ -39,7 +41,11 @@ export default function Compliance({
 }) {
     const { today } = usePage().props;
     const activeSites = sites.filter(
-        (site) => site.is_active && site.client.is_active,
+        (site) =>
+            site.is_active &&
+            site.client.is_active &&
+            !site.entered_in_error_at &&
+            !site.client.entered_in_error_at,
     );
 
     return (
@@ -63,7 +69,11 @@ export default function Compliance({
             emptyDescription="Add compliance certificates to track expiry dates and stay compliant."
             records={records}
             filters={filters}
-            routes={{ index, store, update }}
+            routes={{ index, store, update, markError, restoreError }}
+            mistake={{
+                isEnteredInError: (certificate) =>
+                    certificate.entered_in_error_at !== null,
+            }}
             searchPlaceholder="Search by type or site..."
             dateLabel="Expiry date range"
             issueDates
@@ -168,7 +178,10 @@ export default function Compliance({
                     options: sites
                         .filter(
                             (site) =>
-                                (site.is_active && site.client.is_active) ||
+                                (site.is_active &&
+                                    site.client.is_active &&
+                                    !site.entered_in_error_at &&
+                                    !site.client.entered_in_error_at) ||
                                 site.id === editing?.site_id,
                         )
                         .map((site) => ({
