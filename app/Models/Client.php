@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Database\Factories\ClientFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -19,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $billing_address
  * @property string|null $notes
  * @property bool $is_active
+ * @property CarbonImmutable|null $entered_in_error_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Site> $sites
@@ -34,6 +36,7 @@ class Client extends Model
     {
         return [
             'is_active' => 'boolean',
+            'entered_in_error_at' => 'immutable_datetime',
         ];
     }
 
