@@ -15,6 +15,7 @@ export function ConfirmDialog({
     title,
     description,
     confirmLabel,
+    destructive = false,
     onConfirm,
     loading = false,
     restoreFocus,
@@ -24,6 +25,7 @@ export function ConfirmDialog({
     title: string;
     description: string;
     confirmLabel: string;
+    destructive?: boolean;
     onConfirm: () => void;
     loading?: boolean;
     restoreFocus?: () => void;
@@ -58,7 +60,11 @@ export function ConfirmDialog({
                     >
                         Cancel
                     </Button>
-                    <Button disabled={loading} onClick={onConfirm}>
+                    <Button
+                        variant={destructive ? 'destructive' : 'default'}
+                        disabled={loading}
+                        onClick={onConfirm}
+                    >
                         {loading && <Spinner data-icon="inline-start" />}
                         {confirmLabel}
                     </Button>
