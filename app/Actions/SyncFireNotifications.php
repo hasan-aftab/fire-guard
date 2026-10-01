@@ -17,6 +17,7 @@ class SyncFireNotifications
         $candidates = [];
 
         foreach (Asset::with(['assetType', 'site'])->where('status', 'active')
+            ->whereHas('site', fn ($site) => $site->where('is_active', true)->whereHas('client', fn ($client) => $client->where('is_active', true)))
             ->where('next_service_due', '<=', today()->addDays(14)->toDateString())->get() as $asset) {
             if ($asset->next_service_due === null) {
                 continue;
@@ -34,7 +35,7 @@ class SyncFireNotifications
             ];
         }
 
-        foreach (Certificate::with('site')->where('expiry_date', '<=', today()->addDays(30)->toDateString())->get() as $certificate) {
+        foreach (Certificate::with('site')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereHas('client', fn ($client) => $client->where('is_active', true)))->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')))->where('expiry_date', '<=', today()->addDays(30)->toDateString())->get() as $certificate) {
             $expired = $certificate->expiry_date->toDateString() < $today;
             $days = (int) abs(today()->diffInDays($certificate->expiry_date));
             $dayLabel = $days === 1 ? 'day' : 'days';
@@ -48,7 +49,7 @@ class SyncFireNotifications
             ];
         }
 
-        foreach (Inspection::with('asset.site')->whereIn('result', ['fail', 'needs_repair'])->get() as $inspection) {
+        foreach (Inspection::with('asset.site')->whereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereHas('client', fn ($client) => $client->where('is_active', true))))->whereIn('result', ['fail', 'needs_repair'])->get() as $inspection) {
             $label = $inspection->result === 'fail' ? 'Failed' : 'Needs Repair';
             $candidates[] = [
                 'type' => 'failed_inspection',
