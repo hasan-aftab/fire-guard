@@ -8,6 +8,8 @@ import {
 } from '@/actions/App/Http/Controllers/AssetController';
 import { RecordPage } from '@/components/record-page';
 import { StatusBadge } from '@/components/status-badge';
+import { Badge } from '@/components/ui/badge';
+import { ViewField } from '@/components/view-modal';
 import type {
     Asset,
     AssetType,
@@ -29,6 +31,12 @@ export default function Assets({
 }) {
     const { today } = usePage().props;
     const addDisabled = sites.length === 0 || assetTypes.length === 0;
+    const equipmentStatuses: Record<string, string> = {
+        active: 'Active',
+        decommissioned: 'Decommissioned',
+        missing: 'Missing',
+        needs_replacement: 'Needs replacement',
+    };
 
     return (
         <RecordPage
@@ -46,13 +54,57 @@ export default function Assets({
             records={records}
             filters={filters}
             routes={{ index, store, update, destroy }}
-            searchPlaceholder="Search by serial, location, or site..."
-            dateLabel="Select date range"
+            searchPlaceholder="Search serial, location, site, client, or type..."
+            dateLabel="Next service due"
             statusOptions={[
                 { value: 'overdue', label: 'Overdue' },
                 { value: 'due_soon', label: 'Due soon' },
                 { value: 'ok', label: 'OK' },
                 { value: 'unknown', label: 'No due date' },
+            ]}
+            extraFilters={[
+                {
+                    key: 'site_id',
+                    label: 'Site',
+                    options: [
+                        { value: 'all', label: 'All sites' },
+                        ...sites.map((site) => ({
+                            value: String(site.id),
+                            label: `${site.client?.company_name} > ${site.site_name}`,
+                        })),
+                    ],
+                },
+                {
+                    key: 'asset_type_id',
+                    label: 'Asset type',
+                    options: [
+                        { value: 'all', label: 'All types' },
+                        ...assetTypes.map((type) => ({
+                            value: String(type.id),
+                            label: type.type_name,
+                        })),
+                    ],
+                },
+                {
+                    key: 'equipment_status',
+                    label: 'Equipment status',
+                    options: [
+                        { value: 'all', label: 'All equipment' },
+                        ...Object.entries(equipmentStatuses).map(
+                            ([value, label]) => ({ value, label }),
+                        ),
+                    ],
+                },
+                {
+                    key: 'sort',
+                    label: 'Sort',
+                    options: [
+                        { value: 'oldest', label: 'Oldest added' },
+                        { value: 'newest', label: 'Newest added' },
+                        { value: 'due_soonest', label: 'Due soonest' },
+                        { value: 'due_latest', label: 'Due latest' },
+                    ],
+                },
             ]}
             columns={[
                 {
@@ -60,32 +112,58 @@ export default function Assets({
                     header: 'Serial',
                     className: 'font-mono text-sm',
                     render: (asset) => (
-                        <span>{asset.serial_number || '—'}</span>
+                        <>
+                            <span className="flex flex-col items-start gap-1 sm:hidden">
+                                <span title={asset.serial_number ?? undefined}>
+                                    {asset.serial_number &&
+                                    asset.serial_number.length > 17
+                                        ? `${asset.serial_number.slice(0, 6)}…${asset.serial_number.slice(-8)}`
+                                        : asset.serial_number || '—'}
+                                </span>
+                                <StatusBadge
+                                    date={asset.next_service_due}
+                                    showDate={false}
+                                    asOfDate={today}
+                                />
+                            </span>
+                            <span className="hidden sm:inline">
+                                {asset.serial_number || '—'}
+                            </span>
+                        </>
                     ),
+                },
+                {
+                    key: 'type',
+                    header: 'Type',
+                    className: 'hidden text-sm sm:table-cell',
+                    render: (asset) => asset.asset_type.type_name,
                 },
                 {
                     key: 'site',
                     header: 'Site',
-                    className: 'text-sm text-muted-foreground',
+                    className:
+                        'hidden text-sm text-muted-foreground sm:table-cell',
                     render: (asset) =>
                         `${asset.site.client?.company_name} > ${asset.site.site_name}`,
                 },
                 {
                     key: 'location',
                     header: 'Location',
-                    className: 'text-sm text-muted-foreground',
+                    className:
+                        'hidden text-sm text-muted-foreground sm:table-cell',
                     render: (asset) => asset.location_desc || '—',
                 },
                 {
                     key: 'due',
                     header: 'Next due',
-                    className: 'w-[120px] text-sm text-muted-foreground',
+                    className:
+                        'hidden w-[120px] text-sm text-muted-foreground sm:table-cell',
                     render: (asset) => asset.next_service_due || '—',
                 },
                 {
                     key: 'status',
-                    header: 'Status',
-                    className: 'w-[100px]',
+                    header: 'Service status',
+                    className: 'hidden w-[100px] sm:table-cell',
                     render: (asset) => (
                         <StatusBadge
                             date={asset.next_service_due}
@@ -94,7 +172,39 @@ export default function Assets({
                         />
                     ),
                 },
+                {
+                    key: 'equipment',
+                    header: 'Equipment',
+                    className: 'hidden sm:table-cell',
+                    render: (asset) => (
+                        <Badge variant="outline">
+                            {equipmentStatuses[asset.status] ?? asset.status}
+                        </Badge>
+                    ),
+                },
             ]}
+            viewContent={(asset) => (
+                <div className="grid grid-cols-1 gap-4 border-t pt-4 sm:grid-cols-2">
+                    <div className="sm:hidden">
+                        <ViewField
+                            label="Full serial number"
+                            value={asset.serial_number}
+                        />
+                    </div>
+                    <ViewField
+                        label="Type category"
+                        value={asset.asset_type.category}
+                    />
+                    <ViewField
+                        label="Install date"
+                        value={asset.install_date}
+                    />
+                    <ViewField
+                        label="Last service date"
+                        value={asset.last_service_date}
+                    />
+                </div>
+            )}
             defaults={{
                 site_id: String(sites[0]?.id ?? ''),
                 asset_type_id: String(assetTypes[0]?.id ?? ''),
@@ -132,16 +242,18 @@ export default function Assets({
                     maxLength: 255,
                 },
                 { name: 'location_desc', label: 'Location', maxLength: 5000 },
-                {
-                    name: 'next_service_due',
-                    label: 'Next service due',
-                    type: 'date',
-                },
                 { name: 'install_date', label: 'Install date', type: 'date' },
                 {
                     name: 'last_service_date',
                     label: 'Last service date',
                     type: 'date',
+                    afterOrEqual: 'install_date',
+                },
+                {
+                    name: 'next_service_due',
+                    label: 'Next service due',
+                    type: 'date',
+                    afterOrEqual: ['install_date', 'last_service_date'],
                 },
                 {
                     name: 'status',
