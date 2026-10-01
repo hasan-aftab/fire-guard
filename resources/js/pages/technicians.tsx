@@ -97,7 +97,7 @@ export default function Technicians({
                     type: 'tel',
                     maxLength: 255,
                     description:
-                        'Use 7 to 20 digits. Spaces, brackets and + are allowed.',
+                        'Use 7 to 20 digits. +, spaces, brackets, dashes, dots and extensions are allowed.',
                 },
                 {
                     name: 'email',
