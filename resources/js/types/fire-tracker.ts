@@ -46,7 +46,7 @@ export type AssetType = {
     id: number;
     type_name: string;
     category: string | null;
-    default_interval_months: number;
+    default_interval_months: number | null;
 };
 
 export type Asset = {
@@ -101,6 +101,8 @@ export type InspectionAssetOption = Pick<
     | 'status'
     | 'entered_in_error_at'
 > & {
+    asset_type: Pick<AssetType, 'type_name' | 'default_interval_months'>;
+    suggested_next_due_date: string | null;
     site: Pick<
         Site,
         'id' | 'site_name' | 'is_active' | 'entered_in_error_at'
