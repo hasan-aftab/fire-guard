@@ -39,7 +39,8 @@ export function TrackerFilters({
             | 'sort'
             | 'site_id'
             | 'asset_type_id'
-            | 'equipment_status';
+            | 'equipment_status'
+            | 'record_state';
         label: string;
         options: { value: string; label: string }[];
     }[];
@@ -208,7 +209,11 @@ export function TrackerFilters({
                 </span>
             )}
             {Object.values(filters).some(
-                (value) => value && value !== 'all' && value !== 'name',
+                (value) =>
+                    value &&
+                    value !== 'all' &&
+                    value !== 'name' &&
+                    value !== 'current',
             ) && (
                 <Button
                     variant="ghost"
