@@ -4,7 +4,6 @@ import {
     index,
     store,
     update,
-    destroy,
 } from '@/actions/App/Http/Controllers/CertificateController';
 import { RecordPage } from '@/components/record-page';
 import { StatusBadge } from '@/components/status-badge';
@@ -39,6 +38,9 @@ export default function Compliance({
     filters: TrackerFilters;
 }) {
     const { today } = usePage().props;
+    const activeSites = sites.filter(
+        (site) => site.is_active && site.client.is_active,
+    );
 
     return (
         <RecordPage
@@ -46,7 +48,7 @@ export default function Compliance({
             description="Track certificate expiry and compliance status"
             noun="certificate"
             icon={ShieldCheck}
-            addDisabled={sites.length === 0}
+            addDisabled={activeSites.length === 0}
             addHint={
                 <>
                     <Link
@@ -61,7 +63,7 @@ export default function Compliance({
             emptyDescription="Add compliance certificates to track expiry dates and stay compliant."
             records={records}
             filters={filters}
-            routes={{ index, store, update, destroy }}
+            routes={{ index, store, update }}
             searchPlaceholder="Search by type or site..."
             dateLabel="Expiry date range"
             issueDates
@@ -150,23 +152,29 @@ export default function Compliance({
                 );
             }}
             defaults={{
-                site_id: String(sites[0]?.id ?? ''),
+                site_id: String(activeSites[0]?.id ?? ''),
                 certificate_type: '',
                 issue_date: '',
                 expiry_date: '',
                 issued_by: '',
                 document_url: '',
             }}
-            fields={[
+            fields={(editing) => [
                 {
                     name: 'site_id',
                     label: 'Site',
                     type: 'select',
                     required: true,
-                    options: sites.map((site) => ({
-                        value: String(site.id),
-                        label: `${site.client.company_name} > ${site.site_name}`,
-                    })),
+                    options: sites
+                        .filter(
+                            (site) =>
+                                (site.is_active && site.client.is_active) ||
+                                site.id === editing?.site_id,
+                        )
+                        .map((site) => ({
+                            value: String(site.id),
+                            label: `${site.client.company_name} > ${site.site_name}${!site.is_active || !site.client.is_active ? ' (Inactive)' : ''}`,
+                        })),
                 },
                 {
                     name: 'certificate_type',
