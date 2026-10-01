@@ -85,10 +85,31 @@ export default function Technicians({
                 is_active: '1',
             }}
             fields={[
-                { name: 'full_name', label: 'Full name', required: true },
-                { name: 'phone', label: 'Phone', type: 'tel' },
-                { name: 'email', label: 'Email', type: 'email' },
-                { name: 'license_number', label: 'Licence number' },
+                {
+                    name: 'full_name',
+                    label: 'Full name',
+                    required: true,
+                    maxLength: 255,
+                },
+                {
+                    name: 'phone',
+                    label: 'Phone',
+                    type: 'tel',
+                    maxLength: 255,
+                    description:
+                        'Use 7 to 20 digits. Spaces, brackets and + are allowed.',
+                },
+                {
+                    name: 'email',
+                    label: 'Email',
+                    type: 'email',
+                    maxLength: 255,
+                },
+                {
+                    name: 'license_number',
+                    label: 'Licence number',
+                    maxLength: 255,
+                },
                 {
                     name: 'license_expiry',
                     label: 'Licence expiry',
