@@ -1,7 +1,5 @@
-import { Link, router, usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { ShieldCheck } from 'lucide-react';
-import { useEffect } from 'react';
-import { toast } from 'sonner';
 import {
     index,
     store,
@@ -41,18 +39,6 @@ export default function Compliance({
     filters: TrackerFilters;
 }) {
     const { today } = usePage().props;
-
-    useEffect(
-        () =>
-            router.on('networkError', () => {
-                toast.error(
-                    'Could not connect. Check your connection and try again.',
-                );
-
-                return false;
-            }),
-        [],
-    );
 
     return (
         <RecordPage
