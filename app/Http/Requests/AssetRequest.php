@@ -24,7 +24,7 @@ class AssetRequest extends FormRequest
                 if ($asset instanceof Asset && $asset->site_id === (int) $value) {
                     return;
                 }
-                if (! Site::whereKey($value)->where('is_active', true)->whereHas('client', fn ($client) => $client->where('is_active', true))->exists()) {
+                if (! Site::whereKey($value)->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at'))->exists()) {
                     $fail('Choose an active site belonging to an active client.');
                 }
             }],
