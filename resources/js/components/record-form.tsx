@@ -237,7 +237,7 @@ export function RecordForm({
                             } else {
                                 form.clearErrors(field.name);
                             }
-                        } else if (!serverErrorFields.current.has(field.name)) {
+                        } else {
                             form.clearErrors(field.name);
                         }
                     };
@@ -258,7 +258,7 @@ export function RecordForm({
                         );
                         if (error) {
                             form.setError(field.name, error);
-                        } else {
+                        } else if (!serverErrorFields.current.has(field.name)) {
                             form.clearErrors(field.name);
                         }
                     };
