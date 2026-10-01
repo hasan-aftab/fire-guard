@@ -4,7 +4,6 @@ import {
     index,
     store,
     update,
-    destroy,
 } from '@/actions/App/Http/Controllers/InspectionController';
 import { RecordPage } from '@/components/record-page';
 import { ResultBadge } from '@/components/status-badge';
@@ -36,11 +35,21 @@ export default function Inspections({
 }: {
     records: Paginated<Inspection>;
     assets: InspectionAssetOption[];
-    technicians: Pick<Technician, 'id' | 'full_name'>[];
+    technicians: Pick<Technician, 'id' | 'full_name' | 'is_active'>[];
     filters: TrackerFilters;
 }) {
     const { today } = usePage().props;
-    const addDisabled = assets.length === 0 || technicians.length === 0;
+    const activeAssets = assets.filter(
+        (asset) =>
+            asset.status === 'active' &&
+            asset.site.is_active &&
+            asset.site.client.is_active,
+    );
+    const activeTechnicians = technicians.filter(
+        (technician) => technician.is_active,
+    );
+    const addDisabled =
+        activeAssets.length === 0 || activeTechnicians.length === 0;
     return (
         <RecordPage
             title="Inspections"
@@ -49,14 +58,14 @@ export default function Inspections({
             icon={ClipboardCheck}
             addDisabled={addDisabled}
             addHint={
-                assets.length === 0
-                    ? 'Add an asset before logging an inspection.'
-                    : 'Add a technician before logging an inspection.'
+                activeAssets.length === 0
+                    ? 'Add active equipment at an active site before logging an inspection.'
+                    : 'Add an active technician before logging an inspection.'
             }
             emptyDescription="Log your first inspection to start tracking asset compliance."
             records={records}
             filters={filters}
-            routes={{ index, store, update, destroy }}
+            routes={{ index, store, update }}
             searchPlaceholder="Search by asset, technician, or notes..."
             dateLabel="Inspection date range"
             statusKey="result"
@@ -137,34 +146,48 @@ export default function Inspections({
                 ) : null;
             }}
             defaults={{
-                asset_id: String(assets[0]?.id ?? ''),
-                technician_id: String(technicians[0]?.id ?? ''),
+                asset_id: String(activeAssets[0]?.id ?? ''),
+                technician_id: String(activeTechnicians[0]?.id ?? ''),
                 inspection_date: today,
                 result: 'pass',
                 notes: '',
                 next_due_date: '',
                 photo_url: '',
             }}
-            fields={[
+            fields={(editing) => [
                 {
                     name: 'asset_id',
                     label: 'Asset',
                     type: 'select',
                     required: true,
-                    options: assets.map((asset) => ({
-                        value: String(asset.id),
-                        label: `${asset.serial_number || 'No S/N'} — ${asset.location_desc || asset.site.site_name}`,
-                    })),
+                    options: assets
+                        .filter(
+                            (asset) =>
+                                (asset.status === 'active' &&
+                                    asset.site.is_active &&
+                                    asset.site.client.is_active) ||
+                                asset.id === editing?.asset_id,
+                        )
+                        .map((asset) => ({
+                            value: String(asset.id),
+                            label: `${asset.serial_number || 'No S/N'} — ${asset.location_desc || asset.site.site_name}${asset.status !== 'active' || !asset.site.is_active || !asset.site.client.is_active ? ' (Inactive)' : ''}`,
+                        })),
                 },
                 {
                     name: 'technician_id',
                     label: 'Technician',
                     type: 'select',
                     required: true,
-                    options: technicians.map((technician) => ({
-                        value: String(technician.id),
-                        label: technician.full_name,
-                    })),
+                    options: technicians
+                        .filter(
+                            (technician) =>
+                                technician.is_active ||
+                                technician.id === editing?.technician_id,
+                        )
+                        .map((technician) => ({
+                            value: String(technician.id),
+                            label: `${technician.full_name}${technician.is_active ? '' : ' (Inactive)'}`,
+                        })),
                 },
                 {
                     name: 'inspection_date',
