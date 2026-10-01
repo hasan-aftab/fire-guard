@@ -230,11 +230,24 @@ export default function Inspections({
                 },
                 {
                     name: 'next_due_date',
-                    label: 'Next due date',
+                    label: 'Next inspection date',
                     type: 'date',
                     afterOrEqual: 'inspection_date',
-                    description:
-                        'Saved on this inspection. Update the asset schedule on the Assets page.',
+                    description: (values) => {
+                        const asset = assets.find(
+                            (option) => String(option.id) === values.asset_id,
+                        );
+                        const interval =
+                            asset?.asset_type.default_interval_months;
+                        if (!interval || interval < 1) {
+                            return 'This asset type has no inspection interval. Enter the next date manually.';
+                        }
+                        const expected =
+                            values.inspection_date === today
+                                ? asset?.suggested_next_due_date
+                                : null;
+                        return `${expected ? `Expected: ${expected}. ` : ''}The normal interval is ${interval} ${interval === 1 ? 'month' : 'months'} after the inspection date. Leave blank to calculate automatically, or enter a date to override it.`;
+                    },
                 },
                 {
                     name: 'photo_url',
