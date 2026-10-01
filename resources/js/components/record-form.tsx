@@ -1,5 +1,5 @@
 import { useForm } from '@inertiajs/react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -41,7 +41,7 @@ export type FormField = {
     description?: string;
     maxLength?: number;
     autoComplete?: string;
-    afterOrEqual?: string;
+    afterOrEqual?: string | string[];
 };
 
 function validateField(
@@ -79,16 +79,16 @@ function validateField(
     ) {
         return `Enter a valid ${field.label.toLowerCase()} with 7 to 20 digits.`;
     }
-    if (
-        value &&
-        field.afterOrEqual &&
-        values[field.afterOrEqual] &&
-        value < values[field.afterOrEqual]
-    ) {
-        const previousLabel = fields.find(
-            (other) => other.name === field.afterOrEqual,
-        )?.label;
-        return `${field.label} must be on or after ${previousLabel ?? 'the earlier date'}.`;
+    const previousFields = field.afterOrEqual
+        ? [field.afterOrEqual].flat()
+        : [];
+    for (const previousField of previousFields) {
+        if (value && values[previousField] && value < values[previousField]) {
+            const previousLabel = fields.find(
+                (other) => other.name === previousField,
+            )?.label;
+            return `${field.label} must be on or after ${previousLabel ?? 'the earlier date'}.`;
+        }
     }
     return undefined;
 }
@@ -129,15 +129,15 @@ export function RecordForm({
 }) {
     const form = useForm(initialValues);
     const formRef = useRef<HTMLFormElement>(null);
-    const serverErrorFields = useRef(new Set<string>());
-    const [checkedFields, setCheckedFields] = useState<string[]>([]);
-    const [submitted, setSubmitted] = useState(false);
+    const shouldFocusErrors = useRef(false);
     const visibleFields = new Set(fields.map((field) => field.name));
     const otherErrors = Object.entries(form.errors).filter(
         ([name]) => !visibleFields.has(name),
     );
-    const focusFirstError = () => {
-        requestAnimationFrame(() => {
+    useEffect(() => {
+        if (!shouldFocusErrors.current || !form.hasErrors) return;
+        shouldFocusErrors.current = false;
+        const frame = requestAnimationFrame(() => {
             (
                 formRef.current?.querySelector<HTMLElement>(
                     '[aria-invalid="true"]',
@@ -145,10 +145,10 @@ export function RecordForm({
                 formRef.current?.querySelector<HTMLElement>('[data-form-error]')
             )?.focus();
         });
-    };
+        return () => cancelAnimationFrame(frame);
+    }, [form.errors, form.hasErrors]);
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        setSubmitted(true);
         const errors: Record<string, string> = {};
         for (const field of fields) {
             const input = formRef.current?.querySelector<
@@ -160,15 +160,14 @@ export function RecordForm({
             }
         }
         if (Object.keys(errors).length > 0) {
+            shouldFocusErrors.current = true;
             form.setError(errors);
-            focusFirstError();
             return;
         }
         form.submit(action, {
             preserveScroll: true,
-            onError: (errors) => {
-                serverErrorFields.current = new Set(Object.keys(errors));
-                focusFirstError();
+            onError: () => {
+                shouldFocusErrors.current = true;
             },
             onSuccess: () => {
                 form.reset();
@@ -215,50 +214,19 @@ export function RecordForm({
                             .filter(Boolean)
                             .join(' ') || undefined;
                     const change = (value: string) => {
-                        serverErrorFields.current.delete(field.name);
                         form.setData(field.name, value);
-                        if (
-                            submitted ||
-                            checkedFields.includes(field.name) ||
-                            (field.maxLength &&
-                                Array.from(value).length > field.maxLength)
-                        ) {
-                            const input = formRef.current?.querySelector<
-                                HTMLInputElement | HTMLTextAreaElement
-                            >(`#${id}`);
-                            const error = validateField(
-                                field,
-                                { ...form.data, [field.name]: value },
-                                fields,
-                                input,
-                            );
-                            if (error) {
-                                form.setError(field.name, error);
-                            } else {
-                                form.clearErrors(field.name);
-                            }
-                        } else {
-                            form.clearErrors(field.name);
-                        }
-                    };
-                    const blur = () => {
-                        setCheckedFields((current) =>
-                            current.includes(field.name)
-                                ? current
-                                : [...current, field.name],
-                        );
                         const input = formRef.current?.querySelector<
                             HTMLInputElement | HTMLTextAreaElement
                         >(`#${id}`);
                         const error = validateField(
                             field,
-                            form.data,
+                            { ...form.data, [field.name]: value },
                             fields,
                             input,
                         );
                         if (error) {
                             form.setError(field.name, error);
-                        } else if (!serverErrorFields.current.has(field.name)) {
+                        } else {
                             form.clearErrors(field.name);
                         }
                     };
@@ -332,7 +300,6 @@ export function RecordForm({
                                     onChange={(event) =>
                                         change(event.target.value)
                                     }
-                                    onBlur={blur}
                                     placeholder={field.placeholder}
                                     aria-invalid={!!error}
                                     aria-describedby={describedBy}
@@ -349,7 +316,6 @@ export function RecordForm({
                                     onChange={(event) =>
                                         change(event.target.value)
                                     }
-                                    onBlur={blur}
                                     placeholder={field.placeholder}
                                     aria-required={field.required}
                                     required={field.required}
