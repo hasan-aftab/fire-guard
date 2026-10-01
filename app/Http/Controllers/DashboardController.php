@@ -18,7 +18,8 @@ class DashboardController extends Controller
     {
         $today = today();
         $asOfDate = $today->toDateString();
-        $alertEnd = $today->copy()->addDays(30)->toDateString();
+        $assetAlertEnd = $today->copy()->addDays(Asset::DUE_SOON_DAYS)->toDateString();
+        $certificateAlertEnd = $today->copy()->addDays(Certificate::EXPIRING_SOON_DAYS)->toDateString();
         $calendarEnd = $today->copy()->addDays(90)->toDateString();
         $assetDueEvents = static fn (string $from, string $to) => DB::table('assets')
             ->join('sites', 'sites.id', '=', 'assets.site_id')
@@ -50,11 +51,12 @@ class DashboardController extends Controller
             'serialNumber' => $asset->serial_number,
             'locationDesc' => $asset->location_desc,
             'nextServiceDue' => $asset->next_service_due?->toDateString(),
+            'serviceStatus' => $asset->service_status,
             'typeName' => $asset->assetType->type_name,
             'siteName' => $asset->site->site_name,
         ];
 
-        $attentionQuery = (clone $assetQuery)->where('next_service_due', '<=', $alertEnd);
+        $attentionQuery = (clone $assetQuery)->where('next_service_due', '<=', $assetAlertEnd);
         if ($request->filled('attention_from')) {
             $attentionQuery->where('next_service_due', '>=', $request->string('attention_from')->toString());
         }
@@ -65,7 +67,7 @@ class DashboardController extends Controller
         $certificatesQuery = Certificate::query()
             ->select(['id', 'site_id', 'certificate_type', 'expiry_date'])
             ->with('site:id,site_name')
-            ->where('expiry_date', '<=', $alertEnd)->whereNull('entered_in_error_at');
+            ->where('expiry_date', '<=', $certificateAlertEnd)->whereNull('entered_in_error_at');
         $certificatesQuery->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')
             ->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))
             ->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')));
@@ -77,7 +79,7 @@ class DashboardController extends Controller
         }
 
         return Inertia::render('dashboard', [
-            'summary' => function () use ($asOfDate, $alertEnd, $calendarEnd, $assetDueEvents): array {
+            'summary' => function () use ($asOfDate, $certificateAlertEnd, $calendarEnd, $assetDueEvents): array {
                 $results = Inspection::query()->whereNull('entered_in_error_at')
                     ->whereHas('asset', fn ($asset) => $asset->whereNull('entered_in_error_at')
                         ->whereHas('site', fn ($site) => $site->whereNull('entered_in_error_at')
@@ -97,7 +99,7 @@ class DashboardController extends Controller
                                 ->whereHas('client', fn ($client) => $client->whereNull('entered_in_error_at')))
                             ->count(),
                         'overdueInspections' => Asset::where('status', 'active')->whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->where('next_service_due', '<', $asOfDate)->count(),
-                        'expiringCerts' => Certificate::whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')))->where('expiry_date', '<=', $alertEnd)->count(),
+                        'expiringCerts' => Certificate::whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')))->where('expiry_date', '<=', $certificateAlertEnd)->count(),
                     ],
                     'complianceRate' => [
                         'pass' => (int) $results->get('pass', 0),
@@ -147,6 +149,7 @@ class DashboardController extends Controller
                     'certificateId' => $certificate->id,
                     'certificateType' => $certificate->certificate_type,
                     'expiryDate' => $certificate->expiry_date->toDateString(),
+                    'status' => $certificate->status,
                     'siteName' => $certificate->site->site_name,
                 ]);
             },
