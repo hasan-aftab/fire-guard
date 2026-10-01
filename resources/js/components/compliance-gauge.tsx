@@ -32,18 +32,21 @@ export function ComplianceGauge({
     const hasData = total > 0;
 
     return (
-        <Card className="h-full">
-            <CardHeader className="border-b">
-                <CardTitle className="flex items-center gap-2 text-base">
-                    <div className="flex size-7 items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-950/30">
-                        <ShieldCheck className="size-4 text-emerald-500 dark:text-emerald-400" />
-                    </div>
+        <Card className="gap-0 py-0">
+            <CardHeader className="border-b py-3">
+                <CardTitle className="flex items-center gap-2 text-base leading-7">
+                    <span className="flex size-7 items-center justify-center rounded-md bg-success/10">
+                        <ShieldCheck
+                            className="size-4 text-success"
+                            aria-hidden="true"
+                        />
+                    </span>
                     Inspection Compliance
                 </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-1 flex-col items-center pt-6 pb-4">
+            <CardContent className="flex flex-1 flex-col items-center justify-center py-4">
                 {hasData ? (
-                    <div className="flex w-full flex-1 flex-col">
+                    <div className="flex w-full flex-col">
                         <div className="relative mx-auto h-28 w-48">
                             <svg
                                 width={192}
@@ -79,7 +82,7 @@ export function ComplianceGauge({
                                 </span>
                             </div>
                         </div>
-                        <div className="mt-4 flex w-full flex-1 flex-col justify-between">
+                        <div className="mt-4 flex w-full flex-col gap-4">
                             <div className="flex flex-col gap-2">
                                 <div className="flex items-center justify-between text-xs">
                                     <div className="flex items-center gap-1.5">
