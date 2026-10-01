@@ -21,8 +21,13 @@ class AssetRequest extends FormRequest
             'serial_number' => ['nullable', 'string', 'max:255'],
             'location_desc' => ['nullable', 'string', 'max:5000'],
             'install_date' => ['nullable', 'date_format:Y-m-d'],
-            'last_service_date' => ['nullable', 'date_format:Y-m-d'],
-            'next_service_due' => ['nullable', 'date_format:Y-m-d'],
+            'last_service_date' => ['nullable', 'date_format:Y-m-d', Rule::when($this->filled('install_date'), 'after_or_equal:install_date')],
+            'next_service_due' => [
+                'nullable',
+                'date_format:Y-m-d',
+                Rule::when($this->filled('install_date'), 'after_or_equal:install_date'),
+                Rule::when($this->filled('last_service_date'), 'after_or_equal:last_service_date'),
+            ],
             'status' => ['sometimes', Rule::in(['active', 'decommissioned', 'missing', 'needs_replacement'])],
         ];
     }
