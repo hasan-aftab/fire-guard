@@ -7,6 +7,49 @@ use App\Models\Site;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
+test('asset status and operational filters follow the inclusive fourteen day inspection boundary', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
+    $site = Site::factory()->create();
+    $type = AssetType::factory()->create();
+    $dates = [
+        'overdue' => '2026-09-30',
+        'today' => '2026-10-01',
+        'tomorrow' => '2026-10-02',
+        'boundary' => '2026-10-15',
+        'current' => '2026-10-16',
+        'unknown' => null,
+    ];
+    $assets = [];
+    foreach ($dates as $key => $date) {
+        $assets[$key] = Asset::factory()->for($site)->for($type)->create(['next_service_due' => $date]);
+    }
+    $retiredDue = Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-10-15', 'status' => 'decommissioned']);
+    $retiredOverdue = Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-09-30', 'status' => 'decommissioned']);
+
+    $this->actingAs(User::factory()->create())->get(route('assets.index'))
+        ->assertInertia(fn (Assert $page) => $page->component('assets')
+            ->where('records.data.0.service_status', 'overdue')
+            ->where('records.data.1.service_status', 'due_soon')
+            ->where('records.data.2.service_status', 'due_soon')
+            ->where('records.data.3.service_status', 'due_soon')
+            ->where('records.data.4.service_status', 'ok')
+            ->where('records.data.5.service_status', 'unknown'));
+    $this->get(route('assets.index', ['status' => 'due_soon']))
+        ->assertInertia(fn (Assert $page) => $page->has('records.data', 3)
+            ->where('records.data.2.id', $assets['boundary']->id));
+    $this->get(route('assets.index', ['status' => 'overdue']))
+        ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
+            ->where('records.data.0.id', $assets['overdue']->id));
+    $this->get(route('assets.index', ['status' => 'ok']))
+        ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
+            ->where('records.data.0.id', $assets['current']->id));
+    $this->get(route('assets.index', ['status' => 'unknown']))
+        ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
+            ->where('records.data.0.id', $assets['unknown']->id));
+    expect($retiredDue->refresh()->next_service_due->toDateString())->toBe('2026-10-15');
+    expect($retiredOverdue->refresh()->next_service_due->toDateString())->toBe('2026-09-30');
+});
+
 test('asset search treats wildcard characters literally and combines with status and dates', function () {
     $this->travelTo(now()->setDate(2026, 9, 30)->startOfDay());
     $user = User::factory()->create();
