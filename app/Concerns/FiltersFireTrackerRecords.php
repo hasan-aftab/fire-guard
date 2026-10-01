@@ -14,6 +14,20 @@ trait FiltersFireTrackerRecords
      *
      * @param  Builder<TModel>  $query
      */
+    private function filterRecordState(Builder $query, Request $request): void
+    {
+        match ($request->string('record_state')->toString()) {
+            'all' => null,
+            'entered_in_error' => $query->whereNotNull('entered_in_error_at'),
+            default => $query->whereNull('entered_in_error_at'),
+        };
+    }
+
+    /**
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     */
     private function filterDates(Builder $query, TrackerFilterRequest $request, string $column, string $prefix = ''): void
     {
         if ($request->filled($prefix.'from')) {
