@@ -34,7 +34,7 @@ class CertificateController extends Controller
         if ($request->filled('site_id')) {
             $query->where('site_id', $request->integer('site_id'));
         }
-        $this->filterServiceStatus($query, $request, 'expiry_date');
+        $this->filterServiceStatus($query, $request, 'expiry_date', Certificate::EXPIRING_SOON_DAYS);
         $this->filterDates($query, $request, 'expiry_date');
         $this->filterDates($query, $request, 'issue_date', 'issue_');
 
