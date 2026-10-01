@@ -27,8 +27,16 @@ class SiteController extends Controller
 
     public function destroy(Site $site): RedirectResponse
     {
-        $site->delete();
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Site deleted.']);
+        $site->update(['is_active' => false]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Site deactivated.']);
+
+        return back();
+    }
+
+    public function restore(Site $site): RedirectResponse
+    {
+        $site->update(['is_active' => true]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Site reactivated.']);
 
         return back();
     }
