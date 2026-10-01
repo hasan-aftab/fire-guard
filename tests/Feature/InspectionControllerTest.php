@@ -8,6 +8,7 @@ use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('inspections page exposes the required setup choices and only the data it displays', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
     $user = User::factory()->create();
     $asset = Asset::factory()->create(['serial_number' => 'EX-101', 'location_desc' => 'Hall']);
     $technician = Technician::factory()->create(['full_name' => 'Mara Kila']);
@@ -16,6 +17,8 @@ test('inspections page exposes the required setup choices and only the data it d
     $this->actingAs($user)->get(route('inspections.index'))
         ->assertInertia(fn (Assert $page) => $page->component('inspections')
             ->has('assets', 1)->where('assets.0.id', $asset->id)
+            ->where('assets.0.asset_type.default_interval_months', 12)
+            ->where('assets.0.suggested_next_due_date', '2027-10-01')
             ->where('assets.0.site.client.is_active', true)
             ->has('technicians', 1)->where('technicians.0.full_name', 'Mara Kila')
             ->missing('technicians.0.email')
