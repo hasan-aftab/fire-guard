@@ -54,6 +54,28 @@ test('dashboard paginates alert tables and the calendar independently', function
             ->has('calendar.events.data', 10));
 });
 
+test('dashboard attention uses fourteen days for assets and thirty days for certificates', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
+    $site = Site::factory()->create();
+    $type = AssetType::factory()->create();
+    $assetBoundary = Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-10-15']);
+    Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-10-16']);
+    Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-09-30', 'status' => 'decommissioned']);
+    $certificateBoundary = Certificate::factory()->for($site)->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-10-31']);
+    Certificate::factory()->for($site)->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-11-01']);
+
+    $this->actingAs(User::factory()->create())->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->component('dashboard')
+            ->where('summary.stats.overdueInspections', 0)
+            ->where('summary.stats.expiringCerts', 1)
+            ->where('attention.total', 1)
+            ->where('attention.data.0.assetId', $assetBoundary->id)
+            ->where('attention.data.0.serviceStatus', 'due_soon')
+            ->where('certificates.total', 1)
+            ->where('certificates.data.0.certificateId', $certificateBoundary->id)
+            ->where('certificates.data.0.status', 'expiring_soon'));
+});
+
 test('dashboard calendar uses only current asset due dates and pages through each month', function () {
     $this->travelTo(now()->setDate(2026, 9, 29)->startOfDay());
     $user = User::factory()->create();
