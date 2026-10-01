@@ -22,7 +22,7 @@ class ClientController extends Controller
         $query = Client::query()
             ->withCount('sites')
             ->with(['sites' => fn ($siteQuery) => $siteQuery
-                ->select('id', 'client_id', 'site_name', 'address')
+                ->select('id', 'client_id', 'site_name', 'address', 'is_active')
                 ->orderBy('site_name')
                 ->orderBy('id')
                 ->limit(5)]);
@@ -66,7 +66,7 @@ class ClientController extends Controller
             return to_route('clients.index', $filters + $siteParameters + ($records->lastPage() > 1 ? ['page' => $records->lastPage()] : []));
         }
 
-        $selectedClient = $selectedClientId ? Client::query()->select('id', 'company_name')->find($selectedClientId) : null;
+        $selectedClient = $selectedClientId ? Client::query()->select('id', 'company_name', 'is_active')->find($selectedClientId) : null;
         $selectedSites = $selectedClient?->sites()
             ->orderBy('site_name')
             ->orderBy('id')
@@ -102,8 +102,16 @@ class ClientController extends Controller
 
     public function destroy(Client $client): RedirectResponse
     {
-        $client->delete();
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Client deleted.']);
+        $client->update(['is_active' => false]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Client deactivated.']);
+
+        return back();
+    }
+
+    public function restore(Client $client): RedirectResponse
+    {
+        $client->update(['is_active' => true]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Client reactivated.']);
 
         return back();
     }
