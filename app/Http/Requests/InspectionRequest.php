@@ -25,7 +25,7 @@ class InspectionRequest extends FormRequest
                 if ($inspection instanceof Inspection && $inspection->asset_id === (int) $value) {
                     return;
                 }
-                if (! Asset::whereKey($value)->where('status', 'active')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereHas('client', fn ($client) => $client->where('is_active', true)))->exists()) {
+                if (! Asset::whereKey($value)->where('status', 'active')->whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->exists()) {
                     $fail('Choose active equipment at an active site.');
                 }
             }],
@@ -34,7 +34,7 @@ class InspectionRequest extends FormRequest
                 if ($inspection instanceof Inspection && $inspection->technician_id === (int) $value) {
                     return;
                 }
-                if (! Technician::whereKey($value)->where('is_active', true)->exists()) {
+                if (! Technician::whereKey($value)->where('is_active', true)->whereNull('entered_in_error_at')->exists()) {
                     $fail('Choose an active technician.');
                 }
             }],
