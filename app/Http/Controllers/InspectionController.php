@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\FiltersFireTrackerRecords;
+use App\Concerns\MarksEnteredInError;
 use App\Http\Requests\InspectionRequest;
 use App\Http\Requests\TrackerFilterRequest;
 use App\Models\Asset;
@@ -15,10 +16,12 @@ use Inertia\Response;
 class InspectionController extends Controller
 {
     use FiltersFireTrackerRecords;
+    use MarksEnteredInError;
 
     public function index(TrackerFilterRequest $request): Response|RedirectResponse
     {
         $query = Inspection::query()->with(['asset:id,serial_number,location_desc', 'technician:id,full_name']);
+        $this->filterRecordState($query, $request);
         if ($request->filled('search')) {
             $pattern = $this->searchPattern($request);
             $query->where(function ($query) use ($pattern): void {
@@ -46,9 +49,9 @@ class InspectionController extends Controller
 
         return Inertia::render('inspections', [
             'records' => $records,
-            'assets' => Asset::query()->select(['id', 'site_id', 'serial_number', 'location_desc', 'status'])
-                ->with('site:id,client_id,site_name,is_active', 'site.client:id,is_active')->orderBy('serial_number')->get(),
-            'technicians' => Technician::query()->select(['id', 'full_name', 'is_active'])->orderBy('full_name')->get(),
+            'assets' => Asset::query()->select(['id', 'site_id', 'serial_number', 'location_desc', 'status', 'entered_in_error_at'])
+                ->with('site:id,client_id,site_name,is_active,entered_in_error_at', 'site.client:id,is_active,entered_in_error_at')->orderBy('serial_number')->get(),
+            'technicians' => Technician::query()->select(['id', 'full_name', 'is_active', 'entered_in_error_at'])->orderBy('full_name')->get(),
             'filters' => $filters,
         ]);
     }
@@ -67,5 +70,15 @@ class InspectionController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Inspection updated.']);
 
         return back();
+    }
+
+    public function markError(Inspection $inspection): RedirectResponse
+    {
+        return $this->setEnteredInError($inspection, true, 'Inspection');
+    }
+
+    public function restoreError(Inspection $inspection): RedirectResponse
+    {
+        return $this->setEnteredInError($inspection, false, 'Inspection');
     }
 }
