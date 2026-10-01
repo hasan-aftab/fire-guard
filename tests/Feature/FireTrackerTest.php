@@ -194,7 +194,7 @@ test('certificate date filters accept end dates without start dates', function (
         ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)->where('records.data.0.id', $target->id));
 });
 
-test('dashboard uses active assets thirty day alerts ninety day calendar and real inspection results', function () {
+test('dashboard uses fourteen day asset alerts thirty day certificate alerts and current inspection dates', function () {
     $this->travelTo(now()->setDate(2026, 9, 29)->startOfDay());
     $user = User::factory()->create();
     $client = Client::factory()->create();
@@ -217,7 +217,7 @@ test('dashboard uses active assets thirty day alerts ninety day calendar and rea
         ->where('today', '2026-09-29')->where('summary.asOfDate', '2026-09-29')
         ->where('summary.stats.activeClients', 1)->where('summary.stats.totalAssets', 5)
         ->where('summary.stats.overdueInspections', 1)->where('summary.stats.expiringCerts', 2)
-        ->where('attention.total', 2)->where('certificates.total', 2)
+        ->where('attention.total', 1)->where('certificates.total', 2)
         ->has('summary.upcomingDates', 2)
         ->where('summary.upcomingDates.0', '2026-10-29')
         ->where('summary.upcomingDates.1', '2026-12-28')
