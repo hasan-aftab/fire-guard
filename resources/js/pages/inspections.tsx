@@ -4,6 +4,8 @@ import {
     index,
     store,
     update,
+    markError,
+    restoreError,
 } from '@/actions/App/Http/Controllers/InspectionController';
 import { RecordPage } from '@/components/record-page';
 import { ResultBadge } from '@/components/status-badge';
@@ -35,18 +37,24 @@ export default function Inspections({
 }: {
     records: Paginated<Inspection>;
     assets: InspectionAssetOption[];
-    technicians: Pick<Technician, 'id' | 'full_name' | 'is_active'>[];
+    technicians: Pick<
+        Technician,
+        'id' | 'full_name' | 'is_active' | 'entered_in_error_at'
+    >[];
     filters: TrackerFilters;
 }) {
     const { today } = usePage().props;
     const activeAssets = assets.filter(
         (asset) =>
             asset.status === 'active' &&
+            !asset.entered_in_error_at &&
             asset.site.is_active &&
-            asset.site.client.is_active,
+            !asset.site.entered_in_error_at &&
+            asset.site.client.is_active &&
+            !asset.site.client.entered_in_error_at,
     );
     const activeTechnicians = technicians.filter(
-        (technician) => technician.is_active,
+        (technician) => technician.is_active && !technician.entered_in_error_at,
     );
     const addDisabled =
         activeAssets.length === 0 || activeTechnicians.length === 0;
@@ -65,7 +73,11 @@ export default function Inspections({
             emptyDescription="Log your first inspection to start tracking asset compliance."
             records={records}
             filters={filters}
-            routes={{ index, store, update }}
+            routes={{ index, store, update, markError, restoreError }}
+            mistake={{
+                isEnteredInError: (inspection) =>
+                    inspection.entered_in_error_at !== null,
+            }}
             searchPlaceholder="Search by asset, technician, or notes..."
             dateLabel="Inspection date range"
             statusKey="result"
@@ -164,8 +176,11 @@ export default function Inspections({
                         .filter(
                             (asset) =>
                                 (asset.status === 'active' &&
+                                    !asset.entered_in_error_at &&
                                     asset.site.is_active &&
-                                    asset.site.client.is_active) ||
+                                    !asset.site.entered_in_error_at &&
+                                    asset.site.client.is_active &&
+                                    !asset.site.client.entered_in_error_at) ||
                                 asset.id === editing?.asset_id,
                         )
                         .map((asset) => ({
@@ -181,7 +196,8 @@ export default function Inspections({
                     options: technicians
                         .filter(
                             (technician) =>
-                                technician.is_active ||
+                                (technician.is_active &&
+                                    !technician.entered_in_error_at) ||
                                 technician.id === editing?.technician_id,
                         )
                         .map((technician) => ({
