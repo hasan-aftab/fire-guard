@@ -186,6 +186,7 @@ export default function Compliance({
                     name: 'certificate_type',
                     label: 'Certificate type',
                     required: true,
+                    maxLength: 255,
                     placeholder: 'e.g. Annual Fire Safety Statement',
                 },
                 {
@@ -199,12 +200,14 @@ export default function Compliance({
                     label: 'Expiry date',
                     type: 'date',
                     required: true,
+                    afterOrEqual: 'issue_date',
                 },
-                { name: 'issued_by', label: 'Issued by' },
+                { name: 'issued_by', label: 'Issued by', maxLength: 255 },
                 {
                     name: 'document_url',
                     label: 'Document URL',
                     type: 'url',
+                    maxLength: 2000,
                     placeholder: 'https://example.com/certificate.pdf',
                 },
             ]}
