@@ -137,6 +137,9 @@ export type TrackerFilters = Partial<
         | 'issue_to'
         | 'active'
         | 'site_presence'
+        | 'site_id'
+        | 'asset_type_id'
+        | 'equipment_status'
         | 'sort',
         string
     >
