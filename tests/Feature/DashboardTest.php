@@ -54,7 +54,7 @@ test('dashboard paginates alert tables and the calendar independently', function
             ->has('calendar.events.data', 10));
 });
 
-test('dashboard calendar marks asset and inspection due dates and pages through each month', function () {
+test('dashboard calendar uses only current asset due dates and pages through each month', function () {
     $this->travelTo(now()->setDate(2026, 9, 29)->startOfDay());
     $user = User::factory()->create();
     $site = Site::factory()->create();
@@ -67,15 +67,14 @@ test('dashboard calendar marks asset and inspection due dates and pages through 
     $this->actingAs($user)->get(route('dashboard', ['calendar_month' => '2026-10', 'calendar_page' => 2]))
         ->assertInertia(fn (Assert $page) => $page->component('dashboard')
             ->where('calendar.month', '2026-10')
-            ->where('calendar.events.total', 12)
+            ->where('calendar.events.total', 11)
             ->where('calendar.events.current_page', 2)
-            ->has('calendar.events.data', 2)
-            ->where('calendar.events.data.1.source', 'inspection')
-            ->where('calendar.events.data.1.dueDate', '2026-10-03')
+            ->has('calendar.events.data', 1)
+            ->where('calendar.events.data.0.source', 'asset')
+            ->where('calendar.events.data.0.dueDate', '2026-10-02')
             ->where('summary.upcomingDates.0', '2026-10-01')
             ->where('summary.upcomingDates.1', '2026-10-02')
-            ->where('summary.upcomingDates.2', '2026-10-03')
-            ->has('summary.upcomingDates', 3));
+            ->has('summary.upcomingDates', 2));
 });
 
 test('a newly logged inspection due date appears on the dashboard calendar', function () {
@@ -96,7 +95,7 @@ test('a newly logged inspection due date appears on the dashboard calendar', fun
         ->assertInertia(fn (Assert $page) => $page->component('dashboard')
             ->where('summary.upcomingDates.0', '2026-10-15')
             ->where('calendar.events.total', 1)
-            ->where('calendar.events.data.0.source', 'inspection')
+            ->where('calendar.events.data.0.source', 'asset')
             ->where('calendar.events.data.0.dueDate', '2026-10-15'));
 });
 
