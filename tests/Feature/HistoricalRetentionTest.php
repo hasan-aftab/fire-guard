@@ -39,7 +39,7 @@ test('archived relationships remain accessible but do not create active work', f
         ->where('summary.stats.expiringCerts', 1)
         ->where('attention.total', 1)
         ->where('certificates.total', 1)
-        ->where('calendar.events.total', 1));
+        ->where('calendar.events.total', 0));
 
     $this->post(route('notifications.generate'))->assertRedirect();
     $this->assertDatabaseCount('fire_notifications', 3);
