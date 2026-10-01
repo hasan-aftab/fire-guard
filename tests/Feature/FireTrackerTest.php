@@ -26,7 +26,7 @@ test('guests cannot create tracker records', function (string $resource) {
     $this->post(route($resource.'.store'), [])->assertRedirect(route('login'));
 })->with(['clients', 'sites', 'assets', 'inspections', 'certificates', 'technicians']);
 
-test('staff can create update and delete tracker records', function (string $model, string $resource, string $field, string $replacement, string $page) {
+test('staff can create and update tracker records', function (string $model, string $resource, string $field, string $replacement, string $page) {
     $user = User::factory()->create();
     $payload = $model::factory()->make()->getAttributes();
 
@@ -39,8 +39,7 @@ test('staff can create update and delete tracker records', function (string $mod
     $this->put(route($resource.'.update', $record), $payload)->assertSessionHasNoErrors()->assertRedirect(route($page));
     expect($record->refresh()->getAttribute($field))->toBe($replacement);
 
-    $this->delete(route($resource.'.destroy', $record))->assertRedirect(route($page));
-    $this->assertModelMissing($record);
+    $this->assertModelExists($record);
 })->with([
     'client' => [Client::class, 'clients', 'company_name', 'Updated PNG Company', 'clients.index'],
     'site' => [Site::class, 'sites', 'site_name', 'Updated Warehouse', 'clients.index'],
@@ -96,7 +95,7 @@ test('certificate expiry cannot precede its issue date or refer to another sites
     $this->assertDatabaseCount('certificates', 0);
 });
 
-test('deleting a client removes its sites assets inspections and certificates', function () {
+test('deactivating a client retains its sites assets inspections and certificates', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();
     $site = Site::factory()->for($client)->create();
@@ -106,28 +105,38 @@ test('deleting a client removes its sites assets inspections and certificates', 
 
     $this->actingAs($user)->delete(route('clients.destroy', $client))->assertRedirect();
     foreach ([$client, $site, $asset, $inspection, $certificate] as $record) {
-        $this->assertModelMissing($record);
+        $this->assertModelExists($record);
     }
+    expect($client->refresh()->is_active)->toBeFalse();
+    $this->patch(route('clients.restore', $client))->assertRedirect();
+    expect($client->refresh()->is_active)->toBeTrue();
 });
 
-test('deleting an asset keeps its sites certificate while deleting inspections', function () {
+test('decommissioning an asset retains its inspections and certificate attribution', function () {
     $user = User::factory()->create();
     $asset = Asset::factory()->create();
     $inspection = Inspection::factory()->for($asset)->create();
     $certificate = Certificate::factory()->create(['site_id' => $asset->site_id, 'asset_id' => $asset->id]);
 
     $this->actingAs($user)->delete(route('assets.destroy', $asset))->assertRedirect();
-    $this->assertModelMissing($inspection);
-    expect($certificate->refresh()->asset_id)->toBeNull();
+    $this->assertModelExists($asset);
+    $this->assertModelExists($inspection);
+    expect($asset->refresh()->status)->toBe('decommissioned');
+    expect($certificate->refresh()->asset_id)->toBe($asset->id);
+    $this->patch(route('assets.restore', $asset))->assertRedirect();
+    expect($asset->refresh()->status)->toBe('active');
 });
 
-test('deleting a technician preserves inspection history', function () {
+test('deactivating a technician preserves inspection attribution', function () {
     $user = User::factory()->create();
     $technician = Technician::factory()->create();
     $inspection = Inspection::factory()->for($technician)->create();
 
     $this->actingAs($user)->delete(route('technicians.destroy', $technician))->assertRedirect();
-    expect($inspection->refresh()->technician_id)->toBeNull();
+    expect($technician->refresh()->is_active)->toBeFalse();
+    expect($inspection->refresh()->technician_id)->toBe($technician->id);
+    $this->patch(route('technicians.restore', $technician))->assertRedirect();
+    expect($technician->refresh()->is_active)->toBeTrue();
 });
 
 test('asset filters respect the fourteen day boundary and missing dates', function () {
