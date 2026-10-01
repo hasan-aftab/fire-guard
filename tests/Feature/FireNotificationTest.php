@@ -172,7 +172,7 @@ test('rescheduling an asset and passing an inspection removes their stale alerts
     $this->assertDatabaseCount('fire_notifications', 0);
 });
 
-test('deleted assets remove alerts for the asset and its inspections', function () {
+test('decommissioned assets remove alerts for the asset and its inspections', function () {
     $user = User::factory()->create();
     $asset = Asset::factory()->create(['next_service_due' => now()->subDay()->toDateString()]);
     Inspection::factory()->for($asset)->create(['result' => 'fail']);
