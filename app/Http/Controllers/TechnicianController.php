@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\FiltersFireTrackerRecords;
+use App\Concerns\MarksEnteredInError;
 use App\Http\Requests\TechnicianFilterRequest;
 use App\Http\Requests\TechnicianRequest;
 use App\Models\Technician;
@@ -13,11 +14,13 @@ use Inertia\Response;
 class TechnicianController extends Controller
 {
     use FiltersFireTrackerRecords;
+    use MarksEnteredInError;
 
     public function index(TechnicianFilterRequest $request): Response|RedirectResponse
     {
         $filters = $request->safe()->except(['page']);
-        $query = Technician::query();
+        $query = Technician::query()->withCount('inspections');
+        $this->filterRecordState($query, $request);
         if ($request->filled('search')) {
             $pattern = $this->searchPattern($request);
             $query->where(function ($query) use ($pattern): void {
@@ -73,5 +76,20 @@ class TechnicianController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Technician reactivated.']);
 
         return back();
+    }
+
+    public function markError(Technician $technician): RedirectResponse
+    {
+        return $this->setEnteredInError($technician, true, 'Technician');
+    }
+
+    public function restoreError(Technician $technician): RedirectResponse
+    {
+        return $this->setEnteredInError($technician, false, 'Technician');
+    }
+
+    public function purge(Technician $technician): RedirectResponse
+    {
+        return $this->deleteUnlinked($technician, $technician->inspections()->exists(), 'Technician');
     }
 }
