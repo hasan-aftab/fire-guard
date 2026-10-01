@@ -46,9 +46,9 @@ class InspectionController extends Controller
 
         return Inertia::render('inspections', [
             'records' => $records,
-            'assets' => Asset::query()->select(['id', 'site_id', 'serial_number', 'location_desc'])
-                ->with('site:id,site_name')->orderBy('serial_number')->get(),
-            'technicians' => Technician::query()->select(['id', 'full_name'])->orderBy('full_name')->get(),
+            'assets' => Asset::query()->select(['id', 'site_id', 'serial_number', 'location_desc', 'status'])
+                ->with('site:id,client_id,site_name,is_active', 'site.client:id,is_active')->orderBy('serial_number')->get(),
+            'technicians' => Technician::query()->select(['id', 'full_name', 'is_active'])->orderBy('full_name')->get(),
             'filters' => $filters,
         ]);
     }
@@ -65,14 +65,6 @@ class InspectionController extends Controller
     {
         $inspection->update($request->validated());
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Inspection updated.']);
-
-        return back();
-    }
-
-    public function destroy(Inspection $inspection): RedirectResponse
-    {
-        $inspection->delete();
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Inspection deleted.']);
 
         return back();
     }
