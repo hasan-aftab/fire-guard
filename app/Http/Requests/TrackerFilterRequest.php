@@ -17,6 +17,7 @@ class TrackerFilterRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:100'],
+            'record_state' => ['nullable', Rule::in(['current', 'entered_in_error', 'all'])],
             'page' => ['nullable', 'integer', 'min:1'],
             'status' => ['nullable', Rule::in(['all', 'overdue', 'due_soon', 'ok', 'unknown'])],
             'result' => ['nullable', Rule::in(['all', 'pass', 'fail', 'needs_repair'])],
