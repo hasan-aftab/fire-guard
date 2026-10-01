@@ -64,7 +64,7 @@ test('technician filters and fields reject invalid values without changing recor
     expect($technician->refresh()->full_name)->not->toBe('Updated Name');
 });
 
-test('technician edits retain licence data and deletion keeps inspection history', function () {
+test('technician edits retain licence data and deactivation keeps inspection attribution', function () {
     $user = User::factory()->create();
     $technician = Technician::factory()->create();
     $inspection = Inspection::factory()->for($technician)->create();
@@ -87,7 +87,7 @@ test('technician edits retain licence data and deletion keeps inspection history
     ]);
 
     $this->delete(route('technicians.destroy', $technician))->assertRedirect();
-    $this->assertModelMissing($technician);
-    expect($inspection->refresh()->technician_id)->toBeNull();
+    $this->assertModelExists($technician);
+    expect($inspection->refresh()->technician_id)->toBe($technician->id);
     $this->assertModelExists($inspection);
 });
