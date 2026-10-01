@@ -53,6 +53,18 @@ export default function Clients({
     const siteEditTrigger = useRef<HTMLButtonElement>(null);
     const siteViewTrigger = useRef<HTMLButtonElement>(null);
     const siteDeleteTrigger = useRef<HTMLButtonElement>(null);
+    const restoreSiteFormFocus = (trigger: HTMLButtonElement | null) => {
+        requestAnimationFrame(() => {
+            const active = document.activeElement;
+            if (
+                active === document.body ||
+                active === siteSheet.current ||
+                !active?.isConnected
+            ) {
+                trigger?.focus();
+            }
+        });
+    };
     const [editingSite, setEditingSite] = useState<Site | null>(null);
     const [addingSite, setAddingSite] = useState(false);
     const [viewingSite, setViewingSite] = useState<Site | null>(null);
@@ -265,7 +277,7 @@ export default function Clients({
                         type: 'tel',
                         placeholder: 'Phone number',
                         description:
-                            'Use 7 to 20 digits. Spaces, brackets and + are allowed.',
+                            'Use 7 to 20 digits. +, spaces, brackets, dashes, dots and extensions are allowed.',
                         maxLength: 255,
                         autoComplete: 'tel',
                     },
@@ -370,7 +382,7 @@ export default function Clients({
             <Sheet
                 open={!!selectedClient}
                 onOpenChange={(open) => {
-                    if (!open) closeSites();
+                    if (!open && !viewingSite && !deletingSite) closeSites();
                 }}
             >
                 <SheetContent
@@ -451,9 +463,7 @@ export default function Clients({
                                                     : addSiteTrigger.current;
                                                 setEditingSite(null);
                                                 setAddingSite(false);
-                                                requestAnimationFrame(() =>
-                                                    trigger?.focus(),
-                                                );
+                                                restoreSiteFormFocus(trigger);
                                             }}
                                             onCancel={() => {
                                                 const trigger = editingSite
@@ -461,9 +471,7 @@ export default function Clients({
                                                     : addSiteTrigger.current;
                                                 setEditingSite(null);
                                                 setAddingSite(false);
-                                                requestAnimationFrame(() =>
-                                                    trigger?.focus(),
-                                                );
+                                                restoreSiteFormFocus(trigger);
                                             }}
                                             fields={[
                                                 {
@@ -511,7 +519,7 @@ export default function Clients({
                                                     label: 'Site phone',
                                                     type: 'tel',
                                                     description:
-                                                        'Use 7 to 20 digits. Spaces, brackets and + are allowed.',
+                                                        'Use 7 to 20 digits. +, spaces, brackets, dashes, dots and extensions are allowed.',
                                                     maxLength: 255,
                                                     autoComplete: 'tel',
                                                 },
@@ -549,6 +557,11 @@ export default function Clients({
                                                 variant="ghost"
                                                 size="icon"
                                                 aria-label={`View ${site.site_name}`}
+                                                disabled={
+                                                    addingSite ||
+                                                    editingSite !== null ||
+                                                    siteLoading
+                                                }
                                                 onClick={(event) => {
                                                     siteViewTrigger.current =
                                                         event.currentTarget;
@@ -561,6 +574,11 @@ export default function Clients({
                                                 variant="ghost"
                                                 size="icon"
                                                 aria-label={`Edit ${site.site_name}`}
+                                                disabled={
+                                                    addingSite ||
+                                                    editingSite !== null ||
+                                                    siteLoading
+                                                }
                                                 onClick={(event) => {
                                                     siteEditTrigger.current =
                                                         event.currentTarget;
@@ -574,6 +592,11 @@ export default function Clients({
                                                 variant="ghost"
                                                 size="icon"
                                                 aria-label={`Delete ${site.site_name}`}
+                                                disabled={
+                                                    addingSite ||
+                                                    editingSite !== null ||
+                                                    siteLoading
+                                                }
                                                 onClick={(event) => {
                                                     siteDeleteTrigger.current =
                                                         event.currentTarget;
