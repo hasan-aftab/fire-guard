@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\FiltersFireTrackerRecords;
+use App\Concerns\MarksEnteredInError;
 use App\Http\Requests\CertificateRequest;
 use App\Http\Requests\TrackerFilterRequest;
 use App\Models\Certificate;
@@ -14,10 +15,12 @@ use Inertia\Response;
 class CertificateController extends Controller
 {
     use FiltersFireTrackerRecords;
+    use MarksEnteredInError;
 
     public function index(TrackerFilterRequest $request): Response|RedirectResponse
     {
         $query = Certificate::query()->with(['site:id,client_id,site_name', 'site.client:id,company_name']);
+        $this->filterRecordState($query, $request);
         if ($request->filled('search')) {
             $pattern = $this->searchPattern($request);
             $query->where(function ($query) use ($pattern): void {
@@ -45,8 +48,8 @@ class CertificateController extends Controller
 
         return Inertia::render('compliance', [
             'records' => $records,
-            'sites' => Site::query()->select(['id', 'client_id', 'site_name', 'is_active'])
-                ->with('client:id,company_name,is_active')->orderBy('site_name')->get(),
+            'sites' => Site::query()->select(['id', 'client_id', 'site_name', 'is_active', 'entered_in_error_at'])
+                ->with('client:id,company_name,is_active,entered_in_error_at')->orderBy('site_name')->get(),
             'filters' => $filters,
         ]);
     }
@@ -65,5 +68,15 @@ class CertificateController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Certificate updated.']);
 
         return back();
+    }
+
+    public function markError(Certificate $certificate): RedirectResponse
+    {
+        return $this->setEnteredInError($certificate, true, 'Certificate');
+    }
+
+    public function restoreError(Certificate $certificate): RedirectResponse
+    {
+        return $this->setEnteredInError($certificate, false, 'Certificate');
     }
 }
