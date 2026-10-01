@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $notes
  * @property CarbonImmutable|null $next_due_date
  * @property string|null $photo_url
+ * @property CarbonImmutable|null $entered_in_error_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Asset $asset
@@ -36,6 +37,7 @@ class Inspection extends Model
         return [
             'inspection_date' => 'immutable_date:Y-m-d',
             'next_due_date' => 'immutable_date:Y-m-d',
+            'entered_in_error_at' => 'immutable_datetime',
         ];
     }
 
