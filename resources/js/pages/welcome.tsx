@@ -8,7 +8,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { dashboard, login, register } from '@/routes';
+import { dashboard, login } from '@/routes';
 
 const features = [
     {
@@ -57,14 +57,9 @@ export default function Welcome() {
                                 <Link href={dashboard()}>Dashboard</Link>
                             </Button>
                         ) : (
-                            <>
-                                <Button variant="ghost" asChild>
-                                    <Link href={login()}>Log in</Link>
-                                </Button>
-                                <Button asChild>
-                                    <Link href={register()}>Get started</Link>
-                                </Button>
-                            </>
+                            <Button variant="ghost" asChild>
+                                <Link href={login()}>Log in</Link>
+                            </Button>
                         )}
                     </nav>
                 </header>
