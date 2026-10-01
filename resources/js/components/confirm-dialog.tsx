@@ -16,6 +16,7 @@ export function ConfirmDialog({
     description,
     onConfirm,
     loading = false,
+    restoreFocus,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -23,6 +24,7 @@ export function ConfirmDialog({
     description: string;
     onConfirm: () => void;
     loading?: boolean;
+    restoreFocus?: () => void;
 }) {
     return (
         <Dialog
@@ -31,7 +33,17 @@ export function ConfirmDialog({
                 if (!loading) onOpenChange(value);
             }}
         >
-            <DialogContent role="alertdialog">
+            <DialogContent
+                role="alertdialog"
+                onCloseAutoFocus={
+                    restoreFocus
+                        ? (event) => {
+                              event.preventDefault();
+                              restoreFocus();
+                          }
+                        : undefined
+                }
+            >
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>{description}</DialogDescription>
