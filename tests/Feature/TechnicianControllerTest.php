@@ -55,10 +55,11 @@ test('technician filters and fields reject invalid values without changing recor
 
     $this->put(route('technicians.update', $technician), [
         'full_name' => 'Updated Name',
+        'phone' => 'office desk',
         'email' => 'not-an-email',
         'license_expiry' => '2026-02-30',
         'is_active' => 'maybe',
-    ])->assertSessionHasErrors(['email', 'license_expiry', 'is_active']);
+    ])->assertSessionHasErrors(['phone', 'email', 'license_expiry', 'is_active']);
 
     expect($technician->refresh()->full_name)->not->toBe('Updated Name');
 });
