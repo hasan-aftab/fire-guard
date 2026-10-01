@@ -1,8 +1,9 @@
 import { Head, router } from '@inertiajs/react';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DataTable } from '@/components/data-table';
 import type { Column } from '@/components/data-table';
@@ -77,7 +78,12 @@ export function RecordPage<T extends { id: number }>({
     statusOptions?: { value: string; label: string }[];
     statusKey?: 'status' | 'result' | 'active';
     extraFilters?: {
-        key: 'site_presence' | 'sort';
+        key:
+            | 'site_presence'
+            | 'sort'
+            | 'site_id'
+            | 'asset_type_id'
+            | 'equipment_status';
         label: string;
         options: { value: string; label: string }[];
     }[];
@@ -98,11 +104,23 @@ export function RecordPage<T extends { id: number }>({
     const [viewing, setViewing] = useState<T | null>(null);
     const [deleting, setDeleting] = useState<T | null>(null);
     const [deletePending, setDeletePending] = useState(false);
+    const [pageLoading, setPageLoading] = useState(false);
     const editorTrigger = useRef<HTMLButtonElement>(null);
     const editorRecordId = useRef<number | null>(null);
     const viewTrigger = useRef<HTMLButtonElement>(null);
     const skipViewFocusRestore = useRef(false);
     const deleteTrigger = useRef<HTMLButtonElement>(null);
+    useEffect(
+        () =>
+            router.on('networkError', () => {
+                toast.error(
+                    'Could not connect. Check your connection and try again.',
+                );
+
+                return false;
+            }),
+        [],
+    );
     const restoreEditorFocus = () => {
         requestAnimationFrame(() => {
             const recordId = editorRecordId.current;
@@ -141,6 +159,7 @@ export function RecordPage<T extends { id: number }>({
         {
             key: 'actions',
             header: 'Actions',
+            className: 'sticky right-0 z-10 border-l bg-card',
             render: (record) => (
                 <div className="flex gap-0.5">
                     <Button
@@ -233,7 +252,10 @@ export function RecordPage<T extends { id: number }>({
                     action={addDisabled ? undefined : createButton}
                 />
             ) : (
-                <Card className="gap-0 overflow-hidden py-0">
+                <Card
+                    className="gap-0 overflow-hidden py-0"
+                    aria-busy={pageLoading}
+                >
                     <CardHeader className="sr-only">
                         <CardTitle>{title}</CardTitle>
                     </CardHeader>
@@ -253,6 +275,7 @@ export function RecordPage<T extends { id: number }>({
                                 currentPage={records.current_page}
                                 totalItems={records.total}
                                 pageSize={records.per_page}
+                                loading={pageLoading}
                                 onPageChange={(page) =>
                                     router.get(
                                         routes.index(),
@@ -260,6 +283,13 @@ export function RecordPage<T extends { id: number }>({
                                         {
                                             preserveState: true,
                                             preserveScroll: true,
+                                            onStart: () => setPageLoading(true),
+                                            onError: () =>
+                                                toast.error(
+                                                    'Could not load that page. Please try again.',
+                                                ),
+                                            onFinish: () =>
+                                                setPageLoading(false),
                                         },
                                     )
                                 }
