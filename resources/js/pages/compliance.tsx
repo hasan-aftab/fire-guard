@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { ShieldCheck } from 'lucide-react';
 import {
     index,
@@ -39,7 +39,6 @@ export default function Compliance({
     sites: CertificateSite[];
     filters: TrackerFilters;
 }) {
-    const { today } = usePage().props;
     const activeSites = sites.filter(
         (site) =>
             site.is_active &&
@@ -78,9 +77,9 @@ export default function Compliance({
             dateLabel="Expiry date range"
             issueDates
             statusOptions={[
-                { value: 'overdue', label: 'Overdue' },
-                { value: 'due_soon', label: 'Due soon' },
-                { value: 'ok', label: 'OK' },
+                { value: 'overdue', label: 'Expired' },
+                { value: 'due_soon', label: 'Expiring soon' },
+                { value: 'ok', label: 'Valid' },
             ]}
             columns={[
                 {
@@ -117,9 +116,9 @@ export default function Compliance({
                     className: 'w-[100px]',
                     render: (certificate) => (
                         <StatusBadge
+                            status={certificate.status}
                             date={certificate.expiry_date}
                             showDate={false}
-                            asOfDate={today}
                         />
                     ),
                 },
