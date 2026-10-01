@@ -10,13 +10,14 @@ return new class extends Migration
     {
         Schema::create('sites', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('client_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('client_id')->constrained()->restrictOnDelete();
             $table->string('site_name');
             $table->text('address');
             $table->string('suburb_region')->nullable();
             $table->text('access_notes')->nullable();
             $table->string('site_contact')->nullable();
             $table->string('site_phone')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }
