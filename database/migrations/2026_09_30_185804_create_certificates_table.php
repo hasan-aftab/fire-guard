@@ -18,7 +18,9 @@ return new class extends Migration
             $table->string('issued_by')->nullable();
             $table->text('document_url')->nullable();
             $table->string('status')->default('valid');
+            $table->timestamp('entered_in_error_at')->nullable();
             $table->timestamps();
+            $table->index('entered_in_error_at');
         });
     }
 
