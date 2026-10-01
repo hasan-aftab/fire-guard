@@ -6,6 +6,9 @@ import {
     update,
     destroy,
     restore,
+    markError,
+    restoreError,
+    purge,
 } from '@/actions/App/Http/Controllers/AssetController';
 import { RecordPage } from '@/components/record-page';
 import { StatusBadge } from '@/components/status-badge';
@@ -32,7 +35,11 @@ export default function Assets({
 }) {
     const { today } = usePage().props;
     const activeSites = sites.filter(
-        (site) => site.is_active && site.client?.is_active,
+        (site) =>
+            site.is_active &&
+            site.client?.is_active &&
+            !site.entered_in_error_at &&
+            !site.client?.entered_in_error_at,
     );
     const equipmentStatuses: Record<string, string> = {
         active: 'Active',
@@ -56,7 +63,22 @@ export default function Assets({
             emptyDescription="Add your first fire safety asset to start tracking inspections and compliance."
             records={records}
             filters={filters}
-            routes={{ index, store, update, destroy, restore }}
+            routes={{
+                index,
+                store,
+                update,
+                destroy,
+                restore,
+                markError,
+                restoreError,
+                purge,
+            }}
+            mistake={{
+                isEnteredInError: (asset) => asset.entered_in_error_at !== null,
+                canPurge: (asset) =>
+                    asset.inspections_count === 0 &&
+                    asset.certificates_count === 0,
+            }}
             archive={{
                 isArchived: (asset) => asset.status === 'decommissioned',
                 action: 'Decommission',
@@ -132,8 +154,11 @@ export default function Assets({
                                         : asset.serial_number || '—'}
                                 </span>
                                 {asset.status === 'active' &&
+                                !asset.entered_in_error_at &&
                                 asset.site.is_active &&
-                                asset.site.client?.is_active ? (
+                                !asset.site.entered_in_error_at &&
+                                asset.site.client?.is_active &&
+                                !asset.site.client?.entered_in_error_at ? (
                                     <StatusBadge
                                         date={asset.next_service_due}
                                         showDate={false}
@@ -189,8 +214,11 @@ export default function Assets({
                     className: 'hidden w-[100px] sm:table-cell',
                     render: (asset) =>
                         asset.status === 'active' &&
+                        !asset.entered_in_error_at &&
                         asset.site.is_active &&
-                        asset.site.client?.is_active ? (
+                        !asset.site.entered_in_error_at &&
+                        asset.site.client?.is_active &&
+                        !asset.site.client?.entered_in_error_at ? (
                             <StatusBadge
                                 date={asset.next_service_due}
                                 showDate={false}
@@ -257,7 +285,10 @@ export default function Assets({
                     options: sites
                         .filter(
                             (site) =>
-                                (site.is_active && site.client?.is_active) ||
+                                (site.is_active &&
+                                    site.client?.is_active &&
+                                    !site.entered_in_error_at &&
+                                    !site.client?.entered_in_error_at) ||
                                 site.id === editing?.site_id,
                         )
                         .map((site) => ({
