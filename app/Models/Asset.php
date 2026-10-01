@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\CarbonImmutable;
 use Database\Factories\AssetFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property CarbonImmutable|null $last_service_date
  * @property CarbonImmutable|null $next_service_due
  * @property string $status
+ * @property-read string $service_status
  * @property CarbonImmutable|null $entered_in_error_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -33,8 +35,27 @@ use Illuminate\Support\Carbon;
 #[Fillable(['site_id', 'asset_type_id', 'serial_number', 'location_desc', 'install_date', 'last_service_date', 'next_service_due', 'status'])]
 class Asset extends Model
 {
+    public const DUE_SOON_DAYS = 14;
+
     /** @use HasFactory<AssetFactory> */
     use HasFactory;
+
+    /** @return Attribute<string, never> */
+    protected function serviceStatus(): Attribute
+    {
+        return Attribute::get(function (): string {
+            if ($this->next_service_due === null) {
+                return 'unknown';
+            }
+
+            $today = today()->toImmutable();
+            if ($this->next_service_due->isBefore($today)) {
+                return 'overdue';
+            }
+
+            return $this->next_service_due->isAfter($today->addDays(self::DUE_SOON_DAYS)) ? 'ok' : 'due_soon';
+        });
+    }
 
     /** @return array<string, string> */
     protected function casts(): array
