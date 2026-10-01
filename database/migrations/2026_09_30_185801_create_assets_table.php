@@ -18,8 +18,10 @@ return new class extends Migration
             $table->date('last_service_date')->nullable();
             $table->date('next_service_due')->nullable();
             $table->string('status')->default('active');
+            $table->timestamp('entered_in_error_at')->nullable();
             $table->timestamps();
             $table->index(['status', 'next_service_due']);
+            $table->index('entered_in_error_at');
         });
     }
 
