@@ -7,8 +7,13 @@ export type Client = {
     billing_address: string | null;
     notes: string | null;
     is_active: boolean;
-    sites?: Pick<Site, 'id' | 'site_name' | 'address' | 'is_active'>[];
+    entered_in_error_at: string | null;
+    sites?: Pick<
+        Site,
+        'id' | 'site_name' | 'address' | 'is_active' | 'entered_in_error_at'
+    >[];
     sites_count: number;
+    current_sites_count: number;
 };
 
 export type Site = {
@@ -21,14 +26,20 @@ export type Site = {
     site_contact: string | null;
     site_phone: string | null;
     is_active: boolean;
+    entered_in_error_at: string | null;
+    assets_count?: number;
+    certificates_count?: number;
     client?: Client;
 };
 
 export type CertificateSite = Pick<
     Site,
-    'id' | 'client_id' | 'site_name' | 'is_active'
+    'id' | 'client_id' | 'site_name' | 'is_active' | 'entered_in_error_at'
 > & {
-    client: Pick<Client, 'id' | 'company_name' | 'is_active'>;
+    client: Pick<
+        Client,
+        'id' | 'company_name' | 'is_active' | 'entered_in_error_at'
+    >;
 };
 
 export type AssetType = {
@@ -48,6 +59,9 @@ export type Asset = {
     last_service_date: string | null;
     next_service_due: string | null;
     status: string;
+    entered_in_error_at: string | null;
+    inspections_count?: number;
+    certificates_count?: number;
     site: Site;
     asset_type: AssetType;
 };
@@ -60,6 +74,8 @@ export type Technician = {
     license_number: string | null;
     license_expiry: string | null;
     is_active: boolean;
+    entered_in_error_at: string | null;
+    inspections_count?: number;
 };
 
 export type Inspection = {
@@ -71,16 +87,25 @@ export type Inspection = {
     notes: string | null;
     next_due_date: string | null;
     photo_url: string | null;
+    entered_in_error_at: string | null;
     asset: Pick<Asset, 'id' | 'serial_number' | 'location_desc'>;
     technician: Pick<Technician, 'id' | 'full_name'> | null;
 };
 
 export type InspectionAssetOption = Pick<
     Asset,
-    'id' | 'site_id' | 'serial_number' | 'location_desc' | 'status'
+    | 'id'
+    | 'site_id'
+    | 'serial_number'
+    | 'location_desc'
+    | 'status'
+    | 'entered_in_error_at'
 > & {
-    site: Pick<Site, 'id' | 'site_name' | 'is_active'> & {
-        client: Pick<Client, 'id' | 'is_active'>;
+    site: Pick<
+        Site,
+        'id' | 'site_name' | 'is_active' | 'entered_in_error_at'
+    > & {
+        client: Pick<Client, 'id' | 'is_active' | 'entered_in_error_at'>;
     };
 };
 
@@ -94,6 +119,7 @@ export type Certificate = {
     issued_by: string | null;
     document_url: string | null;
     status: string;
+    entered_in_error_at: string | null;
     site: CertificateSite;
 };
 
@@ -148,6 +174,7 @@ export type TrackerFilters = Partial<
         | 'site_id'
         | 'asset_type_id'
         | 'equipment_status'
+        | 'record_state'
         | 'sort',
         string
     >
