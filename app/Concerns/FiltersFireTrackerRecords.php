@@ -17,11 +17,11 @@ trait FiltersFireTrackerRecords
     private function filterDates(Builder $query, TrackerFilterRequest $request, string $column, string $prefix = ''): void
     {
         if ($request->filled($prefix.'from')) {
-            $query->whereDate($column, '>=', $request->string($prefix.'from')->toString());
+            $query->where($column, '>=', $request->string($prefix.'from')->toString());
         }
 
         if ($request->filled($prefix.'to')) {
-            $query->whereDate($column, '<=', $request->string($prefix.'to')->toString());
+            $query->where($column, '<=', $request->string($prefix.'to')->toString());
         }
     }
 
@@ -36,9 +36,9 @@ trait FiltersFireTrackerRecords
         $soon = today()->addDays(14)->toDateString();
 
         match ($request->string('status')->toString()) {
-            'overdue' => $query->whereDate($column, '<', $today),
+            'overdue' => $query->where($column, '<', $today),
             'due_soon' => $query->whereBetween($column, [$today, $soon]),
-            'ok' => $query->whereDate($column, '>', $soon),
+            'ok' => $query->where($column, '>', $soon),
             'unknown' => $query->whereNull($column),
             default => null,
         };
