@@ -1,4 +1,3 @@
-import { usePage } from '@inertiajs/react';
 import { Flame } from 'lucide-react';
 import {
     index,
@@ -33,7 +32,6 @@ export default function Assets({
     assetTypes: AssetType[];
     filters: TrackerFilters;
 }) {
-    const { today } = usePage().props;
     const activeSites = sites.filter(
         (site) =>
             site.is_active &&
@@ -160,9 +158,9 @@ export default function Assets({
                                 asset.site.client?.is_active &&
                                 !asset.site.client?.entered_in_error_at ? (
                                     <StatusBadge
+                                        status={asset.service_status}
                                         date={asset.next_service_due}
                                         showDate={false}
-                                        asOfDate={today}
                                     />
                                 ) : (
                                     <Badge variant="outline">
@@ -220,9 +218,9 @@ export default function Assets({
                         asset.site.client?.is_active &&
                         !asset.site.client?.entered_in_error_at ? (
                             <StatusBadge
+                                status={asset.service_status}
                                 date={asset.next_service_due}
                                 showDate={false}
-                                asOfDate={today}
                             />
                         ) : (
                             <Badge variant="outline">
