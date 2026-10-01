@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $issued_by
  * @property string|null $document_url
  * @property string $status
+ * @property CarbonImmutable|null $entered_in_error_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Site $site
@@ -38,6 +39,7 @@ class Certificate extends Model
         return [
             'issue_date' => 'immutable_date:Y-m-d',
             'expiry_date' => 'immutable_date:Y-m-d',
+            'entered_in_error_at' => 'immutable_datetime',
         ];
     }
 
