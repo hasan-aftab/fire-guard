@@ -200,7 +200,9 @@ export function RecordForm({
                 {fields.map((field) => {
                     const id = `record-${field.name}`;
                     const error = form.errors[field.name];
-                    const length = Array.from(form.data[field.name] ?? '').length;
+                    const length = Array.from(
+                        form.data[field.name] ?? '',
+                    ).length;
                     const showLimit =
                         field.maxLength !== undefined &&
                         length >= Math.max(1, field.maxLength - 20);
