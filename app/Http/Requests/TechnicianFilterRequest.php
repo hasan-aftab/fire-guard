@@ -17,6 +17,7 @@ class TechnicianFilterRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:100'],
+            'record_state' => ['nullable', Rule::in(['current', 'entered_in_error', 'all'])],
             'status' => ['nullable', Rule::in(['all', 'active', 'inactive'])],
             'page' => ['nullable', 'integer', 'min:1'],
         ];
