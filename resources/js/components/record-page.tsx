@@ -1,7 +1,7 @@
 import { Head, router } from '@inertiajs/react';
-import { Eye, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DataTable } from '@/components/data-table';
@@ -51,6 +51,7 @@ export function RecordPage<T extends { id: number }>({
     issueDates,
     statusOptions,
     statusKey,
+    extraFilters,
     searchPlaceholder,
     addLabel,
     createTitle,
@@ -74,7 +75,12 @@ export function RecordPage<T extends { id: number }>({
     dateLabel?: string;
     issueDates?: boolean;
     statusOptions?: { value: string; label: string }[];
-    statusKey?: 'status' | 'result';
+    statusKey?: 'status' | 'result' | 'active';
+    extraFilters?: {
+        key: 'site_presence' | 'sort';
+        label: string;
+        options: { value: string; label: string }[];
+    }[];
     searchPlaceholder: string;
     addLabel?: string;
     createTitle?: string;
@@ -83,15 +89,43 @@ export function RecordPage<T extends { id: number }>({
     emptyDescription?: string;
     deleteDescription?: string;
     rowActions?: (record: T) => ReactNode;
-    viewContent?: (record: T) => ReactNode;
+    viewContent?: (
+        record: T,
+        closeView: (restoreFocus?: boolean) => void,
+    ) => ReactNode;
 }) {
     const [editing, setEditing] = useState<T | null | undefined>();
     const [viewing, setViewing] = useState<T | null>(null);
     const [deleting, setDeleting] = useState<T | null>(null);
     const [deletePending, setDeletePending] = useState(false);
+    const editorTrigger = useRef<HTMLButtonElement>(null);
+    const editorRecordId = useRef<number | null>(null);
+    const viewTrigger = useRef<HTMLButtonElement>(null);
+    const skipViewFocusRestore = useRef(false);
+    const deleteTrigger = useRef<HTMLButtonElement>(null);
+    const restoreEditorFocus = () => {
+        requestAnimationFrame(() => {
+            const recordId = editorRecordId.current;
+            const trigger = recordId
+                ? document.querySelector<HTMLButtonElement>(
+                      `[data-record-edit-id="${recordId}"]`,
+                  )
+                : document.querySelector<HTMLButtonElement>(
+                      '[data-record-create]',
+                  );
+            (trigger ?? editorTrigger.current)?.focus();
+        });
+    };
     const createButton = (
-        <Button onClick={() => setEditing(null)} disabled={addDisabled}>
-            <Plus data-icon="inline-start" />
+        <Button
+            data-record-create
+            onClick={(event) => {
+                editorTrigger.current = event.currentTarget;
+                editorRecordId.current = null;
+                setEditing(null);
+            }}
+            disabled={addDisabled}
+        >
             {addLabel || `Add ${noun}`}
         </Button>
     );
@@ -111,21 +145,30 @@ export function RecordPage<T extends { id: number }>({
                 <div className="flex gap-0.5">
                     <Button
                         variant="ghost"
-                        size="sm"
-                        className="h-7 gap-1 text-xs has-[>svg]:px-2"
-                        onClick={() => setViewing(record)}
+                        size="icon"
+                        className="size-7"
+                        aria-label={`View ${noun} #${record.id}`}
+                        onClick={(event) => {
+                            viewTrigger.current = event.currentTarget;
+                            skipViewFocusRestore.current = false;
+                            setViewing(record);
+                        }}
                     >
-                        <Eye data-icon="inline-start" />
-                        View
+                        <Eye />
                     </Button>
                     <Button
                         variant="ghost"
-                        size="sm"
-                        className="h-7 gap-1 text-xs has-[>svg]:px-2"
-                        onClick={() => setEditing(record)}
+                        size="icon"
+                        className="size-7"
+                        aria-label={`Edit ${noun} #${record.id}`}
+                        data-record-edit-id={record.id}
+                        onClick={(event) => {
+                            editorTrigger.current = event.currentTarget;
+                            editorRecordId.current = record.id;
+                            setEditing(record);
+                        }}
                     >
-                        <Pencil data-icon="inline-start" />
-                        Edit
+                        <Pencil />
                     </Button>
                     {rowActions?.(record)}
                     <Button
@@ -133,7 +176,10 @@ export function RecordPage<T extends { id: number }>({
                         size="icon"
                         className="size-7"
                         aria-label={`Delete ${noun} #${record.id}`}
-                        onClick={() => setDeleting(record)}
+                        onClick={(event) => {
+                            deleteTrigger.current = event.currentTarget;
+                            setDeleting(record);
+                        }}
                     >
                         <Trash2 />
                     </Button>
@@ -172,12 +218,13 @@ export function RecordPage<T extends { id: number }>({
                 issueDates={issueDates}
                 statusOptions={statusOptions}
                 statusKey={statusKey}
+                extraFilters={extraFilters}
                 total={records.total}
                 noun={noun}
             />
             {records.total === 0 &&
             !Object.values(filters).some(
-                (value) => value && value !== 'all',
+                (value) => value && value !== 'all' && value !== 'name',
             ) ? (
                 <EmptyState
                     icon={icon}
@@ -227,7 +274,13 @@ export function RecordPage<T extends { id: number }>({
                     if (!open) setEditing(undefined);
                 }}
             >
-                <SheetContent className="w-full sm:max-w-md">
+                <SheetContent
+                    className="w-full sm:max-w-md"
+                    onCloseAutoFocus={(event) => {
+                        event.preventDefault();
+                        restoreEditorFocus();
+                    }}
+                >
                     <SheetHeader>
                         <SheetTitle>
                             {editing
@@ -256,8 +309,14 @@ export function RecordPage<T extends { id: number }>({
                                         ? `Update ${noun}`
                                         : addLabel || `Create ${noun}`
                                 }
-                                onSuccess={() => setEditing(undefined)}
-                                onCancel={() => setEditing(undefined)}
+                                onSuccess={() => {
+                                    setEditing(undefined);
+                                    restoreEditorFocus();
+                                }}
+                                onCancel={() => {
+                                    setEditing(undefined);
+                                    restoreEditorFocus();
+                                }}
                             />
                         </div>
                     )}
@@ -275,24 +334,47 @@ export function RecordPage<T extends { id: number }>({
                 }
                 onConfirm={confirmDelete}
                 loading={deletePending}
+                restoreFocus={() => {
+                    if (deleteTrigger.current?.isConnected) {
+                        deleteTrigger.current.focus();
+                    } else {
+                        document
+                            .querySelector<HTMLButtonElement>(
+                                '[data-record-create]',
+                            )
+                            ?.focus();
+                    }
+                }}
             />
             <ViewModal
                 open={!!viewing}
                 onClose={() => setViewing(null)}
                 title={`${noun.charAt(0).toUpperCase() + noun.slice(1)} Details`}
+                restoreFocus={() => {
+                    if (!skipViewFocusRestore.current) {
+                        viewTrigger.current?.focus();
+                    }
+                    skipViewFocusRestore.current = false;
+                }}
             >
                 {viewing && (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        {columns.map((column) => (
-                            <ViewField
-                                key={column.key}
-                                label={column.header}
-                                value={column.render(viewing, 0)}
-                            />
-                        ))}
+                        {columns
+                            .filter((column) => column.showInView !== false)
+                            .map((column) => (
+                                <ViewField
+                                    key={column.key}
+                                    label={column.header}
+                                    value={column.render(viewing, 0)}
+                                />
+                            ))}
                     </div>
                 )}
-                {viewing && viewContent?.(viewing)}
+                {viewing &&
+                    viewContent?.(viewing, (restoreFocus = true) => {
+                        skipViewFocusRestore.current = !restoreFocus;
+                        setViewing(null);
+                    })}
             </ViewModal>
         </>
     );
