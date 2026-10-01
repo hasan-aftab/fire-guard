@@ -29,6 +29,7 @@ import {
     SidebarSeparator,
     useSidebar,
 } from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 const management = [
     {
@@ -66,6 +67,8 @@ export function AppSidebar() {
             setOpenMobile(false);
         }
     };
+    const activeItemClass =
+        'relative border border-sidebar-border bg-sidebar-accent font-semibold text-sidebar-accent-foreground shadow-xs before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-brand group-data-[collapsible=icon]:before:hidden';
     return (
         <Sidebar collapsible="icon">
             <SidebarHeader>
@@ -93,6 +96,10 @@ export function AppSidebar() {
                                     asChild
                                     tooltip="Dashboard"
                                     isActive={currentPath === dashboard.url()}
+                                    className={cn(
+                                        currentPath === dashboard.url() &&
+                                            activeItemClass,
+                                    )}
                                 >
                                     <Link
                                         href={dashboard()}
@@ -120,6 +127,10 @@ export function AppSidebar() {
                                         isActive={
                                             currentPath === item.href.url()
                                         }
+                                        className={cn(
+                                            currentPath === item.href.url() &&
+                                                activeItemClass,
+                                        )}
                                     >
                                         <Link
                                             href={item.href()}
