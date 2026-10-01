@@ -7,8 +7,10 @@ use App\Models\Asset;
 use App\Models\Certificate;
 use App\Models\Client;
 use App\Models\Inspection;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use stdClass;
 
 class DashboardController extends Controller
 {
@@ -18,6 +20,32 @@ class DashboardController extends Controller
         $asOfDate = $today->toDateString();
         $alertEnd = $today->copy()->addDays(30)->toDateString();
         $calendarEnd = $today->copy()->addDays(90)->toDateString();
+        $assetDueEvents = static fn (string $from, string $to) => DB::table('assets')
+            ->join('sites', 'sites.id', '=', 'assets.site_id')
+            ->join('asset_types', 'asset_types.id', '=', 'assets.asset_type_id')
+            ->where('assets.status', 'active')
+            ->whereBetween('assets.next_service_due', [$from, $to])
+            ->selectRaw("'asset' as source, assets.id as event_id, assets.next_service_due as due_date, asset_types.type_name, sites.site_name");
+        $inspectionDueEvents = static fn (string $from, string $to) => DB::table('inspections')
+            ->join('assets', 'assets.id', '=', 'inspections.asset_id')
+            ->join('sites', 'sites.id', '=', 'assets.site_id')
+            ->join('asset_types', 'asset_types.id', '=', 'assets.asset_type_id')
+            ->where('assets.status', 'active')
+            ->whereBetween('inspections.next_due_date', [$from, $to])
+            ->selectRaw("'inspection' as source, inspections.id as event_id, inspections.next_due_date as due_date, asset_types.type_name, sites.site_name");
+
+        $calendarMonth = $request->string('calendar_month')->toString();
+        if ($calendarMonth === '') {
+            $firstDueDate = DB::query()->fromSub(
+                $assetDueEvents($asOfDate, $calendarEnd)->select('assets.next_service_due as due_date')
+                    ->union($inspectionDueEvents($asOfDate, $calendarEnd)->select('inspections.next_due_date as due_date')),
+                'due_dates',
+            )->orderBy('due_date')->value('due_date');
+            $calendarMonth = substr(is_string($firstDueDate) ? $firstDueDate : $asOfDate, 0, 7);
+        }
+        $calendarStart = max($asOfDate, $calendarMonth.'-01');
+        $calendarLastDay = $today->copy()->setDate((int) substr($calendarMonth, 0, 4), (int) substr($calendarMonth, 5, 2), 1)->endOfMonth()->toDateString();
+        $calendarLastDay = min($calendarEnd, $calendarLastDay);
 
         $assetQuery = Asset::query()
             ->select(['id', 'site_id', 'asset_type_id', 'serial_number', 'location_desc', 'next_service_due'])
@@ -52,9 +80,13 @@ class DashboardController extends Controller
         }
 
         return Inertia::render('dashboard', [
-            'summary' => function () use ($assetQuery, $mapAsset, $asOfDate, $alertEnd, $calendarEnd): array {
+            'summary' => function () use ($asOfDate, $alertEnd, $calendarEnd, $assetDueEvents, $inspectionDueEvents): array {
                 $results = Inspection::query()->select('result')->selectRaw('count(*) as aggregate')->groupBy('result')->pluck('aggregate', 'result');
-                $upcomingQuery = (clone $assetQuery)->whereBetween('next_service_due', [$asOfDate, $calendarEnd]);
+                $dueDates = DB::query()->fromSub(
+                    $assetDueEvents($asOfDate, $calendarEnd)->select('assets.next_service_due as due_date')
+                        ->union($inspectionDueEvents($asOfDate, $calendarEnd)->select('inspections.next_due_date as due_date')),
+                    'due_dates',
+                )->distinct()->orderBy('due_date')->pluck('due_date')->all();
 
                 return [
                     'asOfDate' => $asOfDate,
@@ -70,9 +102,29 @@ class DashboardController extends Controller
                         'needs_repair' => (int) $results->get('needs_repair', 0),
                         'total' => (int) $results->sum(),
                     ],
-                    'upcomingTotal' => (clone $upcomingQuery)->count(),
-                    'upcomingDates' => (clone $upcomingQuery)->select('next_service_due')->reorder('next_service_due')->distinct()->pluck('next_service_due')->all(),
-                    'upcomingInspections' => $upcomingQuery->orderBy('next_service_due')->orderBy('id')->limit(10)->get()->map($mapAsset),
+                    'upcomingDates' => $dueDates,
+                ];
+            },
+            'calendar' => function () use ($calendarMonth, $calendarStart, $calendarLastDay, $assetDueEvents, $inspectionDueEvents) {
+                $events = DB::query()->fromSub(
+                    $assetDueEvents($calendarStart, $calendarLastDay)
+                        ->unionAll($inspectionDueEvents($calendarStart, $calendarLastDay)),
+                    'due_events',
+                )->orderBy('due_date')->orderBy('source')->orderBy('event_id');
+                $page = $events->paginate(10, ['*'], 'calendar_page');
+                if ($page->currentPage() > $page->lastPage()) {
+                    $page = $events->paginate(10, ['*'], 'calendar_page', $page->lastPage());
+                }
+
+                return [
+                    'month' => $calendarMonth,
+                    'events' => $page->through(fn (stdClass $event): array => [
+                        'id' => $event->source.'-'.$event->event_id,
+                        'source' => $event->source,
+                        'dueDate' => $event->due_date,
+                        'typeName' => $event->type_name,
+                        'siteName' => $event->site_name,
+                    ]),
                 ];
             },
             'attention' => function () use ($attentionQuery, $mapAsset) {
