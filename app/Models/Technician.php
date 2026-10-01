@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $license_number
  * @property CarbonImmutable|null $license_expiry
  * @property bool $is_active
+ * @property CarbonImmutable|null $entered_in_error_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Inspection> $inspections
@@ -35,6 +36,7 @@ class Technician extends Model
         return [
             'is_active' => 'boolean',
             'license_expiry' => 'immutable_date:Y-m-d',
+            'entered_in_error_at' => 'immutable_datetime',
         ];
     }
 
