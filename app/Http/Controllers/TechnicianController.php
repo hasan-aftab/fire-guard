@@ -61,8 +61,16 @@ class TechnicianController extends Controller
 
     public function destroy(Technician $technician): RedirectResponse
     {
-        $technician->delete();
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Technician deleted.']);
+        $technician->update(['is_active' => false]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Technician deactivated.']);
+
+        return back();
+    }
+
+    public function restore(Technician $technician): RedirectResponse
+    {
+        $technician->update(['is_active' => true]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Technician reactivated.']);
 
         return back();
     }
