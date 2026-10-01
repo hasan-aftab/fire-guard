@@ -2,10 +2,12 @@ import { router } from '@inertiajs/react';
 import {
     Archive,
     Building2,
+    CircleOff,
     Eye,
     MapPin,
     Pencil,
     RotateCcw,
+    Trash2,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -14,12 +16,18 @@ import {
     update,
     destroy,
     restore,
+    markError,
+    restoreError,
+    purge,
 } from '@/actions/App/Http/Controllers/ClientController';
 import {
     store as storeSite,
     update as updateSite,
     destroy as destroySite,
     restore as restoreSite,
+    markError as markSiteError,
+    restoreError as restoreSiteError,
+    purge as purgeSite,
 } from '@/actions/App/Http/Controllers/SiteController';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { RecordForm, recordValues } from '@/components/record-form';
@@ -48,11 +56,16 @@ export default function Clients({
     filters,
     selectedClient,
     selectedSites,
+    siteState,
 }: {
     records: Paginated<Client>;
     filters: TrackerFilters;
-    selectedClient: Pick<Client, 'id' | 'company_name' | 'is_active'> | null;
+    selectedClient: Pick<
+        Client,
+        'id' | 'company_name' | 'is_active' | 'entered_in_error_at'
+    > | null;
     selectedSites: Paginated<Site> | null;
+    siteState: 'current' | 'entered_in_error';
 }) {
     const [siteLoading, setSiteLoading] = useState(false);
     const sitesTrigger = useRef<HTMLButtonElement>(null);
@@ -62,6 +75,7 @@ export default function Clients({
     const siteEditTrigger = useRef<HTMLButtonElement>(null);
     const siteViewTrigger = useRef<HTMLButtonElement>(null);
     const siteDeleteTrigger = useRef<HTMLButtonElement>(null);
+    const siteMistakeTrigger = useRef<HTMLButtonElement>(null);
     const restoreSiteFormFocus = (trigger: HTMLButtonElement | null) => {
         requestAnimationFrame(() => {
             const active = document.activeElement;
@@ -79,6 +93,11 @@ export default function Clients({
     const [viewingSite, setViewingSite] = useState<Site | null>(null);
     const [deletingSite, setDeletingSite] = useState<Site | null>(null);
     const [deletePending, setDeletePending] = useState(false);
+    const [siteMistakeTarget, setSiteMistakeTarget] = useState<{
+        site: Site;
+        action: 'mark' | 'restore' | 'purge';
+    } | null>(null);
+    const [siteMistakePending, setSiteMistakePending] = useState(false);
     useEffect(() => {
         if (editingSite || addingSite) {
             siteSheet.current
@@ -96,7 +115,11 @@ export default function Clients({
         site_phone: '',
         is_active: '1',
     };
-    const openSites = (clientId: number, sitePage = 1) => {
+    const openSites = (
+        clientId: number,
+        sitePage = 1,
+        state: 'current' | 'entered_in_error' = siteState,
+    ) => {
         router.get(
             index().url,
             {
@@ -104,6 +127,7 @@ export default function Clients({
                 page: records.current_page,
                 site_client: clientId,
                 site_page: sitePage,
+                site_state: state,
             },
             {
                 preserveState: true,
@@ -125,7 +149,7 @@ export default function Clients({
         setAddingSite(false);
         setViewingSite(null);
         setDeletingSite(null);
-        openSites(record.id);
+        openSites(record.id, 1, 'current');
     };
     const closeSites = () => {
         setEditingSite(null);
@@ -173,6 +197,25 @@ export default function Clients({
             router.delete(destroySite(deletingSite.id), options);
         else router.patch(restoreSite(deletingSite.id), {}, options);
     };
+    const handleSiteMistake = () => {
+        if (!siteMistakeTarget) return;
+        const { site, action } = siteMistakeTarget;
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => setSiteMistakeTarget(null),
+            onFinish: () => setSiteMistakePending(false),
+        };
+        setSiteMistakePending(true);
+        if (action === 'purge') router.delete(purgeSite(site.id), options);
+        else
+            router.patch(
+                action === 'mark'
+                    ? markSiteError(site.id)
+                    : restoreSiteError(site.id),
+                {},
+                options,
+            );
+    };
     return (
         <>
             <RecordPage
@@ -182,7 +225,21 @@ export default function Clients({
                 icon={Building2}
                 records={records}
                 filters={filters}
-                routes={{ index, store, update, destroy, restore }}
+                routes={{
+                    index,
+                    store,
+                    update,
+                    destroy,
+                    restore,
+                    markError,
+                    restoreError,
+                    purge,
+                }}
+                mistake={{
+                    isEnteredInError: (client) =>
+                        client.entered_in_error_at !== null,
+                    canPurge: (client) => client.sites_count === 0,
+                }}
                 archive={{
                     isArchived: (client) => !client.is_active,
                     action: 'Deactivate',
@@ -261,8 +318,8 @@ export default function Clients({
                                 variant="secondary"
                                 className="text-xs font-normal"
                             >
-                                {record.sites_count} site
-                                {record.sites_count === 1 ? '' : 's'}
+                                {record.current_sites_count} site
+                                {record.current_sites_count === 1 ? '' : 's'}
                             </Badge>
                         ),
                     },
@@ -355,9 +412,9 @@ export default function Clients({
                         <ViewField label="Notes" value={record.notes} />
                         <Separator />
                         <h3 className="text-sm font-medium">
-                            Sites ({record.sites_count})
+                            Sites ({record.current_sites_count})
                         </h3>
-                        {record.sites_count > 0 ? (
+                        {record.current_sites_count > 0 ? (
                             <ul className="space-y-2">
                                 {record.sites?.map((site) => (
                                     <li
@@ -378,7 +435,8 @@ export default function Clients({
                                 No sites added yet.
                             </p>
                         )}
-                        {record.sites_count > (record.sites?.length ?? 0) && (
+                        {record.current_sites_count >
+                            (record.sites?.length ?? 0) && (
                             <p className="text-xs text-muted-foreground">
                                 Showing the first {record.sites?.length} sites.
                             </p>
@@ -393,7 +451,7 @@ export default function Clients({
                                 manageSites(record);
                             }}
                         >
-                            {record.sites_count > 0
+                            {record.current_sites_count > 0
                                 ? 'Manage all sites'
                                 : 'Add first site'}
                         </Button>
@@ -403,7 +461,13 @@ export default function Clients({
             <Sheet
                 open={!!selectedClient}
                 onOpenChange={(open) => {
-                    if (!open && !viewingSite && !deletingSite) closeSites();
+                    if (
+                        !open &&
+                        !viewingSite &&
+                        !deletingSite &&
+                        !siteMistakeTarget
+                    )
+                        closeSites();
                 }}
             >
                 <SheetContent
@@ -443,7 +507,9 @@ export default function Clients({
                                         disabled={
                                             addingSite ||
                                             editingSite !== null ||
-                                            !selectedClient.is_active
+                                            !selectedClient.is_active ||
+                                            selectedClient.entered_in_error_at !==
+                                                null
                                         }
                                         onClick={() => {
                                             setEditingSite(null);
@@ -453,6 +519,25 @@ export default function Clients({
                                         Add site
                                     </Button>
                                 </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="self-start"
+                                    onClick={() =>
+                                        openSites(
+                                            selectedClient.id,
+                                            1,
+                                            siteState === 'current'
+                                                ? 'entered_in_error'
+                                                : 'current',
+                                        )
+                                    }
+                                >
+                                    {siteState === 'current'
+                                        ? 'Show entered in error sites'
+                                        : 'Show current sites'}
+                                </Button>
                                 {(addingSite || editingSite) && (
                                     <div className="rounded-lg border bg-muted/40 p-4">
                                         <h3 className="mb-4 text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -559,8 +644,11 @@ export default function Clients({
                                 )}
                                 {selectedSites.total === 0 && (
                                     <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                                        No sites added yet. Use Add site to add
-                                        the first location.
+                                        No{' '}
+                                        {siteState === 'current'
+                                            ? 'current'
+                                            : 'entered in error'}{' '}
+                                        sites in this list.
                                     </p>
                                 )}
                                 {selectedSites.data.map((site) => (
@@ -578,6 +666,8 @@ export default function Clients({
                                                     {site.site_name}
                                                     {!site.is_active &&
                                                         ' (Inactive)'}
+                                                    {site.entered_in_error_at &&
+                                                        ' (Entered in error)'}
                                                 </p>
                                                 <p className="truncate text-xs text-muted-foreground">
                                                     {site.address}
@@ -605,6 +695,59 @@ export default function Clients({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
+                                                aria-label={`${site.entered_in_error_at ? 'Restore' : 'Mark entered in error'} ${site.site_name}`}
+                                                disabled={
+                                                    addingSite ||
+                                                    editingSite !== null ||
+                                                    siteLoading
+                                                }
+                                                onClick={(event) => {
+                                                    siteMistakeTrigger.current =
+                                                        event.currentTarget;
+                                                    setSiteMistakeTarget({
+                                                        site,
+                                                        action: site.entered_in_error_at
+                                                            ? 'restore'
+                                                            : 'mark',
+                                                    });
+                                                }}
+                                            >
+                                                {site.entered_in_error_at ? (
+                                                    <RotateCcw />
+                                                ) : (
+                                                    <CircleOff />
+                                                )}
+                                            </Button>
+                                            {site.assets_count === 0 &&
+                                                site.certificates_count ===
+                                                    0 && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        aria-label={`Permanently delete ${site.site_name}`}
+                                                        disabled={
+                                                            addingSite ||
+                                                            editingSite !==
+                                                                null ||
+                                                            siteLoading
+                                                        }
+                                                        onClick={(event) => {
+                                                            siteMistakeTrigger.current =
+                                                                event.currentTarget;
+                                                            setSiteMistakeTarget(
+                                                                {
+                                                                    site,
+                                                                    action: 'purge',
+                                                                },
+                                                            );
+                                                        }}
+                                                    >
+                                                        <Trash2 />
+                                                    </Button>
+                                                )}
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
                                                 aria-label={`Edit ${site.site_name}`}
                                                 disabled={
                                                     addingSite ||
@@ -620,27 +763,29 @@ export default function Clients({
                                             >
                                                 <Pencil />
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                aria-label={`${site.is_active ? 'Deactivate' : 'Reactivate'} ${site.site_name}`}
-                                                disabled={
-                                                    addingSite ||
-                                                    editingSite !== null ||
-                                                    siteLoading
-                                                }
-                                                onClick={(event) => {
-                                                    siteDeleteTrigger.current =
-                                                        event.currentTarget;
-                                                    setDeletingSite(site);
-                                                }}
-                                            >
-                                                {site.is_active ? (
-                                                    <Archive />
-                                                ) : (
-                                                    <RotateCcw />
-                                                )}
-                                            </Button>
+                                            {!site.entered_in_error_at && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    aria-label={`${site.is_active ? 'Deactivate' : 'Reactivate'} ${site.site_name}`}
+                                                    disabled={
+                                                        addingSite ||
+                                                        editingSite !== null ||
+                                                        siteLoading
+                                                    }
+                                                    onClick={(event) => {
+                                                        siteDeleteTrigger.current =
+                                                            event.currentTarget;
+                                                        setDeletingSite(site);
+                                                    }}
+                                                >
+                                                    {site.is_active ? (
+                                                        <Archive />
+                                                    ) : (
+                                                        <RotateCcw />
+                                                    )}
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -687,6 +832,41 @@ export default function Clients({
                 restoreFocus={() => {
                     if (siteDeleteTrigger.current?.isConnected) {
                         siteDeleteTrigger.current.focus();
+                    } else {
+                        siteSheet.current
+                            ?.querySelector<HTMLElement>(
+                                '[data-site-list-heading]',
+                            )
+                            ?.focus();
+                    }
+                }}
+            />
+            <ConfirmDialog
+                open={!!siteMistakeTarget}
+                onOpenChange={(open) => {
+                    if (!open) setSiteMistakeTarget(null);
+                }}
+                title={`${siteMistakeTarget?.action === 'purge' ? 'Permanently delete' : siteMistakeTarget?.action === 'restore' ? 'Restore' : 'Mark entered in error'} site?`}
+                description={
+                    siteMistakeTarget?.action === 'purge'
+                        ? 'This site has no equipment or certificates. It will be permanently deleted. This cannot be undone.'
+                        : siteMistakeTarget?.action === 'restore'
+                          ? 'Restore this site to the current list and active calculations?'
+                          : 'Mark this site as entered in error? Its records will be preserved and available in the entered in error list.'
+                }
+                confirmLabel={
+                    siteMistakeTarget?.action === 'purge'
+                        ? 'Delete permanently'
+                        : siteMistakeTarget?.action === 'restore'
+                          ? 'Restore'
+                          : 'Mark entered in error'
+                }
+                destructive={siteMistakeTarget?.action === 'purge'}
+                onConfirm={handleSiteMistake}
+                loading={siteMistakePending}
+                restoreFocus={() => {
+                    if (siteMistakeTrigger.current?.isConnected) {
+                        siteMistakeTrigger.current.focus();
                     } else {
                         siteSheet.current
                             ?.querySelector<HTMLElement>(
