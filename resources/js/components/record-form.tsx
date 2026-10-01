@@ -50,11 +50,11 @@ function validateField(
     fields: FormField[],
     input?: HTMLInputElement | HTMLTextAreaElement | null,
 ): string | undefined {
-    const value = values[field.name] ?? '';
+    const value = (values[field.name] ?? '').trim();
     if (input instanceof HTMLInputElement && input.validity.badInput) {
         return `Enter a valid ${field.label.toLowerCase()}.`;
     }
-    if (field.required && !value.trim()) {
+    if (field.required && !value) {
         return `${field.label} is required.`;
     }
     if (field.maxLength && Array.from(value).length > field.maxLength) {
