@@ -38,7 +38,7 @@ test('asset date filters accept a single endpoint and exclude undated records', 
             ->where('records.total', 1));
 });
 
-test('asset list falls back to the last populated page after a deletion', function () {
+test('asset list retains a decommissioned record on its original page', function () {
     $user = User::factory()->create();
     $site = Site::factory()->create();
     $type = AssetType::factory()->create();
@@ -55,12 +55,11 @@ test('asset list falls back to the last populated page after a deletion', functi
         ->assertRedirect();
 
     $this->get(route('assets.index', ['search' => 'PNG-ASSET', 'page' => 2]))
-        ->assertRedirect($filteredUrl);
-    $this->get($filteredUrl)
         ->assertInertia(fn (Assert $page) => $page->component('assets')
-            ->has('records.data', 10)
-            ->where('records.current_page', 1)
-            ->where('records.total', 10));
+            ->has('records.data', 1)
+            ->where('records.data.0.status', 'decommissioned')
+            ->where('records.current_page', 2)
+            ->where('records.total', 11));
 });
 
 test('assets page exposes missing setup choices so creation can be disabled', function () {
