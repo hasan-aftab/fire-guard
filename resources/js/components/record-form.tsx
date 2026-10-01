@@ -38,7 +38,7 @@ export type FormField = {
     required?: boolean;
     options?: { value: string; label: string }[];
     placeholder?: string;
-    description?: string;
+    description?: string | ((values: Record<string, string>) => string);
     maxLength?: number;
     autoComplete?: string;
     afterOrEqual?: string | string[];
@@ -198,6 +198,10 @@ export function RecordForm({
                 )}
                 {fields.map((field) => {
                     const id = `record-${field.name}`;
+                    const description =
+                        typeof field.description === 'function'
+                            ? field.description(form.data)
+                            : field.description;
                     const error = form.errors[field.name];
                     const length = Array.from(
                         form.data[field.name] ?? '',
@@ -207,7 +211,7 @@ export function RecordForm({
                         length >= Math.max(1, field.maxLength - 20);
                     const describedBy =
                         [
-                            field.description ? `${id}-description` : null,
+                            description ? `${id}-description` : null,
                             showLimit ? `${id}-limit` : null,
                             error ? `${id}-error` : null,
                         ]
@@ -324,9 +328,9 @@ export function RecordForm({
                                     autoComplete={field.autoComplete}
                                 />
                             )}
-                            {field.description && (
+                            {description && (
                                 <FieldDescription id={`${id}-description`}>
-                                    {field.description}
+                                    {description}
                                 </FieldDescription>
                             )}
                             {showLimit && (
