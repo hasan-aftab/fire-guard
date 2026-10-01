@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('certificates', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('site_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('asset_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('site_id')->constrained()->restrictOnDelete();
+            $table->foreignId('asset_id')->nullable()->constrained()->restrictOnDelete();
             $table->string('certificate_type');
             $table->date('issue_date');
             $table->date('expiry_date')->index();
