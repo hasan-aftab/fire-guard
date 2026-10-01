@@ -30,6 +30,8 @@ use Illuminate\Support\Carbon;
 #[Fillable(['site_id', 'asset_id', 'certificate_type', 'issue_date', 'expiry_date', 'issued_by', 'document_url'])]
 class Certificate extends Model
 {
+    public const EXPIRING_SOON_DAYS = 30;
+
     /** @use HasFactory<CertificateFactory> */
     use HasFactory;
 
@@ -47,14 +49,13 @@ class Certificate extends Model
     protected function status(): Attribute
     {
         return Attribute::get(function (): string {
-            $expiryDate = $this->expiry_date->toDateString();
             $today = today()->toImmutable();
 
-            if ($expiryDate < $today->toDateString()) {
+            if ($this->expiry_date->isBefore($today)) {
                 return 'expired';
             }
 
-            return $expiryDate <= $today->addDays(14)->toDateString() ? 'expiring_soon' : 'valid';
+            return $this->expiry_date->isAfter($today->addDays(self::EXPIRING_SOON_DAYS)) ? 'valid' : 'expiring_soon';
         });
     }
 
