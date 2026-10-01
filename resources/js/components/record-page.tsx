@@ -1,5 +1,12 @@
 import { Head, router } from '@inertiajs/react';
-import { Archive, Eye, Pencil, RotateCcw } from 'lucide-react';
+import {
+    Archive,
+    CircleOff,
+    Eye,
+    Pencil,
+    RotateCcw,
+    Trash2,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -13,6 +20,7 @@ import { Pagination } from '@/components/pagination';
 import { RecordForm, recordValues } from '@/components/record-form';
 import type { FormField } from '@/components/record-form';
 import { TrackerFilters } from '@/components/tracker-filters';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -36,6 +44,9 @@ type ResourceRoutes = {
     update: (id: number) => RouteDefinition<'put' | 'patch'>;
     destroy?: (id: number) => RouteDefinition<'delete'>;
     restore?: (id: number) => RouteDefinition<'patch'>;
+    markError?: (id: number) => RouteDefinition<'patch'>;
+    restoreError?: (id: number) => RouteDefinition<'patch'>;
+    purge?: (id: number) => RouteDefinition<'delete'>;
 };
 
 export function RecordPage<T extends { id: number }>({
@@ -61,6 +72,7 @@ export function RecordPage<T extends { id: number }>({
     addHint,
     emptyDescription,
     archive,
+    mistake,
     rowActions,
     viewContent,
 }: {
@@ -84,7 +96,8 @@ export function RecordPage<T extends { id: number }>({
             | 'sort'
             | 'site_id'
             | 'asset_type_id'
-            | 'equipment_status';
+            | 'equipment_status'
+            | 'record_state';
         label: string;
         options: { value: string; label: string }[];
     }[];
@@ -100,6 +113,10 @@ export function RecordPage<T extends { id: number }>({
         description: string;
         restoreDescription: string;
     };
+    mistake?: {
+        isEnteredInError: (record: T) => boolean;
+        canPurge?: (record: T) => boolean;
+    };
     rowActions?: (record: T) => ReactNode;
     viewContent?: (
         record: T,
@@ -110,12 +127,18 @@ export function RecordPage<T extends { id: number }>({
     const [viewing, setViewing] = useState<T | null>(null);
     const [deleting, setDeleting] = useState<T | null>(null);
     const [deletePending, setDeletePending] = useState(false);
+    const [mistakeTarget, setMistakeTarget] = useState<{
+        record: T;
+        action: 'mark' | 'restore' | 'purge';
+    } | null>(null);
+    const [mistakePending, setMistakePending] = useState(false);
     const [pageLoading, setPageLoading] = useState(false);
     const editorTrigger = useRef<HTMLButtonElement>(null);
     const editorRecordId = useRef<number | null>(null);
     const viewTrigger = useRef<HTMLButtonElement>(null);
     const skipViewFocusRestore = useRef(false);
     const deleteTrigger = useRef<HTMLButtonElement>(null);
+    const mistakeTrigger = useRef<HTMLButtonElement>(null);
     useEffect(
         () =>
             router.on('networkError', () => {
@@ -162,6 +185,20 @@ export function RecordPage<T extends { id: number }>({
             render: (_, index) => start + index + 1,
         },
         ...columns,
+        ...(mistake && records.data.some(mistake.isEnteredInError)
+            ? [
+                  {
+                      key: 'record-state',
+                      header: 'Record state',
+                      render: (record: T) =>
+                          mistake.isEnteredInError(record) ? (
+                              <Badge variant="outline">Entered in error</Badge>
+                          ) : (
+                              'Current'
+                          ),
+                  },
+              ]
+            : []),
         {
             key: 'actions',
             header: 'Actions',
@@ -196,7 +233,7 @@ export function RecordPage<T extends { id: number }>({
                         <Pencil />
                     </Button>
                     {rowActions?.(record)}
-                    {archive && (
+                    {archive && !mistake?.isEnteredInError(record) && (
                         <Button
                             variant="ghost"
                             size="icon"
@@ -213,6 +250,50 @@ export function RecordPage<T extends { id: number }>({
                                 <Archive />
                             )}
                         </Button>
+                    )}
+                    {mistake && (
+                        <>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7"
+                                aria-label={`${mistake.isEnteredInError(record) ? 'Restore' : 'Mark entered in error'} ${noun} #${record.id}`}
+                                onClick={(event) => {
+                                    mistakeTrigger.current =
+                                        event.currentTarget;
+                                    setMistakeTarget({
+                                        record,
+                                        action: mistake.isEnteredInError(record)
+                                            ? 'restore'
+                                            : 'mark',
+                                    });
+                                }}
+                            >
+                                {mistake.isEnteredInError(record) ? (
+                                    <RotateCcw />
+                                ) : (
+                                    <CircleOff />
+                                )}
+                            </Button>
+                            {mistake.canPurge?.(record) && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7"
+                                    aria-label={`Permanently delete ${noun} #${record.id}`}
+                                    onClick={(event) => {
+                                        mistakeTrigger.current =
+                                            event.currentTarget;
+                                        setMistakeTarget({
+                                            record,
+                                            action: 'purge',
+                                        });
+                                    }}
+                                >
+                                    <Trash2 />
+                                </Button>
+                            )}
+                        </>
                     )}
                 </div>
             ),
@@ -232,6 +313,25 @@ export function RecordPage<T extends { id: number }>({
         };
         if (archive.isArchived(deleting)) router.patch(route, {}, options);
         else router.delete(route, options);
+    };
+    const confirmMistake = () => {
+        if (!mistakeTarget) return;
+        const { record, action } = mistakeTarget;
+        const route =
+            action === 'mark'
+                ? routes.markError?.(record.id)
+                : action === 'restore'
+                  ? routes.restoreError?.(record.id)
+                  : routes.purge?.(record.id);
+        if (!route) return;
+        setMistakePending(true);
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => setMistakeTarget(null),
+            onFinish: () => setMistakePending(false),
+        };
+        if (action === 'purge') router.delete(route, options);
+        else router.patch(route, {}, options);
     };
 
     return (
@@ -255,13 +355,38 @@ export function RecordPage<T extends { id: number }>({
                 issueDates={issueDates}
                 statusOptions={statusOptions}
                 statusKey={statusKey}
-                extraFilters={extraFilters}
+                extraFilters={
+                    mistake
+                        ? [
+                              {
+                                  key: 'record_state',
+                                  label: 'Record state',
+                                  options: [
+                                      {
+                                          value: 'current',
+                                          label: 'Current records',
+                                      },
+                                      {
+                                          value: 'entered_in_error',
+                                          label: 'Entered in error',
+                                      },
+                                      { value: 'all', label: 'All records' },
+                                  ],
+                              },
+                              ...(extraFilters ?? []),
+                          ]
+                        : extraFilters
+                }
                 total={records.total}
                 noun={noun}
             />
             {records.total === 0 &&
             !Object.values(filters).some(
-                (value) => value && value !== 'all' && value !== 'name',
+                (value) =>
+                    value &&
+                    value !== 'all' &&
+                    value !== 'name' &&
+                    value !== 'current',
             ) ? (
                 <EmptyState
                     icon={icon}
@@ -396,6 +521,43 @@ export function RecordPage<T extends { id: number }>({
                     restoreFocus={() => {
                         if (deleteTrigger.current?.isConnected) {
                             deleteTrigger.current.focus();
+                        } else {
+                            document
+                                .querySelector<HTMLButtonElement>(
+                                    '[data-record-create]',
+                                )
+                                ?.focus();
+                        }
+                    }}
+                />
+            )}
+            {mistake && (
+                <ConfirmDialog
+                    open={!!mistakeTarget}
+                    onOpenChange={(open) => {
+                        if (!open) setMistakeTarget(null);
+                    }}
+                    title={`${mistakeTarget?.action === 'purge' ? 'Permanently delete' : mistakeTarget?.action === 'restore' ? 'Restore' : 'Mark entered in error'} ${noun}?`}
+                    description={
+                        mistakeTarget?.action === 'purge'
+                            ? `This ${noun} has no linked history. It will be permanently deleted. This cannot be undone.`
+                            : mistakeTarget?.action === 'restore'
+                              ? `Restore this ${noun} to the normal lists and active calculations? Its other active or inactive state will stay as saved.`
+                              : `Mark this ${noun} as entered in error? It will leave normal lists and active alerts, but remain available through the record state filter.`
+                    }
+                    confirmLabel={
+                        mistakeTarget?.action === 'purge'
+                            ? 'Delete permanently'
+                            : mistakeTarget?.action === 'restore'
+                              ? 'Restore'
+                              : 'Mark entered in error'
+                    }
+                    destructive={mistakeTarget?.action === 'purge'}
+                    onConfirm={confirmMistake}
+                    loading={mistakePending}
+                    restoreFocus={() => {
+                        if (mistakeTrigger.current?.isConnected) {
+                            mistakeTrigger.current.focus();
                         } else {
                             document
                                 .querySelector<HTMLButtonElement>(
