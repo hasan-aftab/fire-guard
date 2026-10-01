@@ -18,12 +18,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware(SyncFireNotificationsAfterWrite::class)->group(function (): void {
         Route::resource('clients', ClientController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::patch('clients/{client}/restore', [ClientController::class, 'restore'])->name('clients.restore');
         Route::resource('sites', SiteController::class)->only(['store', 'update', 'destroy']);
+        Route::patch('sites/{site}/restore', [SiteController::class, 'restore'])->name('sites.restore');
         Route::resource('assets', AssetController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::patch('assets/{asset}/restore', [AssetController::class, 'restore'])->name('assets.restore');
         Route::resource('technicians', TechnicianController::class)->only(['index', 'store', 'update', 'destroy']);
-        Route::resource('inspections', InspectionController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::patch('technicians/{technician}/restore', [TechnicianController::class, 'restore'])->name('technicians.restore');
+        Route::resource('inspections', InspectionController::class)->only(['index', 'store', 'update']);
         Route::get('compliance', [CertificateController::class, 'index'])->name('certificates.index');
-        Route::resource('certificates', CertificateController::class)->only(['store', 'update', 'destroy']);
+        Route::resource('certificates', CertificateController::class)->only(['store', 'update']);
     });
 
     Route::post('notifications/generate', [FireNotificationController::class, 'store'])->name('notifications.generate');
