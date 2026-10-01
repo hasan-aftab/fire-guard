@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Asset;
+use App\Models\Site;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,7 +19,15 @@ class AssetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'site_id' => ['required', 'integer', Rule::exists('sites', 'id')],
+            'site_id' => ['required', 'integer', Rule::exists('sites', 'id'), function (string $attribute, mixed $value, Closure $fail): void {
+                $asset = $this->route('asset');
+                if ($asset instanceof Asset && $asset->site_id === (int) $value) {
+                    return;
+                }
+                if (! Site::whereKey($value)->where('is_active', true)->whereHas('client', fn ($client) => $client->where('is_active', true))->exists()) {
+                    $fail('Choose an active site belonging to an active client.');
+                }
+            }],
             'asset_type_id' => ['required', 'integer', Rule::exists('asset_types', 'id')],
             'serial_number' => ['nullable', 'string', 'max:255'],
             'location_desc' => ['nullable', 'string', 'max:5000'],
