@@ -26,6 +26,7 @@ class DashboardController extends Controller
             ->join('asset_types', 'asset_types.id', '=', 'assets.asset_type_id')
             ->where('assets.status', 'active')
             ->where('sites.is_active', true)->where('clients.is_active', true)
+            ->whereNull('assets.entered_in_error_at')->whereNull('sites.entered_in_error_at')->whereNull('clients.entered_in_error_at')
             ->whereBetween('assets.next_service_due', [$from, $to])
             ->selectRaw("'asset' as source, assets.id as event_id, assets.next_service_due as due_date, asset_types.type_name, sites.site_name");
         $inspectionDueEvents = static fn (string $from, string $to) => DB::table('inspections')
@@ -35,6 +36,7 @@ class DashboardController extends Controller
             ->join('asset_types', 'asset_types.id', '=', 'assets.asset_type_id')
             ->where('assets.status', 'active')
             ->where('sites.is_active', true)->where('clients.is_active', true)
+            ->whereNull('inspections.entered_in_error_at')->whereNull('assets.entered_in_error_at')->whereNull('sites.entered_in_error_at')->whereNull('clients.entered_in_error_at')
             ->whereBetween('inspections.next_due_date', [$from, $to])
             ->selectRaw("'inspection' as source, inspections.id as event_id, inspections.next_due_date as due_date, asset_types.type_name, sites.site_name");
 
@@ -54,9 +56,9 @@ class DashboardController extends Controller
         $assetQuery = Asset::query()
             ->select(['id', 'site_id', 'asset_type_id', 'serial_number', 'location_desc', 'next_service_due'])
             ->with(['site:id,site_name', 'assetType:id,type_name'])
-            ->where('status', 'active');
-        $assetQuery->whereHas('site', fn ($site) => $site->where('is_active', true)
-            ->whereHas('client', fn ($client) => $client->where('is_active', true)));
+            ->where('status', 'active')->whereNull('entered_in_error_at');
+        $assetQuery->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')
+            ->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')));
         $mapAsset = fn (Asset $asset): array => [
             'assetId' => $asset->id,
             'serialNumber' => $asset->serial_number,
@@ -77,10 +79,10 @@ class DashboardController extends Controller
         $certificatesQuery = Certificate::query()
             ->select(['id', 'site_id', 'certificate_type', 'expiry_date'])
             ->with('site:id,site_name')
-            ->where('expiry_date', '<=', $alertEnd);
-        $certificatesQuery->whereHas('site', fn ($site) => $site->where('is_active', true)
-            ->whereHas('client', fn ($client) => $client->where('is_active', true)))
-            ->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')));
+            ->where('expiry_date', '<=', $alertEnd)->whereNull('entered_in_error_at');
+        $certificatesQuery->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')
+            ->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))
+            ->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')));
         if ($request->filled('cert_from')) {
             $certificatesQuery->where('expiry_date', '>=', $request->string('cert_from')->toString());
         }
@@ -90,7 +92,11 @@ class DashboardController extends Controller
 
         return Inertia::render('dashboard', [
             'summary' => function () use ($asOfDate, $alertEnd, $calendarEnd, $assetDueEvents, $inspectionDueEvents): array {
-                $results = Inspection::query()->select('result')->selectRaw('count(*) as aggregate')->groupBy('result')->pluck('aggregate', 'result');
+                $results = Inspection::query()->whereNull('entered_in_error_at')
+                    ->whereHas('asset', fn ($asset) => $asset->whereNull('entered_in_error_at')
+                        ->whereHas('site', fn ($site) => $site->whereNull('entered_in_error_at')
+                            ->whereHas('client', fn ($client) => $client->whereNull('entered_in_error_at'))))
+                    ->select('result')->selectRaw('count(*) as aggregate')->groupBy('result')->pluck('aggregate', 'result');
                 $dueDates = DB::query()->fromSub(
                     $assetDueEvents($asOfDate, $calendarEnd)->select('assets.next_service_due as due_date')
                         ->union($inspectionDueEvents($asOfDate, $calendarEnd)->select('inspections.next_due_date as due_date')),
@@ -100,10 +106,13 @@ class DashboardController extends Controller
                 return [
                     'asOfDate' => $asOfDate,
                     'stats' => [
-                        'activeClients' => Client::where('is_active', true)->count(),
-                        'totalAssets' => Asset::count(),
-                        'overdueInspections' => Asset::where('status', 'active')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereHas('client', fn ($client) => $client->where('is_active', true)))->where('next_service_due', '<', $asOfDate)->count(),
-                        'expiringCerts' => Certificate::whereHas('site', fn ($site) => $site->where('is_active', true)->whereHas('client', fn ($client) => $client->where('is_active', true)))->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')))->where('expiry_date', '<=', $alertEnd)->count(),
+                        'activeClients' => Client::where('is_active', true)->whereNull('entered_in_error_at')->count(),
+                        'totalAssets' => Asset::whereNull('entered_in_error_at')
+                            ->whereHas('site', fn ($site) => $site->whereNull('entered_in_error_at')
+                                ->whereHas('client', fn ($client) => $client->whereNull('entered_in_error_at')))
+                            ->count(),
+                        'overdueInspections' => Asset::where('status', 'active')->whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->where('next_service_due', '<', $asOfDate)->count(),
+                        'expiringCerts' => Certificate::whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')))->where('expiry_date', '<=', $alertEnd)->count(),
                     ],
                     'complianceRate' => [
                         'pass' => (int) $results->get('pass', 0),
