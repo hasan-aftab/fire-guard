@@ -22,11 +22,13 @@ use Illuminate\Support\Carbon;
  * @property CarbonImmutable|null $last_service_date
  * @property CarbonImmutable|null $next_service_due
  * @property string $status
+ * @property CarbonImmutable|null $entered_in_error_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Site $site
  * @property-read AssetType $assetType
  * @property-read Collection<int, Inspection> $inspections
+ * @property-read Collection<int, Certificate> $certificates
  */
 #[Fillable(['site_id', 'asset_type_id', 'serial_number', 'location_desc', 'install_date', 'last_service_date', 'next_service_due', 'status'])]
 class Asset extends Model
@@ -41,6 +43,7 @@ class Asset extends Model
             'install_date' => 'immutable_date:Y-m-d',
             'last_service_date' => 'immutable_date:Y-m-d',
             'next_service_due' => 'immutable_date:Y-m-d',
+            'entered_in_error_at' => 'immutable_datetime',
         ];
     }
 
@@ -60,5 +63,11 @@ class Asset extends Model
     public function inspections(): HasMany
     {
         return $this->hasMany(Inspection::class);
+    }
+
+    /** @return HasMany<Certificate, $this> */
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(Certificate::class);
     }
 }
