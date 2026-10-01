@@ -209,7 +209,11 @@ test('dashboard uses active assets thirty day alerts ninety day calendar and rea
         ->where('summary.stats.activeClients', 1)->where('summary.stats.totalAssets', 5)
         ->where('summary.stats.overdueInspections', 1)->where('summary.stats.expiringCerts', 2)
         ->where('attention.total', 2)->where('certificates.total', 2)
-        ->where('summary.upcomingTotal', 2)->has('summary.upcomingInspections', 2)
+        ->has('summary.upcomingDates', 2)
+        ->where('summary.upcomingDates.0', '2026-10-29')
+        ->where('summary.upcomingDates.1', '2026-12-28')
+        ->where('calendar.month', '2026-10')
+        ->where('calendar.events.total', 1)
         ->where('summary.complianceRate', ['pass' => 1, 'fail' => 1, 'needs_repair' => 1, 'total' => 3]));
 });
 
