@@ -318,12 +318,16 @@ export default function Assets({
                     label: 'Last service date',
                     type: 'date',
                     afterOrEqual: 'install_date',
+                    description:
+                        'Updated automatically when an inspection is logged. Edit here for setup or corrections.',
                 },
                 {
                     name: 'next_service_due',
                     label: 'Next service due',
                     type: 'date',
                     afterOrEqual: ['install_date', 'last_service_date'],
+                    description:
+                        'Current next inspection date. Edit here for setup or corrections; inspections normally update it.',
                 },
                 {
                     name: 'status',
