@@ -20,17 +20,24 @@ use Illuminate\Support\Carbon;
  * @property string|null $access_notes
  * @property string|null $site_contact
  * @property string|null $site_phone
+ * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Client $client
  * @property-read Collection<int, Asset> $assets
  * @property-read Collection<int, Certificate> $certificates
  */
-#[Fillable(['client_id', 'site_name', 'address', 'suburb_region', 'access_notes', 'site_contact', 'site_phone'])]
+#[Fillable(['client_id', 'site_name', 'address', 'suburb_region', 'access_notes', 'site_contact', 'site_phone', 'is_active'])]
 class Site extends Model
 {
     /** @use HasFactory<SiteFactory> */
     use HasFactory;
+
+    /** @return array<string, string> */
+    protected function casts(): array
+    {
+        return ['is_active' => 'boolean'];
+    }
 
     /** @return BelongsTo<Client, $this> */
     public function client(): BelongsTo
