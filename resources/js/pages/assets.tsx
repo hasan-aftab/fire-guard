@@ -5,6 +5,7 @@ import {
     store,
     update,
     destroy,
+    restore,
 } from '@/actions/App/Http/Controllers/AssetController';
 import { RecordPage } from '@/components/record-page';
 import { StatusBadge } from '@/components/status-badge';
@@ -30,7 +31,9 @@ export default function Assets({
     filters: TrackerFilters;
 }) {
     const { today } = usePage().props;
-    const addDisabled = sites.length === 0 || assetTypes.length === 0;
+    const activeSites = sites.filter(
+        (site) => site.is_active && site.client?.is_active,
+    );
     const equipmentStatuses: Record<string, string> = {
         active: 'Active',
         decommissioned: 'Decommissioned',
@@ -44,16 +47,24 @@ export default function Assets({
             description="Track and manage fire safety assets across all sites"
             noun="asset"
             icon={Flame}
-            addDisabled={addDisabled}
+            addDisabled={activeSites.length === 0 || assetTypes.length === 0}
             addHint={
-                sites.length === 0
+                activeSites.length === 0
                     ? 'Add a client and site before creating an asset.'
                     : 'Set up an asset type before creating an asset.'
             }
             emptyDescription="Add your first fire safety asset to start tracking inspections and compliance."
             records={records}
             filters={filters}
-            routes={{ index, store, update, destroy }}
+            routes={{ index, store, update, destroy, restore }}
+            archive={{
+                isArchived: (asset) => asset.status === 'decommissioned',
+                action: 'Decommission',
+                description:
+                    'Decommission this equipment? Its previous inspection and service history will remain available.',
+                restoreDescription:
+                    'Reactivate this equipment? Its saved service due date will again count as active work if its site and client are active.',
+            }}
             searchPlaceholder="Search serial, location, site, client, or type..."
             dateLabel="Next service due"
             statusOptions={[
@@ -120,11 +131,23 @@ export default function Assets({
                                         ? `${asset.serial_number.slice(0, 6)}…${asset.serial_number.slice(-8)}`
                                         : asset.serial_number || '—'}
                                 </span>
-                                <StatusBadge
-                                    date={asset.next_service_due}
-                                    showDate={false}
-                                    asOfDate={today}
-                                />
+                                {asset.status === 'active' &&
+                                asset.site.is_active &&
+                                asset.site.client?.is_active ? (
+                                    <StatusBadge
+                                        date={asset.next_service_due}
+                                        showDate={false}
+                                        asOfDate={today}
+                                    />
+                                ) : (
+                                    <Badge variant="outline">
+                                        {asset.status === 'active'
+                                            ? 'Inactive site/client'
+                                            : (equipmentStatuses[
+                                                  asset.status
+                                              ] ?? asset.status)}
+                                    </Badge>
+                                )}
                             </span>
                             <span className="hidden sm:inline">
                                 {asset.serial_number || '—'}
@@ -164,13 +187,23 @@ export default function Assets({
                     key: 'status',
                     header: 'Service status',
                     className: 'hidden w-[100px] sm:table-cell',
-                    render: (asset) => (
-                        <StatusBadge
-                            date={asset.next_service_due}
-                            showDate={false}
-                            asOfDate={today}
-                        />
-                    ),
+                    render: (asset) =>
+                        asset.status === 'active' &&
+                        asset.site.is_active &&
+                        asset.site.client?.is_active ? (
+                            <StatusBadge
+                                date={asset.next_service_due}
+                                showDate={false}
+                                asOfDate={today}
+                            />
+                        ) : (
+                            <Badge variant="outline">
+                                {asset.status === 'active'
+                                    ? 'Inactive site/client'
+                                    : (equipmentStatuses[asset.status] ??
+                                      asset.status)}
+                            </Badge>
+                        ),
                 },
                 {
                     key: 'equipment',
@@ -206,7 +239,7 @@ export default function Assets({
                 </div>
             )}
             defaults={{
-                site_id: String(sites[0]?.id ?? ''),
+                site_id: String(activeSites[0]?.id ?? ''),
                 asset_type_id: String(assetTypes[0]?.id ?? ''),
                 serial_number: '',
                 location_desc: '',
@@ -215,16 +248,22 @@ export default function Assets({
                 last_service_date: '',
                 status: 'active',
             }}
-            fields={[
+            fields={(editing) => [
                 {
                     name: 'site_id',
                     label: 'Site',
                     type: 'select',
                     required: true,
-                    options: sites.map((site) => ({
-                        value: String(site.id),
-                        label: `${site.client?.company_name} > ${site.site_name}`,
-                    })),
+                    options: sites
+                        .filter(
+                            (site) =>
+                                (site.is_active && site.client?.is_active) ||
+                                site.id === editing?.site_id,
+                        )
+                        .map((site) => ({
+                            value: String(site.id),
+                            label: `${site.client?.company_name} > ${site.site_name}${!site.is_active || !site.client?.is_active ? ' (Inactive)' : ''}`,
+                        })),
                 },
                 {
                     name: 'asset_type_id',
