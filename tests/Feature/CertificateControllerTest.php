@@ -73,16 +73,17 @@ test('certificate writes ignore submitted status and reject unsafe document URLs
     expect($certificate->refresh()->status)->toBe('valid');
 });
 
-test('certificate pagination returns to the last available page after a deletion', function () {
+test('expired certificates remain listed and cannot be deleted through the application', function () {
+    $this->travelTo(now()->setDate(2026, 9, 30)->startOfDay());
     $site = Site::factory()->create();
-    Certificate::factory()->count(11)->for($site)->create();
+    Certificate::factory()->count(11)->for($site)->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-09-01']);
     $lastCertificate = Certificate::query()->latest('id')->firstOrFail();
 
     $this->actingAs(User::factory()->create())->from(route('certificates.index', ['page' => 2]))
-        ->delete(route('certificates.destroy', $lastCertificate))->assertRedirect();
+        ->delete('/certificates/'.$lastCertificate->id)->assertStatus(405);
     $this->get(route('certificates.index', ['page' => 2]))
-        ->assertRedirect(route('certificates.index', ['page' => 1]));
-    $this->get(route('certificates.index', ['page' => 1]))
-        ->assertInertia(fn (Assert $page) => $page->has('records.data', 10)
-            ->where('records.total', 10)->missing('filters.page'));
+        ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
+            ->where('records.data.0.status', 'expired')
+            ->where('records.total', 11)->missing('filters.page'));
+    $this->assertModelExists($lastCertificate);
 });
