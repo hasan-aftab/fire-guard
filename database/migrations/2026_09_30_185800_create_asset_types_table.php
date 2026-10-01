@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('type_name')->unique();
             $table->string('category')->nullable();
-            $table->unsignedSmallInteger('default_interval_months')->default(12);
+            $table->unsignedSmallInteger('default_interval_months')->nullable()->default(12);
             $table->timestamps();
         });
     }
