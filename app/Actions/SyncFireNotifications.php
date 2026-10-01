@@ -13,17 +13,16 @@ class SyncFireNotifications
 {
     public function handle(User $user): void
     {
-        $today = today()->toDateString();
         $candidates = [];
 
         foreach (Asset::with(['assetType', 'site'])->where('status', 'active')
             ->whereNull('entered_in_error_at')
             ->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))
-            ->where('next_service_due', '<=', today()->addDays(14)->toDateString())->get() as $asset) {
+            ->where('next_service_due', '<=', today()->addDays(Asset::DUE_SOON_DAYS)->toDateString())->get() as $asset) {
             if ($asset->next_service_due === null) {
                 continue;
             }
-            $overdue = $asset->next_service_due->toDateString() < $today;
+            $overdue = $asset->service_status === 'overdue';
             $days = (int) abs(today()->diffInDays($asset->next_service_due));
             $dayLabel = $days === 1 ? 'day' : 'days';
             $candidates[] = [
@@ -36,8 +35,8 @@ class SyncFireNotifications
             ];
         }
 
-        foreach (Certificate::with('site')->whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')))->where('expiry_date', '<=', today()->addDays(30)->toDateString())->get() as $certificate) {
-            $expired = $certificate->expiry_date->toDateString() < $today;
+        foreach (Certificate::with('site')->whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')))->where('expiry_date', '<=', today()->addDays(Certificate::EXPIRING_SOON_DAYS)->toDateString())->get() as $certificate) {
+            $expired = $certificate->status === 'expired';
             $days = (int) abs(today()->diffInDays($certificate->expiry_date));
             $dayLabel = $days === 1 ? 'day' : 'days';
             $candidates[] = [
@@ -50,7 +49,10 @@ class SyncFireNotifications
             ];
         }
 
-        foreach (Inspection::with('asset.site')->whereNull('entered_in_error_at')->whereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at'))))->whereIn('result', ['fail', 'needs_repair'])->get() as $inspection) {
+        foreach (Inspection::with('asset.site')->whereNull('entered_in_error_at')->whereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at'))))->whereIn('result', ['fail', 'needs_repair'])
+            ->where('id', fn ($query) => $query->select('latest.id')->from('inspections as latest')
+                ->whereColumn('latest.asset_id', 'inspections.asset_id')->whereNull('latest.entered_in_error_at')
+                ->orderByDesc('latest.inspection_date')->orderByDesc('latest.id')->limit(1))->get() as $inspection) {
             $label = $inspection->result === 'fail' ? 'Failed' : 'Needs Repair';
             $candidates[] = [
                 'type' => 'failed_inspection',
