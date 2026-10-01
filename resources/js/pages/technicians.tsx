@@ -5,6 +5,9 @@ import {
     update,
     destroy,
     restore,
+    markError,
+    restoreError,
+    purge,
 } from '@/actions/App/Http/Controllers/TechnicianController';
 import { RecordPage } from '@/components/record-page';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +41,21 @@ export default function Technicians({
             }}
             records={records}
             filters={filters}
-            routes={{ index, store, update, destroy, restore }}
+            routes={{
+                index,
+                store,
+                update,
+                destroy,
+                restore,
+                markError,
+                restoreError,
+                purge,
+            }}
+            mistake={{
+                isEnteredInError: (technician) =>
+                    technician.entered_in_error_at !== null,
+                canPurge: (technician) => technician.inspections_count === 0,
+            }}
             searchPlaceholder="Search technicians..."
             statusOptions={[
                 { value: 'active', label: 'Active' },
