@@ -29,24 +29,10 @@ class DashboardController extends Controller
             ->whereNull('assets.entered_in_error_at')->whereNull('sites.entered_in_error_at')->whereNull('clients.entered_in_error_at')
             ->whereBetween('assets.next_service_due', [$from, $to])
             ->selectRaw("'asset' as source, assets.id as event_id, assets.next_service_due as due_date, asset_types.type_name, sites.site_name");
-        $inspectionDueEvents = static fn (string $from, string $to) => DB::table('inspections')
-            ->join('assets', 'assets.id', '=', 'inspections.asset_id')
-            ->join('sites', 'sites.id', '=', 'assets.site_id')
-            ->join('clients', 'clients.id', '=', 'sites.client_id')
-            ->join('asset_types', 'asset_types.id', '=', 'assets.asset_type_id')
-            ->where('assets.status', 'active')
-            ->where('sites.is_active', true)->where('clients.is_active', true)
-            ->whereNull('inspections.entered_in_error_at')->whereNull('assets.entered_in_error_at')->whereNull('sites.entered_in_error_at')->whereNull('clients.entered_in_error_at')
-            ->whereBetween('inspections.next_due_date', [$from, $to])
-            ->selectRaw("'inspection' as source, inspections.id as event_id, inspections.next_due_date as due_date, asset_types.type_name, sites.site_name");
-
         $calendarMonth = $request->string('calendar_month')->toString();
         if ($calendarMonth === '') {
-            $firstDueDate = DB::query()->fromSub(
-                $assetDueEvents($asOfDate, $calendarEnd)->select('assets.next_service_due as due_date')
-                    ->union($inspectionDueEvents($asOfDate, $calendarEnd)->select('inspections.next_due_date as due_date')),
-                'due_dates',
-            )->orderBy('due_date')->value('due_date');
+            $firstDueDate = $assetDueEvents($asOfDate, $calendarEnd)
+                ->select('assets.next_service_due as due_date')->orderBy('due_date')->value('due_date');
             $calendarMonth = substr(is_string($firstDueDate) ? $firstDueDate : $asOfDate, 0, 7);
         }
         $calendarStart = max($asOfDate, $calendarMonth.'-01');
@@ -91,15 +77,14 @@ class DashboardController extends Controller
         }
 
         return Inertia::render('dashboard', [
-            'summary' => function () use ($asOfDate, $alertEnd, $calendarEnd, $assetDueEvents, $inspectionDueEvents): array {
+            'summary' => function () use ($asOfDate, $alertEnd, $calendarEnd, $assetDueEvents): array {
                 $results = Inspection::query()->whereNull('entered_in_error_at')
                     ->whereHas('asset', fn ($asset) => $asset->whereNull('entered_in_error_at')
                         ->whereHas('site', fn ($site) => $site->whereNull('entered_in_error_at')
                             ->whereHas('client', fn ($client) => $client->whereNull('entered_in_error_at'))))
                     ->select('result')->selectRaw('count(*) as aggregate')->groupBy('result')->pluck('aggregate', 'result');
                 $dueDates = DB::query()->fromSub(
-                    $assetDueEvents($asOfDate, $calendarEnd)->select('assets.next_service_due as due_date')
-                        ->union($inspectionDueEvents($asOfDate, $calendarEnd)->select('inspections.next_due_date as due_date')),
+                    $assetDueEvents($asOfDate, $calendarEnd)->select('assets.next_service_due as due_date'),
                     'due_dates',
                 )->distinct()->orderBy('due_date')->pluck('due_date')->all();
 
@@ -123,12 +108,9 @@ class DashboardController extends Controller
                     'upcomingDates' => $dueDates,
                 ];
             },
-            'calendar' => function () use ($calendarMonth, $calendarStart, $calendarLastDay, $assetDueEvents, $inspectionDueEvents) {
-                $events = DB::query()->fromSub(
-                    $assetDueEvents($calendarStart, $calendarLastDay)
-                        ->unionAll($inspectionDueEvents($calendarStart, $calendarLastDay)),
-                    'due_events',
-                )->orderBy('due_date')->orderBy('source')->orderBy('event_id');
+            'calendar' => function () use ($calendarMonth, $calendarStart, $calendarLastDay, $assetDueEvents) {
+                $events = DB::query()->fromSub($assetDueEvents($calendarStart, $calendarLastDay), 'due_events')
+                    ->orderBy('due_date')->orderBy('event_id');
                 $page = $events->paginate(10, ['*'], 'calendar_page');
                 if ($page->currentPage() > $page->lastPage()) {
                     $page = $events->paginate(10, ['*'], 'calendar_page', $page->lastPage());
