@@ -22,7 +22,7 @@ class SiteRequest extends FormRequest
             'client_id' => [
                 'required',
                 'integer',
-                Rule::exists('clients', 'id'),
+                Rule::exists('clients', 'id')->when(! $site instanceof Site, fn ($rule) => $rule->where('is_active', true)),
                 ...($site instanceof Site ? [Rule::in([$site->client_id])] : []),
             ],
             'site_name' => ['required', 'string', 'max:255'],
@@ -31,6 +31,7 @@ class SiteRequest extends FormRequest
             'access_notes' => ['nullable', 'string', 'max:10000'],
             'site_contact' => ['nullable', 'string', 'max:255'],
             'site_phone' => ['nullable', 'string', 'max:255', 'regex:/^(?=(?:\D*\d){7,20}\D*$)\+?(?:\d+|\(\d+\))(?:[ .-]*(?:\d+|\(\d+\)))*(?:\s*(?:x|ext\.?)\s*\d+)?$/i'],
+            'is_active' => ['sometimes', 'boolean'],
         ];
     }
 
