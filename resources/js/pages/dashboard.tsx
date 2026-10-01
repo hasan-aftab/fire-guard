@@ -18,7 +18,10 @@ import { PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
 import { StatCard } from '@/components/stat-card';
 import { StatusBadge } from '@/components/status-badge';
-import { UpcomingInspectionsCalendar } from '@/components/upcoming-inspections-calendar';
+import {
+    UpcomingInspectionsCalendar,
+    UpcomingInspectionsList,
+} from '@/components/upcoming-inspections-calendar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +29,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { ViewField, ViewModal } from '@/components/view-modal';
 import type {
     DashboardFilters,
+    DashboardCalendar,
     DashboardSummary,
     ExpiringCertificate,
     Paginated,
@@ -36,11 +40,13 @@ type Section = 'attention' | 'certificates';
 
 export default function Dashboard({
     summary,
+    calendar,
     attention,
     certificates,
     filters,
 }: {
     summary: DashboardSummary | null;
+    calendar: DashboardCalendar | null;
     attention: Paginated<UpcomingInspection> | null;
     certificates: Paginated<ExpiringCertificate> | null;
     filters: DashboardFilters;
@@ -51,9 +57,10 @@ export default function Dashboard({
         null,
     );
     const [loadingSection, setLoadingSection] = useState<Section | null>(null);
+    const [loadingCalendar, setLoadingCalendar] = useState(false);
     const [error, setError] = useState('');
 
-    if (!summary || !attention || !certificates) {
+    if (!summary || !calendar || !attention || !certificates) {
         return (
             <div>
                 <Head title="Dashboard" />
@@ -101,6 +108,26 @@ export default function Dashboard({
                     current === section ? null : current,
                 ),
         });
+    };
+
+    const applyCalendar = (changes: DashboardFilters) => {
+        router.get(
+            dashboard.url(),
+            { ...filters, ...changes },
+            {
+                only: ['calendar', 'filters', 'today'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onStart: () => {
+                    setError('');
+                    setLoadingCalendar(true);
+                },
+                onError: () =>
+                    setError('The calendar could not load. Please try again.'),
+                onFinish: () => setLoadingCalendar(false),
+            },
+        );
     };
 
     const attentionStart = (attention.current_page - 1) * attention.per_page;
@@ -161,19 +188,17 @@ export default function Dashboard({
         },
         {
             key: 'actions',
-            header: 'Actions',
+            header: '',
             className: 'w-16',
             render: (asset: UpcomingInspection) => (
                 <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
+                    aria-label={`View ${asset.typeName} ${asset.serialNumber || 'asset'}`}
                     onClick={() => setViewingAttention(asset)}
-                    className="h-7 gap-1 px-2 text-muted-foreground hover:text-foreground"
+                    className="size-8 text-muted-foreground hover:text-foreground"
                 >
-                    <Eye className="size-3.5" /> View
-                    <span className="sr-only">
-                        {asset.typeName} {asset.serialNumber}
-                    </span>
+                    <Eye className="size-4" />
                 </Button>
             ),
         },
@@ -224,19 +249,17 @@ export default function Dashboard({
         },
         {
             key: 'actions',
-            header: 'Actions',
+            header: '',
             className: 'w-16',
             render: (certificate: ExpiringCertificate) => (
                 <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
+                    aria-label={`View ${certificate.certificateType} at ${certificate.siteName}`}
                     onClick={() => setViewingCert(certificate)}
-                    className="h-7 gap-1 px-2 text-muted-foreground hover:text-foreground"
+                    className="size-8 text-muted-foreground hover:text-foreground"
                 >
-                    <Eye className="size-3.5" /> View
-                    <span className="sr-only">
-                        {certificate.certificateType} at {certificate.siteName}
-                    </span>
+                    <Eye className="size-4" />
                 </Button>
             ),
         },
@@ -288,30 +311,76 @@ export default function Dashboard({
                     />
                 </div>
 
-                <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div className="mb-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                     <ComplianceGauge
                         {...summary.complianceRate}
                         needsRepair={summary.complianceRate.needs_repair}
                     />
-                    <UpcomingInspectionsCalendar
-                        inspections={summary.upcomingInspections}
-                        dates={summary.upcomingDates}
-                        total={summary.upcomingTotal}
-                        asOfDate={summary.asOfDate}
-                    />
+                    <div className="relative" aria-busy={loadingCalendar}>
+                        <UpcomingInspectionsCalendar
+                            calendar={calendar}
+                            dates={summary.upcomingDates}
+                            asOfDate={summary.asOfDate}
+                            onMonthChange={(month) =>
+                                applyCalendar({
+                                    calendar_month: month,
+                                    calendar_page: 1,
+                                })
+                            }
+                        />
+                        {loadingCalendar && (
+                            <div
+                                className="absolute inset-0 flex items-center justify-center rounded-xl bg-card/70"
+                                role="status"
+                            >
+                                <Spinner className="size-6" />
+                                <span className="sr-only">
+                                    Loading calendar
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                    <div
+                        className="relative lg:col-span-2"
+                        aria-busy={loadingCalendar}
+                    >
+                        <UpcomingInspectionsList
+                            calendar={calendar}
+                            onPageChange={(page) =>
+                                applyCalendar({
+                                    calendar_month: calendar.month,
+                                    calendar_page: page,
+                                })
+                            }
+                        />
+                        {loadingCalendar && (
+                            <div
+                                className="absolute inset-0 flex items-center justify-center rounded-xl bg-card/70"
+                                role="status"
+                            >
+                                <Spinner className="size-6" />
+                                <span className="sr-only">
+                                    Loading due items
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex flex-col gap-6">
                     <Card
-                        className="relative flex flex-col"
+                        className="relative flex flex-col gap-0 py-0"
                         aria-busy={loadingSection === 'attention'}
                     >
-                        <CardHeader className="border-b">
+                        <CardHeader className="border-b py-3">
                             <div className="flex flex-col items-start gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                <CardTitle className="flex items-center gap-2 text-base">
-                                    <div className="flex size-7 items-center justify-center rounded-md bg-amber-50 dark:bg-amber-950/30">
-                                        <AlertTriangle className="size-4 text-amber-500 dark:text-amber-400" />
-                                    </div>
+                                <CardTitle className="flex items-center gap-2 text-base leading-7">
+                                    <span className="flex size-7 items-center justify-center rounded-md bg-warning/10">
+                                        <AlertTriangle
+                                            className="size-4 text-warning"
+                                            aria-hidden="true"
+                                        />
+                                    </span>
                                     Needs attention
                                 </CardTitle>
                                 <div className="flex max-w-full items-center gap-2">
@@ -352,8 +421,8 @@ export default function Dashboard({
                         <CardContent className="flex flex-1 flex-col p-0">
                             {attention.total === 0 ? (
                                 <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-                                    <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/30">
-                                        <CheckCircle2 className="size-6 text-emerald-500 dark:text-emerald-400" />
+                                    <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-success/10">
+                                        <CheckCircle2 className="size-6 text-success" />
                                     </div>
                                     <p className="text-sm font-medium text-foreground">
                                         {attentionFiltered
@@ -405,15 +474,18 @@ export default function Dashboard({
                     </Card>
 
                     <Card
-                        className="relative flex flex-col"
+                        className="relative flex flex-col gap-0 py-0"
                         aria-busy={loadingSection === 'certificates'}
                     >
-                        <CardHeader className="border-b">
+                        <CardHeader className="border-b py-3">
                             <div className="flex flex-col items-start gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                <CardTitle className="flex items-center gap-2 text-base">
-                                    <div className="flex size-7 items-center justify-center rounded-md bg-amber-50 dark:bg-amber-950/30">
-                                        <ShieldCheck className="size-4 text-amber-500 dark:text-amber-400" />
-                                    </div>
+                                <CardTitle className="flex items-center gap-2 text-base leading-7">
+                                    <span className="flex size-7 items-center justify-center rounded-md bg-warning/10">
+                                        <ShieldCheck
+                                            className="size-4 text-warning"
+                                            aria-hidden="true"
+                                        />
+                                    </span>
                                     Expired or expiring certificates
                                 </CardTitle>
                                 <div className="flex max-w-full items-center gap-2">
@@ -452,8 +524,8 @@ export default function Dashboard({
                         <CardContent className="flex flex-1 flex-col p-0">
                             {certificates.total === 0 ? (
                                 <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-                                    <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/30">
-                                        <CheckCircle2 className="size-6 text-emerald-500 dark:text-emerald-400" />
+                                    <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-success/10">
+                                        <CheckCircle2 className="size-6 text-success" />
                                     </div>
                                     <p className="text-sm font-medium text-foreground">
                                         {certFiltered
