@@ -21,6 +21,7 @@ export function TrackerFilters({
     searchPlaceholder,
     statusOptions,
     statusKey = 'status',
+    extraFilters,
     dateLabel,
     issueDates = false,
     total,
@@ -30,7 +31,12 @@ export function TrackerFilters({
     route: RouteDefinition<'get'>;
     searchPlaceholder: string;
     statusOptions?: { value: string; label: string }[];
-    statusKey?: 'status' | 'result';
+    statusKey?: 'status' | 'result' | 'active';
+    extraFilters?: {
+        key: 'site_presence' | 'sort';
+        label: string;
+        options: { value: string; label: string }[];
+    }[];
     dateLabel?: string;
     issueDates?: boolean;
     total: number;
@@ -114,7 +120,9 @@ export function TrackerFilters({
                         aria-label={
                             statusKey === 'result'
                                 ? 'Filter by result'
-                                : 'Filter by status'
+                                : statusKey === 'active'
+                                  ? 'Filter by client status'
+                                  : 'Filter by status'
                         }
                         className="w-36"
                     >
@@ -125,7 +133,9 @@ export function TrackerFilters({
                             <SelectItem value="all">
                                 {statusKey === 'result'
                                     ? 'All results'
-                                    : 'All statuses'}
+                                    : statusKey === 'active'
+                                      ? 'All clients'
+                                      : 'All statuses'}
                             </SelectItem>
                             {statusOptions.map((option) => (
                                 <SelectItem
@@ -139,6 +149,45 @@ export function TrackerFilters({
                     </SelectContent>
                 </Select>
             )}
+            {extraFilters?.map((filter) => {
+                const selectedLabel =
+                    filter.options.find(
+                        (option) => option.value === filters[filter.key],
+                    )?.label ?? filter.options[0].label;
+                return (
+                    <Select
+                        key={filter.key}
+                        value={
+                            filters[filter.key] ||
+                            (filter.key === 'sort'
+                                ? ''
+                                : filter.options[0].value)
+                        }
+                        onValueChange={(value) =>
+                            apply({ [filter.key]: value })
+                        }
+                    >
+                        <SelectTrigger
+                            aria-label={`${filter.label}: ${selectedLabel}`}
+                            className="w-40"
+                        >
+                            <span className="truncate">{selectedLabel}</span>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                {filter.options.map((option) => (
+                                    <SelectItem
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                );
+            })}
             <span className="text-xs text-muted-foreground">
                 {total} {noun}
                 {total === 1 ? '' : 's'}
@@ -149,7 +198,7 @@ export function TrackerFilters({
                 </span>
             )}
             {Object.values(filters).some(
-                (value) => value && value !== 'all',
+                (value) => value && value !== 'all' && value !== 'name',
             ) && (
                 <Button
                     variant="ghost"
