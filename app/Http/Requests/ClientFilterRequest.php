@@ -15,6 +15,7 @@ class ClientFilterRequest extends TrackerFilterRequest
             'sort' => ['nullable', Rule::in(['name', 'name_desc', 'most_sites'])],
             'site_client' => ['nullable', 'integer', Rule::exists('clients', 'id')],
             'site_page' => ['nullable', 'integer', 'min:1'],
+            'site_state' => ['nullable', Rule::in(['current', 'entered_in_error'])],
         ]);
     }
 }
