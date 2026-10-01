@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\FiltersFireTrackerRecords;
+use App\Concerns\MarksEnteredInError;
 use App\Http\Requests\ClientFilterRequest;
 use App\Http\Requests\ClientRequest;
 use App\Models\Client;
@@ -13,19 +14,22 @@ use Inertia\Response;
 class ClientController extends Controller
 {
     use FiltersFireTrackerRecords;
+    use MarksEnteredInError;
 
     public function index(ClientFilterRequest $request): Response|RedirectResponse
     {
-        $filters = $request->safe()->only(['search', 'active', 'site_presence', 'sort']);
+        $filters = $request->safe()->only(['search', 'active', 'site_presence', 'sort', 'record_state']);
         $selectedClientId = $request->integer('site_client');
-        $siteParameters = $selectedClientId ? ['site_client' => $selectedClientId] + $request->safe()->only(['site_page']) : [];
+        $siteParameters = $selectedClientId ? ['site_client' => $selectedClientId] + $request->safe()->only(['site_page', 'site_state']) : [];
         $query = Client::query()
-            ->withCount('sites')
+            ->withCount(['sites', 'sites as current_sites_count' => fn ($siteQuery) => $siteQuery->whereNull('entered_in_error_at')])
             ->with(['sites' => fn ($siteQuery) => $siteQuery
-                ->select('id', 'client_id', 'site_name', 'address', 'is_active')
+                ->select('id', 'client_id', 'site_name', 'address', 'is_active', 'entered_in_error_at')
+                ->whereNull('entered_in_error_at')
                 ->orderBy('site_name')
                 ->orderBy('id')
                 ->limit(5)]);
+        $this->filterRecordState($query, $request);
         if ($request->filled('search')) {
             $pattern = $this->searchPattern($request);
             $query->where(function ($query) use ($pattern): void {
@@ -66,14 +70,16 @@ class ClientController extends Controller
             return to_route('clients.index', $filters + $siteParameters + ($records->lastPage() > 1 ? ['page' => $records->lastPage()] : []));
         }
 
-        $selectedClient = $selectedClientId ? Client::query()->select('id', 'company_name', 'is_active')->find($selectedClientId) : null;
+        $selectedClient = $selectedClientId ? Client::query()->select('id', 'company_name', 'is_active', 'entered_in_error_at')->find($selectedClientId) : null;
         $selectedSites = $selectedClient?->sites()
+            ->withCount(['assets', 'certificates'])
+            ->when($request->input('site_state') === 'entered_in_error', fn ($query) => $query->whereNotNull('entered_in_error_at'), fn ($query) => $query->whereNull('entered_in_error_at'))
             ->orderBy('site_name')
             ->orderBy('id')
             ->paginate(10, ['*'], 'site_page');
 
         if ($selectedSites && $selectedSites->currentPage() > $selectedSites->lastPage()) {
-            return to_route('clients.index', $filters + ['site_client' => $selectedClientId] + ($records->currentPage() > 1 ? ['page' => $records->currentPage()] : []) + ($selectedSites->lastPage() > 1 ? ['site_page' => $selectedSites->lastPage()] : []));
+            return to_route('clients.index', $filters + ['site_client' => $selectedClientId] + $request->safe()->only(['site_state']) + ($records->currentPage() > 1 ? ['page' => $records->currentPage()] : []) + ($selectedSites->lastPage() > 1 ? ['site_page' => $selectedSites->lastPage()] : []));
         }
 
         return Inertia::render('clients', [
@@ -81,6 +87,7 @@ class ClientController extends Controller
             'filters' => $filters,
             'selectedClient' => $selectedClient,
             'selectedSites' => $selectedSites,
+            'siteState' => $request->input('site_state') === 'entered_in_error' ? 'entered_in_error' : 'current',
         ]);
     }
 
@@ -114,5 +121,20 @@ class ClientController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Client reactivated.']);
 
         return back();
+    }
+
+    public function markError(Client $client): RedirectResponse
+    {
+        return $this->setEnteredInError($client, true, 'Client');
+    }
+
+    public function restoreError(Client $client): RedirectResponse
+    {
+        return $this->setEnteredInError($client, false, 'Client');
+    }
+
+    public function purge(Client $client): RedirectResponse
+    {
+        return $this->deleteUnlinked($client, $client->sites()->exists(), 'Client');
     }
 }
