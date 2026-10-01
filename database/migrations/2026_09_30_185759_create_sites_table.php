@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('site_contact')->nullable();
             $table->string('site_phone')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->timestamp('entered_in_error_at')->nullable();
             $table->timestamps();
         });
     }
