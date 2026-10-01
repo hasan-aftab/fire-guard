@@ -4,6 +4,7 @@ import {
     store,
     update,
     destroy,
+    restore,
 } from '@/actions/App/Http/Controllers/TechnicianController';
 import { RecordPage } from '@/components/record-page';
 import { Badge } from '@/components/ui/badge';
@@ -27,10 +28,17 @@ export default function Technicians({
             noun="technician"
             icon={Users}
             emptyDescription="Add your first technician to start assigning inspections."
-            deleteDescription="This will permanently delete this technician and leave their inspections unassigned. Inspection history will remain. This action cannot be undone."
+            archive={{
+                isArchived: (technician) => !technician.is_active,
+                action: 'Deactivate',
+                description:
+                    'Deactivate this technician? Their past inspections will keep their name and attribution.',
+                restoreDescription:
+                    'Reactivate this technician? They will be available for new inspection assignments.',
+            }}
             records={records}
             filters={filters}
-            routes={{ index, store, update, destroy }}
+            routes={{ index, store, update, destroy, restore }}
             searchPlaceholder="Search technicians..."
             statusOptions={[
                 { value: 'active', label: 'Active' },
