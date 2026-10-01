@@ -179,10 +179,9 @@ export default function Dashboard({
             header: 'Status',
             render: (asset: UpcomingInspection) => (
                 <StatusBadge
+                    status={asset.serviceStatus}
                     date={asset.nextServiceDue}
                     showDate={false}
-                    soonDays={30}
-                    asOfDate={summary.asOfDate}
                 />
             ),
         },
@@ -240,10 +239,9 @@ export default function Dashboard({
             header: 'Status',
             render: (certificate: ExpiringCertificate) => (
                 <StatusBadge
+                    status={certificate.status}
                     date={certificate.expiryDate}
                     showDate={false}
-                    soonDays={30}
-                    asOfDate={summary.asOfDate}
                 />
             ),
         },
@@ -615,9 +613,8 @@ export default function Dashboard({
                             label="Status"
                             value={
                                 <StatusBadge
+                                    status={viewingAttention.serviceStatus}
                                     date={viewingAttention.nextServiceDue}
-                                    soonDays={30}
-                                    asOfDate={summary.asOfDate}
                                 />
                             }
                         />
@@ -645,9 +642,8 @@ export default function Dashboard({
                             label="Status"
                             value={
                                 <StatusBadge
+                                    status={viewingCert.status}
                                     date={viewingCert.expiryDate}
-                                    soonDays={30}
-                                    asOfDate={summary.asOfDate}
                                 />
                             }
                         />
