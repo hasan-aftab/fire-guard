@@ -126,8 +126,12 @@ export default function Assets({
                         label: type.type_name,
                     })),
                 },
-                { name: 'serial_number', label: 'Serial number' },
-                { name: 'location_desc', label: 'Location' },
+                {
+                    name: 'serial_number',
+                    label: 'Serial number',
+                    maxLength: 255,
+                },
+                { name: 'location_desc', label: 'Location', maxLength: 5000 },
                 {
                     name: 'next_service_due',
                     label: 'Next service due',
