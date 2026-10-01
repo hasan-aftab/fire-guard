@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
-import { Building2, Eye, MapPin, Pencil, Phone, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Building2, Eye, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import {
     index,
     store,
@@ -15,6 +15,7 @@ import {
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { RecordForm, recordValues } from '@/components/record-form';
 import { RecordPage } from '@/components/record-page';
+import { Pagination } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -36,18 +37,36 @@ import type {
 export default function Clients({
     records,
     filters,
+    selectedClient,
+    selectedSites,
 }: {
     records: Paginated<Client>;
     filters: TrackerFilters;
+    selectedClient: Pick<Client, 'id' | 'company_name'> | null;
+    selectedSites: Paginated<Site> | null;
 }) {
-    const [clientId, setClientId] = useState<number | null>(null);
-    const client = records.data.find((record) => record.id === clientId);
+    const [siteLoading, setSiteLoading] = useState(false);
+    const sitesTrigger = useRef<HTMLButtonElement>(null);
+    const sitesTriggerClientId = useRef<number | null>(null);
+    const siteSheet = useRef<HTMLDivElement>(null);
+    const addSiteTrigger = useRef<HTMLButtonElement>(null);
+    const siteEditTrigger = useRef<HTMLButtonElement>(null);
+    const siteViewTrigger = useRef<HTMLButtonElement>(null);
+    const siteDeleteTrigger = useRef<HTMLButtonElement>(null);
     const [editingSite, setEditingSite] = useState<Site | null>(null);
+    const [addingSite, setAddingSite] = useState(false);
     const [viewingSite, setViewingSite] = useState<Site | null>(null);
     const [deletingSite, setDeletingSite] = useState<Site | null>(null);
     const [deletePending, setDeletePending] = useState(false);
+    useEffect(() => {
+        if (editingSite || addingSite) {
+            siteSheet.current
+                ?.querySelector<HTMLInputElement>('#record-site_name')
+                ?.focus();
+        }
+    }, [editingSite, addingSite]);
     const siteDefaults = {
-        client_id: String(clientId ?? ''),
+        client_id: String(selectedClient?.id ?? ''),
         site_name: '',
         address: '',
         suburb_region: '',
@@ -55,11 +74,67 @@ export default function Clients({
         site_contact: '',
         site_phone: '',
     };
-    const manageSites = (record: Client) => {
-        setClientId(record.id);
+    const openSites = (clientId: number, sitePage = 1) => {
+        router.get(
+            index().url,
+            {
+                ...filters,
+                page: records.current_page,
+                site_client: clientId,
+                site_page: sitePage,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onStart: () => setSiteLoading(true),
+                onFinish: () => setSiteLoading(false),
+            },
+        );
+    };
+    const manageSites = (record: Client, trigger?: HTMLButtonElement) => {
+        sitesTrigger.current =
+            trigger ??
+            document.querySelector<HTMLButtonElement>(
+                `[data-client-sites-id="${record.id}"]`,
+            );
+        sitesTriggerClientId.current = record.id;
         setEditingSite(null);
+        setAddingSite(false);
         setViewingSite(null);
         setDeletingSite(null);
+        openSites(record.id);
+    };
+    const closeSites = () => {
+        setEditingSite(null);
+        setAddingSite(false);
+        setViewingSite(null);
+        setDeletingSite(null);
+        router.get(
+            index().url,
+            { ...filters, page: records.current_page },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onSuccess: () => {
+                    requestAnimationFrame(() => {
+                        const triggerId = sitesTriggerClientId.current;
+                        const trigger = triggerId
+                            ? document.querySelector<HTMLButtonElement>(
+                                  `[data-client-sites-id="${triggerId}"]`,
+                              )
+                            : null;
+                        (
+                            trigger ??
+                            document.querySelector<HTMLInputElement>(
+                                'input[type="search"]',
+                            )
+                        )?.focus();
+                    });
+                },
+            },
+        );
     };
     const deleteSelectedSite = () => {
         if (!deletingSite) return;
@@ -83,7 +158,32 @@ export default function Clients({
                 records={records}
                 filters={filters}
                 routes={{ index, store, update, destroy }}
-                searchPlaceholder="Search clients..."
+                searchPlaceholder="Search clients, sites or addresses..."
+                statusKey="active"
+                statusOptions={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'inactive', label: 'Inactive' },
+                ]}
+                extraFilters={[
+                    {
+                        key: 'site_presence',
+                        label: 'Filter by site presence',
+                        options: [
+                            { value: 'all', label: 'All site counts' },
+                            { value: 'with_sites', label: 'With sites' },
+                            { value: 'without_sites', label: 'Without sites' },
+                        ],
+                    },
+                    {
+                        key: 'sort',
+                        label: 'Sort clients',
+                        options: [
+                            { value: 'name', label: 'Name A–Z' },
+                            { value: 'name_desc', label: 'Name Z–A' },
+                            { value: 'most_sites', label: 'Most sites' },
+                        ],
+                    },
+                ]}
                 columns={[
                     {
                         key: 'company',
@@ -104,19 +204,25 @@ export default function Clients({
                         key: 'phone',
                         header: 'Phone',
                         className: 'text-sm text-muted-foreground',
+                        render: (record) => record.phone || '—',
+                    },
+                    {
+                        key: 'status',
+                        header: 'Status',
                         render: (record) => (
-                            <span className="flex items-center gap-1.5">
-                                <Phone
-                                    className="size-3 text-muted-foreground/50"
-                                    aria-hidden="true"
-                                />
-                                {record.phone || '—'}
-                            </span>
+                            <Badge
+                                variant={
+                                    record.is_active ? 'secondary' : 'outline'
+                                }
+                            >
+                                {record.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
                         ),
                     },
                     {
                         key: 'sites',
                         header: 'Sites',
+                        showInView: false,
                         render: (record) => (
                             <Badge
                                 variant="secondary"
@@ -143,48 +249,70 @@ export default function Clients({
                         label: 'Company name',
                         required: true,
                         placeholder: 'Company name',
+                        maxLength: 255,
+                        autoComplete: 'organization',
                     },
                     {
                         name: 'contact_name',
                         label: 'Contact name',
                         placeholder: 'Contact name',
+                        maxLength: 255,
+                        autoComplete: 'name',
                     },
                     {
                         name: 'phone',
                         label: 'Phone',
                         type: 'tel',
                         placeholder: 'Phone number',
+                        description:
+                            'Use 7 to 20 digits. Spaces, brackets and + are allowed.',
+                        maxLength: 255,
+                        autoComplete: 'tel',
                     },
                     {
                         name: 'email',
                         label: 'Email',
                         type: 'email',
                         placeholder: 'Email address',
+                        maxLength: 255,
+                        autoComplete: 'email',
                     },
                     {
                         name: 'billing_address',
                         label: 'Billing address',
                         type: 'textarea',
+                        maxLength: 5000,
+                        autoComplete: 'street-address',
                     },
-                    { name: 'notes', label: 'Notes', type: 'textarea' },
+                    {
+                        name: 'notes',
+                        label: 'Notes',
+                        type: 'textarea',
+                        maxLength: 10000,
+                    },
                     {
                         name: 'is_active',
                         label: 'Active client',
                         type: 'checkbox',
+                        description:
+                            'Inactive clients remain available for historical records.',
                     },
                 ]}
                 rowActions={(record) => (
                     <Button
                         variant="ghost"
-                        size="sm"
-                        onClick={() => manageSites(record)}
-                        className="text-muted-foreground hover:text-foreground"
+                        size="icon"
+                        aria-label={`Manage sites for ${record.company_name}`}
+                        data-client-sites-id={record.id}
+                        onClick={(event) =>
+                            manageSites(record, event.currentTarget)
+                        }
+                        className="size-7 text-muted-foreground hover:text-foreground"
                     >
-                        <MapPin data-icon="inline-start" />
-                        Sites
+                        <MapPin />
                     </Button>
                 )}
-                viewContent={(record) => (
+                viewContent={(record, closeView) => (
                     <>
                         <ViewField label="Email" value={record.email} />
                         <ViewField
@@ -196,144 +324,211 @@ export default function Clients({
                         <h3 className="text-sm font-medium">
                             Sites ({record.sites_count})
                         </h3>
-                        {record.sites.map((site) => (
-                            <div
-                                key={site.id}
-                                className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3"
-                            >
-                                <MapPin
-                                    className="mt-0.5 size-4 shrink-0 text-muted-foreground/60"
-                                    aria-hidden="true"
-                                />
-                                <div className="min-w-0 space-y-0.5">
-                                    <p className="text-sm font-medium break-words">
-                                        {site.site_name}
-                                    </p>
-                                    <p className="text-xs break-words text-muted-foreground">
-                                        {site.address}
-                                    </p>
-                                    {site.suburb_region && (
+                        {record.sites_count > 0 ? (
+                            <ul className="space-y-2">
+                                {record.sites?.map((site) => (
+                                    <li
+                                        key={site.id}
+                                        className="rounded-lg border bg-muted/30 p-3"
+                                    >
+                                        <p className="text-sm font-medium break-words">
+                                            {site.site_name}
+                                        </p>
                                         <p className="text-xs break-words text-muted-foreground">
-                                            {site.suburb_region}
+                                            {site.address}
                                         </p>
-                                    )}
-                                    {site.access_notes && (
-                                        <p className="text-xs break-words text-muted-foreground italic">
-                                            Note: {site.access_notes}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                        {!record.sites.length && (
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
                             <p className="text-sm text-muted-foreground">
                                 No sites added yet.
                             </p>
                         )}
+                        {record.sites_count > (record.sites?.length ?? 0) && (
+                            <p className="text-xs text-muted-foreground">
+                                Showing the first {record.sites?.length} sites.
+                            </p>
+                        )}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="self-start"
+                            onClick={() => {
+                                closeView(false);
+                                manageSites(record);
+                            }}
+                        >
+                            {record.sites_count > 0
+                                ? 'Manage all sites'
+                                : 'Add first site'}
+                        </Button>
                     </>
                 )}
             />
             <Sheet
-                open={!!client}
+                open={!!selectedClient}
                 onOpenChange={(open) => {
-                    if (!open) setClientId(null);
+                    if (!open) closeSites();
                 }}
             >
-                <SheetContent className="w-full sm:max-w-lg">
+                <SheetContent
+                    ref={siteSheet}
+                    className="w-full sm:max-w-lg"
+                    onOpenAutoFocus={(event) => {
+                        event.preventDefault();
+                        addSiteTrigger.current?.focus();
+                    }}
+                    onCloseAutoFocus={(event) => {
+                        event.preventDefault();
+                        sitesTrigger.current?.focus();
+                    }}
+                >
                     <SheetHeader>
                         <SheetTitle>Manage sites</SheetTitle>
                         <SheetDescription>
-                            Sites for {client?.company_name}
+                            Sites for {selectedClient?.company_name}
                         </SheetDescription>
                     </SheetHeader>
                     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4">
-                        {client && (
+                        {selectedClient && selectedSites && (
                             <>
-                                <div className="rounded-lg border bg-muted/40 p-4">
-                                    <h3 className="mb-4 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                        {editingSite
-                                            ? 'Edit site'
-                                            : 'Add new site'}
+                                <div className="flex items-center justify-between gap-3">
+                                    <h3
+                                        data-site-list-heading
+                                        tabIndex={-1}
+                                        className="text-xs font-medium text-muted-foreground uppercase"
+                                    >
+                                        Existing sites ({selectedSites.total})
                                     </h3>
-                                    <RecordForm
-                                        key={`${client.id}-${editingSite?.id ?? 'new'}`}
-                                        initialValues={
-                                            editingSite
-                                                ? recordValues(
-                                                      editingSite,
-                                                      siteDefaults,
-                                                  )
-                                                : siteDefaults
+                                    <Button
+                                        ref={addSiteTrigger}
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={
+                                            addingSite || editingSite !== null
                                         }
-                                        action={
-                                            editingSite
-                                                ? updateSite(editingSite.id)
-                                                : storeSite()
-                                        }
-                                        saveLabel={
-                                            editingSite
-                                                ? 'Save site'
-                                                : 'Add site'
-                                        }
-                                        onSuccess={() => setEditingSite(null)}
-                                        onCancel={() =>
-                                            editingSite
-                                                ? setEditingSite(null)
-                                                : setClientId(null)
-                                        }
-                                        fields={[
-                                            {
-                                                name: 'site_name',
-                                                label: 'Site name',
-                                                required: true,
-                                                placeholder:
-                                                    'e.g. Building A - Main Entrance',
-                                            },
-                                            {
-                                                name: 'address',
-                                                label: 'Address',
-                                                required: true,
-                                                placeholder:
-                                                    'e.g. Section 45, Badili',
-                                            },
-                                            {
-                                                name: 'suburb_region',
-                                                label: 'Suburb / Region',
-                                                placeholder:
-                                                    'e.g. Port Moresby, NCD',
-                                            },
-                                            {
-                                                name: 'access_notes',
-                                                label: 'Access notes',
-                                                type: 'textarea',
-                                                placeholder:
-                                                    'Entrance details or arrival instructions',
-                                            },
-                                            {
-                                                name: 'site_contact',
-                                                label: 'Site contact',
-                                            },
-                                            {
-                                                name: 'site_phone',
-                                                label: 'Site phone',
-                                                type: 'tel',
-                                            },
-                                        ]}
-                                    />
+                                        onClick={() => {
+                                            setEditingSite(null);
+                                            setAddingSite(true);
+                                        }}
+                                    >
+                                        Add site
+                                    </Button>
                                 </div>
-                                <h3 className="text-xs font-medium text-muted-foreground uppercase">
-                                    Existing sites ({client.sites_count})
-                                </h3>
-                                {client.sites.length === 0 && (
+                                {(addingSite || editingSite) && (
+                                    <div className="rounded-lg border bg-muted/40 p-4">
+                                        <h3 className="mb-4 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                            {editingSite
+                                                ? 'Edit site'
+                                                : 'Add new site'}
+                                        </h3>
+                                        <RecordForm
+                                            key={`${selectedClient.id}-${editingSite?.id ?? 'new'}`}
+                                            initialValues={
+                                                editingSite
+                                                    ? recordValues(
+                                                          editingSite,
+                                                          siteDefaults,
+                                                      )
+                                                    : siteDefaults
+                                            }
+                                            action={
+                                                editingSite
+                                                    ? updateSite(editingSite.id)
+                                                    : storeSite()
+                                            }
+                                            saveLabel={
+                                                editingSite
+                                                    ? 'Save site'
+                                                    : 'Add site'
+                                            }
+                                            onSuccess={() => {
+                                                const trigger = editingSite
+                                                    ? siteEditTrigger.current
+                                                    : addSiteTrigger.current;
+                                                setEditingSite(null);
+                                                setAddingSite(false);
+                                                requestAnimationFrame(() =>
+                                                    trigger?.focus(),
+                                                );
+                                            }}
+                                            onCancel={() => {
+                                                const trigger = editingSite
+                                                    ? siteEditTrigger.current
+                                                    : addSiteTrigger.current;
+                                                setEditingSite(null);
+                                                setAddingSite(false);
+                                                requestAnimationFrame(() =>
+                                                    trigger?.focus(),
+                                                );
+                                            }}
+                                            fields={[
+                                                {
+                                                    name: 'site_name',
+                                                    label: 'Site name',
+                                                    required: true,
+                                                    placeholder:
+                                                        'e.g. Building A - Main Entrance',
+                                                    maxLength: 255,
+                                                },
+                                                {
+                                                    name: 'address',
+                                                    label: 'Address',
+                                                    required: true,
+                                                    type: 'textarea',
+                                                    placeholder:
+                                                        'e.g. Section 45, Badili',
+                                                    maxLength: 5000,
+                                                    autoComplete:
+                                                        'street-address',
+                                                },
+                                                {
+                                                    name: 'suburb_region',
+                                                    label: 'Suburb / Region',
+                                                    placeholder:
+                                                        'e.g. Port Moresby, NCD',
+                                                    maxLength: 255,
+                                                },
+                                                {
+                                                    name: 'access_notes',
+                                                    label: 'Access notes',
+                                                    type: 'textarea',
+                                                    placeholder:
+                                                        'Entrance details or arrival instructions',
+                                                    maxLength: 10000,
+                                                },
+                                                {
+                                                    name: 'site_contact',
+                                                    label: 'Site contact',
+                                                    maxLength: 255,
+                                                    autoComplete: 'name',
+                                                },
+                                                {
+                                                    name: 'site_phone',
+                                                    label: 'Site phone',
+                                                    type: 'tel',
+                                                    description:
+                                                        'Use 7 to 20 digits. Spaces, brackets and + are allowed.',
+                                                    maxLength: 255,
+                                                    autoComplete: 'tel',
+                                                },
+                                            ]}
+                                        />
+                                    </div>
+                                )}
+                                {selectedSites.total === 0 && (
                                     <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                                        No sites added yet. Use the form above
-                                        to add the first site.
+                                        No sites added yet. Use Add site to add
+                                        the first location.
                                     </p>
                                 )}
-                                {client.sites.map((site) => (
+                                {selectedSites.data.map((site) => (
                                     <div
                                         key={site.id}
-                                        className="flex items-center justify-between gap-2 rounded-lg border bg-background p-3"
+                                        className="flex flex-col gap-2 rounded-lg border bg-background p-3 sm:flex-row sm:items-center sm:justify-between"
                                     >
                                         <div className="flex min-w-0 items-center gap-2.5">
                                             <MapPin
@@ -349,14 +544,16 @@ export default function Clients({
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="flex shrink-0">
+                                        <div className="flex shrink-0 self-end sm:self-auto">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
                                                 aria-label={`View ${site.site_name}`}
-                                                onClick={() =>
-                                                    setViewingSite(site)
-                                                }
+                                                onClick={(event) => {
+                                                    siteViewTrigger.current =
+                                                        event.currentTarget;
+                                                    setViewingSite(site);
+                                                }}
                                             >
                                                 <Eye />
                                             </Button>
@@ -364,9 +561,12 @@ export default function Clients({
                                                 variant="ghost"
                                                 size="icon"
                                                 aria-label={`Edit ${site.site_name}`}
-                                                onClick={() =>
-                                                    setEditingSite(site)
-                                                }
+                                                onClick={(event) => {
+                                                    siteEditTrigger.current =
+                                                        event.currentTarget;
+                                                    setAddingSite(false);
+                                                    setEditingSite(site);
+                                                }}
                                             >
                                                 <Pencil />
                                             </Button>
@@ -374,16 +574,37 @@ export default function Clients({
                                                 variant="ghost"
                                                 size="icon"
                                                 aria-label={`Delete ${site.site_name}`}
-                                                onClick={() =>
-                                                    setDeletingSite(site)
-                                                }
+                                                onClick={(event) => {
+                                                    siteDeleteTrigger.current =
+                                                        event.currentTarget;
+                                                    setDeletingSite(site);
+                                                }}
                                             >
                                                 <Trash2 />
                                             </Button>
                                         </div>
                                     </div>
                                 ))}
+                                {selectedSites.total >
+                                    selectedSites.per_page && (
+                                    <Pagination
+                                        currentPage={selectedSites.current_page}
+                                        totalItems={selectedSites.total}
+                                        pageSize={selectedSites.per_page}
+                                        onPageChange={(page) =>
+                                            openSites(selectedClient.id, page)
+                                        }
+                                    />
+                                )}
                             </>
+                        )}
+                        {siteLoading && (
+                            <p
+                                role="status"
+                                className="text-sm text-muted-foreground"
+                            >
+                                Loading sites…
+                            </p>
                         )}
                     </div>
                 </SheetContent>
@@ -397,11 +618,23 @@ export default function Clients({
                 description="This will permanently delete this site and its assets, inspections, and certificates. This action cannot be undone."
                 onConfirm={deleteSelectedSite}
                 loading={deletePending}
+                restoreFocus={() => {
+                    if (siteDeleteTrigger.current?.isConnected) {
+                        siteDeleteTrigger.current.focus();
+                    } else {
+                        siteSheet.current
+                            ?.querySelector<HTMLElement>(
+                                '[data-site-list-heading]',
+                            )
+                            ?.focus();
+                    }
+                }}
             />
             <ViewModal
                 open={!!viewingSite}
                 onClose={() => setViewingSite(null)}
                 title="Site Details"
+                restoreFocus={() => siteViewTrigger.current?.focus()}
             >
                 {viewingSite && (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -411,7 +644,7 @@ export default function Clients({
                         />
                         <ViewField
                             label="Company"
-                            value={client?.company_name}
+                            value={selectedClient?.company_name}
                         />
                         <ViewField
                             label="Address"
