@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Database\Factories\SiteFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $site_contact
  * @property string|null $site_phone
  * @property bool $is_active
+ * @property CarbonImmutable|null $entered_in_error_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Client $client
@@ -36,7 +38,7 @@ class Site extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return ['is_active' => 'boolean', 'entered_in_error_at' => 'immutable_datetime'];
     }
 
     /** @return BelongsTo<Client, $this> */
