@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('assets', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('site_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('site_id')->constrained()->restrictOnDelete();
             $table->foreignId('asset_type_id')->constrained()->restrictOnDelete();
             $table->string('serial_number')->nullable();
             $table->text('location_desc')->nullable();
