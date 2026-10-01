@@ -51,12 +51,12 @@ class HandleInertiaRequests extends Middleware
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'today' => today()->toDateString(),
             'counts' => fn (): ?array => $request->user() ? [
-                'clients' => Client::count(),
-                'sites' => Site::count(),
-                'assets' => Asset::count(),
-                'inspections' => Inspection::count(),
-                'certificates' => Certificate::count(),
-                'technicians' => Technician::count(),
+                'clients' => Client::whereNull('entered_in_error_at')->count(),
+                'sites' => Site::whereNull('entered_in_error_at')->count(),
+                'assets' => Asset::whereNull('entered_in_error_at')->count(),
+                'inspections' => Inspection::whereNull('entered_in_error_at')->count(),
+                'certificates' => Certificate::whereNull('entered_in_error_at')->count(),
+                'technicians' => Technician::whereNull('entered_in_error_at')->count(),
             ] : null,
             'fireNotifications' => fn (): ?array => $request->user() ? [
                 'items' => FireNotification::where('user_id', $request->user()->id)
