@@ -6,26 +6,49 @@ use App\Models\Site;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('certificate status follows the expiry date at the fourteen day boundary', function () {
-    $this->travelTo(now()->setDate(2026, 9, 30)->startOfDay());
+test('certificate status and filters follow the inclusive thirty day expiry boundary', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
     $site = Site::factory()->create();
-    $overdue = Certificate::factory()->for($site)->create(['expiry_date' => '2026-09-29']);
-    $dueToday = Certificate::factory()->for($site)->create(['expiry_date' => '2026-09-30']);
-    $dueInFourteenDays = Certificate::factory()->for($site)->create(['expiry_date' => '2026-10-14']);
-    $ok = Certificate::factory()->for($site)->create(['expiry_date' => '2026-10-15']);
+    $expired = Certificate::factory()->for($site)->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-09-30']);
+    $today = Certificate::factory()->for($site)->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-10-01']);
+    $tomorrow = Certificate::factory()->for($site)->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-10-02']);
+    $boundary = Certificate::factory()->for($site)->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-10-31']);
+    $valid = Certificate::factory()->for($site)->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-11-01']);
 
     $this->actingAs(User::factory()->create())->get(route('certificates.index'))
         ->assertInertia(fn (Assert $page) => $page->component('compliance')
-            ->where('records.data.0.id', $overdue->id)
+            ->where('records.data.0.id', $expired->id)
             ->where('records.data.0.status', 'expired')
-            ->where('records.data.1.id', $dueToday->id)
+            ->where('records.data.1.id', $today->id)
             ->where('records.data.1.status', 'expiring_soon')
-            ->where('records.data.2.id', $dueInFourteenDays->id)
+            ->where('records.data.2.id', $tomorrow->id)
             ->where('records.data.2.status', 'expiring_soon')
-            ->where('records.data.3.id', $ok->id)
-            ->where('records.data.3.status', 'valid'));
+            ->where('records.data.3.id', $boundary->id)
+            ->where('records.data.3.status', 'expiring_soon')
+            ->where('records.data.4.id', $valid->id)
+            ->where('records.data.4.status', 'valid'));
     $this->get(route('certificates.index', ['status' => 'due_soon']))
-        ->assertInertia(fn (Assert $page) => $page->has('records.data', 2));
+        ->assertInertia(fn (Assert $page) => $page->has('records.data', 3)
+            ->where('records.data.2.id', $boundary->id));
+    $this->get(route('certificates.index', ['status' => 'overdue']))
+        ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
+            ->where('records.data.0.id', $expired->id));
+    $this->get(route('certificates.index', ['status' => 'ok']))
+        ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
+            ->where('records.data.0.id', $valid->id));
+});
+
+test('certificate status changes with the calendar date without changing its stored column', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
+    $certificate = Certificate::factory()->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-11-01']);
+    expect($certificate->status)->toBe('valid');
+
+    $this->travel(1)->days();
+    expect($certificate->refresh()->status)->toBe('expiring_soon');
+
+    $this->travel(31)->days();
+    expect($certificate->refresh()->status)->toBe('expired');
+    $this->assertDatabaseHas('certificates', ['id' => $certificate->id, 'status' => 'valid']);
 });
 
 test('certificate search matches client names without treating wildcards as patterns', function () {
@@ -59,7 +82,7 @@ test('certificate writes ignore submitted status and reject unsafe document URLs
 
     $this->put(route('certificates.update', $certificate), [
         ...$payload,
-        'expiry_date' => '2026-10-15',
+        'expiry_date' => '2026-10-31',
         'status' => 'expired',
         'document_url' => 'javascript:alert(1)',
     ])->assertSessionHasErrors(['document_url']);
@@ -67,10 +90,11 @@ test('certificate writes ignore submitted status and reject unsafe document URLs
 
     $this->put(route('certificates.update', $certificate), [
         ...$payload,
-        'expiry_date' => '2026-10-15',
+        'expiry_date' => '2026-11-01',
         'status' => 'expired',
     ])->assertSessionHasNoErrors();
     expect($certificate->refresh()->status)->toBe('valid');
+    $this->assertDatabaseHas('certificates', ['id' => $certificate->id, 'status' => 'valid']);
 });
 
 test('expired certificates remain listed and cannot be deleted through the application', function () {
