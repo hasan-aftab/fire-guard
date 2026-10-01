@@ -7,7 +7,7 @@ export type Client = {
     billing_address: string | null;
     notes: string | null;
     is_active: boolean;
-    sites?: Pick<Site, 'id' | 'site_name' | 'address'>[];
+    sites?: Pick<Site, 'id' | 'site_name' | 'address' | 'is_active'>[];
     sites_count: number;
 };
 
@@ -20,11 +20,15 @@ export type Site = {
     access_notes: string | null;
     site_contact: string | null;
     site_phone: string | null;
+    is_active: boolean;
     client?: Client;
 };
 
-export type CertificateSite = Pick<Site, 'id' | 'client_id' | 'site_name'> & {
-    client: Pick<Client, 'id' | 'company_name'>;
+export type CertificateSite = Pick<
+    Site,
+    'id' | 'client_id' | 'site_name' | 'is_active'
+> & {
+    client: Pick<Client, 'id' | 'company_name' | 'is_active'>;
 };
 
 export type AssetType = {
@@ -73,8 +77,12 @@ export type Inspection = {
 
 export type InspectionAssetOption = Pick<
     Asset,
-    'id' | 'site_id' | 'serial_number' | 'location_desc'
-> & { site: Pick<Site, 'id' | 'site_name'> };
+    'id' | 'site_id' | 'serial_number' | 'location_desc' | 'status'
+> & {
+    site: Pick<Site, 'id' | 'site_name' | 'is_active'> & {
+        client: Pick<Client, 'id' | 'is_active'>;
+    };
+};
 
 export type Certificate = {
     id: number;
