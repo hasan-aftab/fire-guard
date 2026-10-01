@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { Eye, Pencil, Trash2 } from 'lucide-react';
+import { Archive, Eye, Pencil, RotateCcw } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -34,7 +34,8 @@ type ResourceRoutes = {
     index: () => RouteDefinition<'get'>;
     store: () => RouteDefinition<'post'>;
     update: (id: number) => RouteDefinition<'put' | 'patch'>;
-    destroy: (id: number) => RouteDefinition<'delete'>;
+    destroy?: (id: number) => RouteDefinition<'delete'>;
+    restore?: (id: number) => RouteDefinition<'patch'>;
 };
 
 export function RecordPage<T extends { id: number }>({
@@ -59,7 +60,7 @@ export function RecordPage<T extends { id: number }>({
     addDisabled = false,
     addHint,
     emptyDescription,
-    deleteDescription,
+    archive,
     rowActions,
     viewContent,
 }: {
@@ -71,7 +72,7 @@ export function RecordPage<T extends { id: number }>({
     filters: FilterValues;
     routes: ResourceRoutes;
     columns: Column<T>[];
-    fields: FormField[];
+    fields: FormField[] | ((record: T | null) => FormField[]);
     defaults: Record<string, string>;
     dateLabel?: string;
     issueDates?: boolean;
@@ -93,7 +94,12 @@ export function RecordPage<T extends { id: number }>({
     addDisabled?: boolean;
     addHint?: ReactNode;
     emptyDescription?: string;
-    deleteDescription?: string;
+    archive?: {
+        isArchived: (record: T) => boolean;
+        action: string;
+        description: string;
+        restoreDescription: string;
+    };
     rowActions?: (record: T) => ReactNode;
     viewContent?: (
         record: T,
@@ -190,30 +196,42 @@ export function RecordPage<T extends { id: number }>({
                         <Pencil />
                     </Button>
                     {rowActions?.(record)}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7"
-                        aria-label={`Delete ${noun} #${record.id}`}
-                        onClick={(event) => {
-                            deleteTrigger.current = event.currentTarget;
-                            setDeleting(record);
-                        }}
-                    >
-                        <Trash2 />
-                    </Button>
+                    {archive && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7"
+                            aria-label={`${archive.isArchived(record) ? 'Reactivate' : archive.action} ${noun} #${record.id}`}
+                            onClick={(event) => {
+                                deleteTrigger.current = event.currentTarget;
+                                setDeleting(record);
+                            }}
+                        >
+                            {archive.isArchived(record) ? (
+                                <RotateCcw />
+                            ) : (
+                                <Archive />
+                            )}
+                        </Button>
+                    )}
                 </div>
             ),
         },
     ];
     const confirmDelete = () => {
-        if (!deleting) return;
+        if (!deleting || !archive) return;
+        const route = archive.isArchived(deleting)
+            ? routes.restore?.(deleting.id)
+            : routes.destroy?.(deleting.id);
+        if (!route) return;
         setDeletePending(true);
-        router.delete(routes.destroy(deleting.id), {
+        const options = {
             preserveScroll: true,
             onSuccess: () => setDeleting(null),
             onFinish: () => setDeletePending(false),
-        });
+        };
+        if (archive.isArchived(deleting)) router.patch(route, {}, options);
+        else router.delete(route, options);
     };
 
     return (
@@ -323,7 +341,11 @@ export function RecordPage<T extends { id: number }>({
                         <div className="flex min-h-0 flex-1 flex-col px-4 pb-4">
                             <RecordForm
                                 key={editing?.id ?? 'new'}
-                                fields={fields}
+                                fields={
+                                    typeof fields === 'function'
+                                        ? fields(editing)
+                                        : fields
+                                }
                                 initialValues={
                                     editing
                                         ? recordValues(editing, defaults)
@@ -352,30 +374,38 @@ export function RecordPage<T extends { id: number }>({
                     )}
                 </SheetContent>
             </Sheet>
-            <ConfirmDialog
-                open={!!deleting}
-                onOpenChange={(open) => {
-                    if (!open) setDeleting(null);
-                }}
-                title={`Delete ${noun}?`}
-                description={
-                    deleteDescription ||
-                    `This will permanently delete this ${noun}${noun === 'asset' ? ' and all associated inspections' : noun === 'client' ? ' and all associated sites, assets, inspections, and certificates' : ''}. This action cannot be undone.`
-                }
-                onConfirm={confirmDelete}
-                loading={deletePending}
-                restoreFocus={() => {
-                    if (deleteTrigger.current?.isConnected) {
-                        deleteTrigger.current.focus();
-                    } else {
-                        document
-                            .querySelector<HTMLButtonElement>(
-                                '[data-record-create]',
-                            )
-                            ?.focus();
+            {archive && (
+                <ConfirmDialog
+                    open={!!deleting}
+                    onOpenChange={(open) => {
+                        if (!open) setDeleting(null);
+                    }}
+                    title={`${deleting && archive.isArchived(deleting) ? 'Reactivate' : archive.action} ${noun}?`}
+                    description={
+                        deleting && archive.isArchived(deleting)
+                            ? archive.restoreDescription
+                            : archive.description
                     }
-                }}
-            />
+                    confirmLabel={
+                        deleting && archive.isArchived(deleting)
+                            ? 'Reactivate'
+                            : archive.action
+                    }
+                    onConfirm={confirmDelete}
+                    loading={deletePending}
+                    restoreFocus={() => {
+                        if (deleteTrigger.current?.isConnected) {
+                            deleteTrigger.current.focus();
+                        } else {
+                            document
+                                .querySelector<HTMLButtonElement>(
+                                    '[data-record-create]',
+                                )
+                                ?.focus();
+                        }
+                    }}
+                />
+            )}
             <ViewModal
                 open={!!viewing}
                 onClose={() => setViewing(null)}
