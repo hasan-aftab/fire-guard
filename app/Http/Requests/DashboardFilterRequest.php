@@ -15,6 +15,11 @@ class DashboardFilterRequest extends FormRequest
     /** @return array<string, array<mixed>> */
     public function rules(): array
     {
+        $calendarMonths = [];
+        for ($month = today()->startOfMonth(); $month <= today()->addDays(90)->startOfMonth(); $month = $month->addMonth()) {
+            $calendarMonths[] = $month->format('Y-m');
+        }
+
         return [
             'attention_from' => ['nullable', 'date_format:Y-m-d'],
             'attention_to' => ['nullable', 'date_format:Y-m-d', Rule::when($this->filled('attention_from'), 'after_or_equal:attention_from')],
@@ -22,6 +27,8 @@ class DashboardFilterRequest extends FormRequest
             'cert_from' => ['nullable', 'date_format:Y-m-d'],
             'cert_to' => ['nullable', 'date_format:Y-m-d', Rule::when($this->filled('cert_from'), 'after_or_equal:cert_from')],
             'cert_page' => ['nullable', 'integer', 'min:1'],
+            'calendar_month' => ['nullable', 'date_format:Y-m', Rule::in($calendarMonths)],
+            'calendar_page' => ['nullable', 'integer', 'min:1'],
         ];
     }
 }
