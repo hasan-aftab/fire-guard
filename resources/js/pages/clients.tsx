@@ -1,16 +1,25 @@
 import { router } from '@inertiajs/react';
-import { Building2, Eye, MapPin, Pencil, Trash2 } from 'lucide-react';
+import {
+    Archive,
+    Building2,
+    Eye,
+    MapPin,
+    Pencil,
+    RotateCcw,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
     index,
     store,
     update,
     destroy,
+    restore,
 } from '@/actions/App/Http/Controllers/ClientController';
 import {
     store as storeSite,
     update as updateSite,
     destroy as destroySite,
+    restore as restoreSite,
 } from '@/actions/App/Http/Controllers/SiteController';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { RecordForm, recordValues } from '@/components/record-form';
@@ -42,7 +51,7 @@ export default function Clients({
 }: {
     records: Paginated<Client>;
     filters: TrackerFilters;
-    selectedClient: Pick<Client, 'id' | 'company_name'> | null;
+    selectedClient: Pick<Client, 'id' | 'company_name' | 'is_active'> | null;
     selectedSites: Paginated<Site> | null;
 }) {
     const [siteLoading, setSiteLoading] = useState(false);
@@ -85,6 +94,7 @@ export default function Clients({
         access_notes: '',
         site_contact: '',
         site_phone: '',
+        is_active: '1',
     };
     const openSites = (clientId: number, sitePage = 1) => {
         router.get(
@@ -151,14 +161,17 @@ export default function Clients({
     const deleteSelectedSite = () => {
         if (!deletingSite) return;
         setDeletePending(true);
-        router.delete(destroySite(deletingSite.id), {
+        const options = {
             preserveScroll: true,
             onSuccess: () => {
                 setDeletingSite(null);
                 setEditingSite(null);
             },
             onFinish: () => setDeletePending(false),
-        });
+        };
+        if (deletingSite.is_active)
+            router.delete(destroySite(deletingSite.id), options);
+        else router.patch(restoreSite(deletingSite.id), {}, options);
     };
     return (
         <>
@@ -169,7 +182,15 @@ export default function Clients({
                 icon={Building2}
                 records={records}
                 filters={filters}
-                routes={{ index, store, update, destroy }}
+                routes={{ index, store, update, destroy, restore }}
+                archive={{
+                    isArchived: (client) => !client.is_active,
+                    action: 'Deactivate',
+                    description:
+                        'Deactivate this client? Their historical sites, equipment, inspections and certificates will be preserved.',
+                    restoreDescription:
+                        'Reactivate this client? Its existing sites and equipment will remain in their current states.',
+                }}
                 searchPlaceholder="Search clients, sites or addresses..."
                 statusKey="active"
                 statusOptions={[
@@ -420,7 +441,9 @@ export default function Clients({
                                         variant="outline"
                                         size="sm"
                                         disabled={
-                                            addingSite || editingSite !== null
+                                            addingSite ||
+                                            editingSite !== null ||
+                                            !selectedClient.is_active
                                         }
                                         onClick={() => {
                                             setEditingSite(null);
@@ -523,6 +546,13 @@ export default function Clients({
                                                     maxLength: 255,
                                                     autoComplete: 'tel',
                                                 },
+                                                {
+                                                    name: 'is_active',
+                                                    label: 'Active site',
+                                                    type: 'checkbox',
+                                                    description:
+                                                        'Inactive sites remain available for historical records.',
+                                                },
                                             ]}
                                         />
                                     </div>
@@ -546,6 +576,8 @@ export default function Clients({
                                             <div className="min-w-0">
                                                 <p className="truncate text-sm font-medium">
                                                     {site.site_name}
+                                                    {!site.is_active &&
+                                                        ' (Inactive)'}
                                                 </p>
                                                 <p className="truncate text-xs text-muted-foreground">
                                                     {site.address}
@@ -591,7 +623,7 @@ export default function Clients({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                aria-label={`Delete ${site.site_name}`}
+                                                aria-label={`${site.is_active ? 'Deactivate' : 'Reactivate'} ${site.site_name}`}
                                                 disabled={
                                                     addingSite ||
                                                     editingSite !== null ||
@@ -603,7 +635,11 @@ export default function Clients({
                                                     setDeletingSite(site);
                                                 }}
                                             >
-                                                <Trash2 />
+                                                {site.is_active ? (
+                                                    <Archive />
+                                                ) : (
+                                                    <RotateCcw />
+                                                )}
                                             </Button>
                                         </div>
                                     </div>
@@ -637,8 +673,15 @@ export default function Clients({
                 onOpenChange={(open) => {
                     if (!open) setDeletingSite(null);
                 }}
-                title="Delete site?"
-                description="This will permanently delete this site and its assets, inspections, and certificates. This action cannot be undone."
+                title={`${deletingSite?.is_active ? 'Deactivate' : 'Reactivate'} site?`}
+                description={
+                    deletingSite?.is_active
+                        ? 'Deactivate this site? Its equipment, inspections, and certificates will be preserved.'
+                        : 'Reactivate this site? Its existing equipment will remain in its current state.'
+                }
+                confirmLabel={
+                    deletingSite?.is_active ? 'Deactivate' : 'Reactivate'
+                }
                 onConfirm={deleteSelectedSite}
                 loading={deletePending}
                 restoreFocus={() => {
@@ -688,6 +731,12 @@ export default function Clients({
                         <ViewField
                             label="Site Phone"
                             value={viewingSite.site_phone}
+                        />
+                        <ViewField
+                            label="Status"
+                            value={
+                                viewingSite.is_active ? 'Active' : 'Inactive'
+                            }
                         />
                     </div>
                 )}
