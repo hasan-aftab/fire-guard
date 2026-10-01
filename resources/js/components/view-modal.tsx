@@ -28,6 +28,13 @@ export function ViewModal({
         <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
             <DialogContent
                 className="flex max-h-[85vh] flex-col sm:max-w-xl"
+                onKeyDownCapture={(event) => {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onClose();
+                    }
+                }}
                 onCloseAutoFocus={
                     restoreFocus
                         ? (event) => {
