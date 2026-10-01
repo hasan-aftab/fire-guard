@@ -328,7 +328,7 @@ test('client and site edits can clear optional details without changing site own
     ]);
 });
 
-test('deleting a site removes its dependents but preserves the client and other sites', function () {
+test('deactivating a site preserves its dependents and can be reversed', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create();
     $site = Site::factory()->for($client)->create();
@@ -340,8 +340,11 @@ test('deleting a site removes its dependents but preserves the client and other 
     $this->actingAs($user)->delete(route('sites.destroy', $site))->assertRedirect();
 
     foreach ([$site, $asset, $inspection, $certificate] as $record) {
-        $this->assertModelMissing($record);
+        $this->assertModelExists($record);
     }
+    expect($site->refresh()->is_active)->toBeFalse();
+    $this->patch(route('sites.restore', $site))->assertRedirect();
+    expect($site->refresh()->is_active)->toBeTrue();
     $this->assertModelExists($client);
     $this->assertModelExists($otherSite);
 });
