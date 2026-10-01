@@ -51,7 +51,7 @@ class AssetController extends Controller
                 ->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')
                     ->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')));
         }
-        $this->filterServiceStatus($query, $request, 'next_service_due');
+        $this->filterServiceStatus($query, $request, 'next_service_due', Asset::DUE_SOON_DAYS);
         $this->filterDates($query, $request, 'next_service_due');
 
         match ($request->string('sort')->toString()) {
@@ -62,7 +62,8 @@ class AssetController extends Controller
         };
 
         $filters = $request->safe()->except(['page']);
-        $records = $query->paginate(10)->withQueryString();
+        $records = $query->paginate(10)->withQueryString()
+            ->through(fn (Asset $asset) => $asset->append('service_status'));
         if ($records->currentPage() > $records->lastPage()) {
             return to_route('assets.index', $filters + ($records->lastPage() > 1 ? ['page' => $records->lastPage()] : []));
         }
