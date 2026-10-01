@@ -79,7 +79,7 @@ test('client sorting uses a stable name or site-count order', function () {
     $beta = Client::factory()->create(['company_name' => 'Beta']);
     Site::factory()->for($beta)->count(2)->create();
 
-    $this->actingAs($user)->get(route('clients.index', ['sort' => 'name_desc']))
+    $this->actingAs($user)->get(route('clients.index', ['sort' => 'name_desc']))->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('records.data.0.id', $beta->id)
             ->where('records.data.1.id', $alpha->id));
