@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Concerns\FiltersFireTrackerRecords;
+use App\Concerns\MarksEnteredInError;
 use App\Http\Requests\AssetFilterRequest;
 use App\Http\Requests\AssetRequest;
 use App\Models\Asset;
@@ -15,12 +16,15 @@ use Inertia\Response;
 class AssetController extends Controller
 {
     use FiltersFireTrackerRecords;
+    use MarksEnteredInError;
 
     public function index(AssetFilterRequest $request): Response|RedirectResponse
     {
         $query = Asset::query()
-            ->select(['id', 'site_id', 'asset_type_id', 'serial_number', 'location_desc', 'install_date', 'last_service_date', 'next_service_due', 'status'])
-            ->with(['site:id,client_id,site_name,is_active', 'site.client:id,company_name,is_active', 'assetType:id,type_name,category']);
+            ->select(['id', 'site_id', 'asset_type_id', 'serial_number', 'location_desc', 'install_date', 'last_service_date', 'next_service_due', 'status', 'entered_in_error_at'])
+            ->withCount(['inspections', 'certificates'])
+            ->with(['site:id,client_id,site_name,is_active,entered_in_error_at', 'site.client:id,company_name,is_active,entered_in_error_at', 'assetType:id,type_name,category']);
+        $this->filterRecordState($query, $request);
         if ($request->filled('search')) {
             $pattern = $this->searchPattern($request);
             $query->where(function ($query) use ($pattern): void {
@@ -44,8 +48,8 @@ class AssetController extends Controller
         }
         if (in_array($request->string('status')->toString(), ['overdue', 'due_soon', 'ok'], true)) {
             $query->where('status', 'active')
-                ->whereHas('site', fn ($site) => $site->where('is_active', true)
-                    ->whereHas('client', fn ($client) => $client->where('is_active', true)));
+                ->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')
+                    ->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')));
         }
         $this->filterServiceStatus($query, $request, 'next_service_due');
         $this->filterDates($query, $request, 'next_service_due');
@@ -65,7 +69,7 @@ class AssetController extends Controller
 
         return Inertia::render('assets', [
             'records' => $records,
-            'sites' => Site::select(['id', 'client_id', 'site_name', 'is_active'])->with('client:id,company_name,is_active')->orderBy('site_name')->orderBy('id')->get(),
+            'sites' => Site::select(['id', 'client_id', 'site_name', 'is_active', 'entered_in_error_at'])->with('client:id,company_name,is_active,entered_in_error_at')->orderBy('site_name')->orderBy('id')->get(),
             'assetTypes' => AssetType::select(['id', 'type_name', 'category'])->orderBy('type_name')->orderBy('id')->get(),
             'filters' => $filters,
         ]);
@@ -101,5 +105,20 @@ class AssetController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Equipment reactivated.']);
 
         return back();
+    }
+
+    public function markError(Asset $asset): RedirectResponse
+    {
+        return $this->setEnteredInError($asset, true, 'Equipment');
+    }
+
+    public function restoreError(Asset $asset): RedirectResponse
+    {
+        return $this->setEnteredInError($asset, false, 'Equipment');
+    }
+
+    public function purge(Asset $asset): RedirectResponse
+    {
+        return $this->deleteUnlinked($asset, $asset->inspections()->exists() || $asset->certificates()->exists(), 'Equipment');
     }
 }
