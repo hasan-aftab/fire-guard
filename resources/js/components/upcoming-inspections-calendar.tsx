@@ -1,156 +1,195 @@
-import { CalendarClock, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { format, parseISO } from 'date-fns';
+import {
+    CalendarClock,
+    ChevronLeft,
+    ChevronRight,
+    ListTodo,
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
-import type { UpcomingInspection } from '@/types/fire-tracker';
-
-function dateKey(date: Date): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
+import { ScrollArea } from '@/components/ui/scroll-area';
+import type { DashboardCalendar } from '@/types/fire-tracker';
 
 export function UpcomingInspectionsCalendar({
-    inspections,
+    calendar,
     dates,
-    total,
     asOfDate,
+    onMonthChange,
 }: {
-    inspections: UpcomingInspection[];
+    calendar: DashboardCalendar;
     dates: string[];
-    total: number;
     asOfDate: string;
+    onMonthChange: (month: string) => void;
 }) {
-    const [month, setMonth] = useState(() => {
-        const [year, monthNumber] = asOfDate.split('-').map(Number);
-        return new Date(year, monthNumber - 1, 1);
-    });
-    const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
-    const dayCount = new Date(
-        month.getFullYear(),
-        month.getMonth() + 1,
-        0,
-    ).getDate();
-    const today = asOfDate;
-    const dueDates = new Set(dates);
-    const changeMonth = (offset: number) =>
-        setMonth(new Date(month.getFullYear(), month.getMonth() + offset, 1));
+    const month = parseISO(`${calendar.month}-01`);
+    const today = parseISO(asOfDate);
+    const lastDate = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() + 90,
+    );
 
     return (
-        <Card className="h-full">
-            <CardHeader className="border-b">
-                <CardTitle className="flex items-center gap-2 text-base">
-                    <div className="flex size-7 items-center justify-center rounded-md bg-blue-50 dark:bg-blue-950/30">
-                        <CalendarClock className="size-4 text-blue-500 dark:text-blue-400" />
-                    </div>
-                    Upcoming Inspections
+        <Card className="gap-0 py-0">
+            <CardHeader className="border-b py-3">
+                <CardTitle className="flex items-center gap-2 text-base leading-7">
+                    <span className="flex size-7 items-center justify-center rounded-md bg-brand/10">
+                        <CalendarClock
+                            className="size-4 text-brand"
+                            aria-hidden="true"
+                        />
+                    </span>
+                    Upcoming inspections
                 </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col p-4">
-                <div className="mb-2 flex items-center justify-between">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Previous month"
-                        onClick={() => changeMonth(-1)}
-                    >
-                        <ChevronLeft />
-                    </Button>
-                    <span className="text-sm font-medium" aria-live="polite">
-                        {month.toLocaleDateString('en-US', {
-                            month: 'long',
-                            year: 'numeric',
-                        })}
+            <CardContent className="flex flex-col items-center gap-2 p-4">
+                <Calendar
+                    month={month}
+                    onMonthChange={(date) =>
+                        onMonthChange(
+                            `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+                        )
+                    }
+                    startMonth={
+                        new Date(today.getFullYear(), today.getMonth(), 1)
+                    }
+                    endMonth={
+                        new Date(lastDate.getFullYear(), lastDate.getMonth(), 1)
+                    }
+                    today={today}
+                    modifiers={{ due: dates.map((date) => parseISO(date)) }}
+                    modifiersClassNames={{
+                        due: 'rounded-md bg-warning/15 font-semibold text-warning',
+                    }}
+                    aria-label="Service and inspection calendar"
+                />
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span
+                        className="size-3 rounded-sm bg-warning/15 ring-1 ring-warning/30"
+                        aria-hidden="true"
+                    />
+                    Highlighted dates have scheduled work
+                </p>
+            </CardContent>
+        </Card>
+    );
+}
+
+export function UpcomingInspectionsList({
+    calendar,
+    onPageChange,
+}: {
+    calendar: DashboardCalendar;
+    onPageChange: (page: number) => void;
+}) {
+    const { events } = calendar;
+    const firstItem =
+        events.total === 0
+            ? 0
+            : (events.current_page - 1) * events.per_page + 1;
+    const lastItem = Math.min(
+        events.current_page * events.per_page,
+        events.total,
+    );
+
+    return (
+        <Card className="gap-0 py-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-3 border-b py-3">
+                <CardTitle className="flex items-center gap-2 text-base leading-7">
+                    <span className="flex size-7 items-center justify-center rounded-md bg-warning/10">
+                        <ListTodo
+                            className="size-4 text-warning"
+                            aria-hidden="true"
+                        />
                     </span>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Next month"
-                        onClick={() => changeMonth(1)}
+                    Due in{' '}
+                    {format(parseISO(`${calendar.month}-01`), 'MMMM yyyy')}
+                </CardTitle>
+                <Badge variant="secondary">{events.total}</Badge>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2 p-4">
+                {events.data.length ? (
+                    <ScrollArea
+                        className="h-28"
+                        type="always"
+                        viewportProps={{
+                            role: 'region',
+                            'aria-label': 'Due inspections and services',
+                            tabIndex: 0,
+                        }}
                     >
-                        <ChevronRight />
-                    </Button>
-                </div>
-                <div
-                    className="grid grid-cols-7 gap-px"
-                    role="list"
-                    aria-label="Service calendar"
-                >
-                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-                        <div
-                            key={day}
-                            className="py-1 text-center text-xs text-muted-foreground"
-                        >
-                            {day}
-                        </div>
-                    ))}
-                    {Array.from({ length: firstDay.getDay() }, (_, index) => (
-                        <div key={`padding-${index}`} />
-                    ))}
-                    {Array.from({ length: dayCount }, (_, index) => {
-                        const date = new Date(
-                            month.getFullYear(),
-                            month.getMonth(),
-                            index + 1,
-                        );
-                        const key = dateKey(date);
-                        const isToday = key === today;
-                        const hasInspection = dueDates.has(key);
-                        return (
-                            <div
-                                key={key}
-                                role="listitem"
-                                aria-label={`${key}${hasInspection ? ', service due' : ''}`}
-                                className={cn(
-                                    'flex min-h-8 flex-col items-center justify-center rounded-md py-1 text-xs',
-                                    isToday
-                                        ? 'bg-primary font-medium text-primary-foreground'
-                                        : hasInspection
-                                          ? 'bg-warning/10 text-warning'
-                                          : 'text-muted-foreground',
-                                )}
-                            >
-                                <span>{index + 1}</span>
-                                {hasInspection && (
-                                    <span className="mt-0.5 size-1 rounded-full bg-current" />
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-                {inspections.length ? (
-                    <div className="mt-3 flex flex-col gap-2 border-t pt-3">
-                        <p className="text-xs font-medium text-muted-foreground">
-                            Next due
-                        </p>
-                        <div className="custom-scrollbar flex max-h-24 flex-col gap-2 overflow-y-auto">
-                            {inspections.map((item) => (
+                        <div className="grid w-full min-w-0 grid-cols-1 gap-2 pr-3 lg:grid-cols-2 lg:gap-x-6">
+                            {events.data.map((item) => (
                                 <div
-                                    key={item.assetId}
-                                    className="flex justify-between gap-3 text-xs"
+                                    key={item.id}
+                                    className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-xs"
                                 >
-                                    <span className="truncate font-medium">
-                                        {item.typeName}
-                                    </span>
-                                    <span className="truncate text-muted-foreground">
-                                        {item.siteName}
+                                    <Badge
+                                        variant="secondary"
+                                        className="shrink-0 text-xs font-normal"
+                                    >
+                                        {item.source === 'inspection'
+                                            ? 'Inspection'
+                                            : 'Service'}
+                                    </Badge>
+                                    <span
+                                        className="min-w-0 truncate font-medium"
+                                        title={`${item.typeName} at ${item.siteName}`}
+                                    >
+                                        {item.typeName} · {item.siteName}
                                     </span>
                                     <span className="shrink-0 text-muted-foreground tabular-nums">
-                                        {item.nextServiceDue}
+                                        {item.dueDate}
                                     </span>
                                 </div>
                             ))}
                         </div>
-                        {total > inspections.length && (
-                            <p className="text-xs text-muted-foreground">
-                                Showing next {inspections.length} of {total}
-                            </p>
-                        )}
-                    </div>
+                    </ScrollArea>
                 ) : (
-                    <p className="py-6 text-center text-xs text-muted-foreground">
-                        No upcoming inspections
+                    <p className="flex h-28 items-center justify-center text-center text-xs text-muted-foreground">
+                        No inspections or services due this month
                     </p>
                 )}
+                <div className="flex h-8 items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>
+                        {firstItem}–{lastItem} of {events.total}
+                    </span>
+                    {events.total > events.per_page && (
+                        <div className="flex items-center gap-1">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="size-7"
+                                aria-label="Previous due items"
+                                disabled={events.current_page === 1}
+                                onClick={() =>
+                                    onPageChange(events.current_page - 1)
+                                }
+                            >
+                                <ChevronLeft />
+                            </Button>
+                            <span className="min-w-9 text-center">
+                                {events.current_page}/{events.last_page}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="size-7"
+                                aria-label="Next due items"
+                                disabled={
+                                    events.current_page === events.last_page
+                                }
+                                onClick={() =>
+                                    onPageChange(events.current_page + 1)
+                                }
+                            >
+                                <ChevronRight />
+                            </Button>
+                        </div>
+                    )}
+                </div>
             </CardContent>
         </Card>
     );
