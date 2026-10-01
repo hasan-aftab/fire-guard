@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('license_number')->nullable();
             $table->date('license_expiry')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->timestamp('entered_in_error_at')->nullable();
             $table->timestamps();
         });
     }
