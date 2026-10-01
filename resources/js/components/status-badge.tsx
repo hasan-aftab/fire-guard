@@ -1,51 +1,45 @@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-export function serviceStatus(
-    date: string | null,
-    soonDays = 14,
-    asOfDate?: string,
-): 'unknown' | 'overdue' | 'due_soon' | 'ok' {
-    if (!date) return 'unknown';
-    const today = new Date();
-    const todayKey =
-        asOfDate ??
-        `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const [todayYear, todayMonth, todayDate] = todayKey.split('-').map(Number);
-    const todayDay = Date.UTC(todayYear, todayMonth - 1, todayDate);
-    const [year, month, day] = date.split('-').map(Number);
-    const days = Math.round(
-        (Date.UTC(year, month - 1, day) - todayDay) / 86400000,
-    );
-    return days < 0 ? 'overdue' : days <= soonDays ? 'due_soon' : 'ok';
-}
+export type DateStatus =
+    | 'unknown'
+    | 'overdue'
+    | 'due_soon'
+    | 'ok'
+    | 'expired'
+    | 'expiring_soon'
+    | 'valid';
 
 export function StatusBadge({
+    status,
     date,
     showDate = true,
-    soonDays = 14,
-    asOfDate,
 }: {
+    status: DateStatus;
     date: string | null;
     showDate?: boolean;
-    soonDays?: number;
-    asOfDate?: string;
 }) {
-    const status = serviceStatus(date, soonDays, asOfDate);
     const labels = {
         overdue: 'Overdue',
         due_soon: 'Due soon',
         ok: 'OK',
         unknown: 'No due date',
+        expired: 'Expired',
+        expiring_soon: 'Expiring soon',
+        valid: 'Valid',
     };
     return (
         <Badge
-            variant={status === 'overdue' ? 'destructive' : 'outline'}
+            variant={
+                status === 'overdue' || status === 'expired'
+                    ? 'destructive'
+                    : 'outline'
+            }
             className={cn(
                 'gap-1.5 text-xs',
-                status === 'due_soon' &&
+                (status === 'due_soon' || status === 'expiring_soon') &&
                     'border-warning/40 bg-warning/10 text-warning',
-                status === 'ok' &&
+                (status === 'ok' || status === 'valid') &&
                     'border-success/40 bg-success/10 text-success',
             )}
         >
