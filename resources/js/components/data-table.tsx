@@ -12,6 +12,7 @@ export interface Column<T> {
     key: string;
     header: string;
     className?: string;
+    showInView?: boolean;
     render: (item: T, index: number) => ReactNode;
 }
 
