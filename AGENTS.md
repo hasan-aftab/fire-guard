@@ -140,47 +140,80 @@ Client ─┬─> Site ─┬─> Asset ──> Inspection ──> Technician
 - Because the FKs restrict, **the `destroy` routes deactivate rather than delete** (see
   [Archival instead of deletion](#archival-instead-of-deletion)). An `AssetType` in use
   still cannot be deleted at all.
-- **Nothing is on production yet, so edit the create migrations directly** rather than
-  adding a follow-up migration, then `migrate:fresh --seed`. The "never edit old
-  migrations" rule only applies once an environment depends on them. Keep every
-  `down()` a plain `dropIfExists` so the schema stays fully reversible; a migration that
-  throws in `down()` (as a deleted "restrict the FKs" migration did) is a trap.
+
+### The migration rule — read this before writing any migration
+
+**Never create a new migration file to add, modify, or remove a column.** The create
+migrations in `database/migrations` are the single source of truth for the schema while
+nothing is deployed. Change the create migration directly, then run
+`php artisan migrate:fresh --seed`. A new migration file is warranted only when the
+change **creates a new table** (or an index/constraint that has no home in a `create`).
+
+Why: every extra migration permanently encodes a schema state that the create
+migrations no longer produce. `migrate:fresh` becomes the path that runs, while any
+long-lived environment silently diverges, and the two drift apart.
+
+- The "never edit old migrations" rule you may know from production Laravel applies
+  **once an environment depends on them**. That condition is not met here, so it does
+  not apply. Until it is, a follow-up migration is pure cost.
+- Keep every `down()` a plain `dropIfExists` so the schema stays fully reversible; a
+  migration that throws in `down()` (as the deleted "restrict the FKs" migration did)
+  is a trap that turns a typo'd reset into a dead database.
+- If you catch yourself writing a `Schema::table()` that only adds or drops a column,
+  stop and edit the `Schema::create()` instead. Two of these were folded in already:
+  the FK `restrictOnDelete` + `sites.is_active`, and `entered_in_error_at`.
+- If a new table is genuinely needed, `php artisan make:migration create_x_table`, keep
+  its `down()` a plain `dropIfExists`, and add a row to the
+  [Domain model](#domain-model) list.
 - `fire_notifications` has `unique(user_id, type, entity_type, entity_id)` — that
   uniqueness is what makes the notification sync idempotent.
-- **There is no `sites.index` route.** Sites are `store`/`update`/`destroy`/`restore`
-  only and are managed inline from the clients page.
+- **There is no `sites.index` route.** Sites are `store`/`update`/`destroy`/`restore`/
+  `entered-in-error`/`restore-error` only and are managed inline from the clients page.
+- `entered_in_error_at` is indexed on `assets`, `inspections` and `certificates` because
+  `filterRecordState()` and every dashboard query filter on it; the other three tables
+  are small lookup tables that are always read in full.
 - The compliance page lives at URL `/compliance` but its route **name** is
   `certificates.index` and its Inertia component is `compliance` — not `certificates`.
 
-## Archival instead of deletion
+## Retention: two independent flags, not deletion
 
-Safety records are never hard-deleted. `destroy` flips `is_active` to `false`; a sibling
-`restore` route flips it back.
+No fire-tracker record is ever hard-deleted through a normal route. Two separate
+columns carry the lifecycle, and **they are not interchangeable**:
 
-| Resource       | `destroy`            | `restore`             |
-| -------------- | -------------------- | --------------------- |
-| `clients`      | `is_active => false` | `clients.restore`     |
-| `sites`        | `is_active => false` | `sites.restore`       |
-| `assets`       | `is_active => false` | `assets.restore`      |
-| `technicians`  | `is_active => false` | `technicians.restore` |
-| `inspections`  | **route removed**    | —                     |
-| `certificates` | **route removed**    | —                     |
+| Column                 | Meaning                                                          |
+| ---------------------- | ---------------------------------------------------------------- |
+| `is_active` / `status` | Operational state — can this record be _used_ for new work?      |
+| `entered_in_error_at`  | Was this record created in error? Retained, but struck from view |
 
-- `clients`, `sites` and `technicians` carry `is_active` on the table
-  (`boolean('is_active')->default(true)`); `assets` has a separate `status` column
-  (`active` / `decommissioned`) that plays the same role. `inspections` and
-  `certificates` have no archive flag — history is corrected via `update` instead, and
-  that is deliberate: a safety record should be amendable but not erasable.
-- FormRequests reject **new** operational records that reference an inactive parent,
-  while still allowing an `update` to keep the existing one. `SiteRequest` does this
-  with `Rule::exists(...)->where('is_active', true)` guarded by
-  `! $site instanceof Site`; `AssetRequest`, `InspectionRequest` and `CertificateRequest`
-  do the equivalent. Editing history is allowed; extending it is not.
-- Inactive parents stay **visible** on index pages — they are excluded from
-  status/alert computation, not from the listing.
-- `SyncFireNotifications` treats deactivated records as ineligible, so deactivating a
-  client prunes its notifications and reactivating it recreates them. Both directions
-  are tested in `tests/Feature/HistoricalRetentionTest.php`.
+- `is_active` (`clients`, `sites`, `technicians`) or `status`
+  (`active`/`decommissioned`, `assets`) is **deactivation**. `destroy` flips it; a
+  sibling `restore` route flips it back.
+- `entered_in_error_at` is a **nullable timestamp** on all six tables, not a boolean.
+  `PATCH {resource}/{id}/entered-in-error` sets `now()`; `…/restore-error` sets `null`.
+  Both are handled by `App\Concerns\MarksEnteredInError` (`setEnteredInError`), shared
+  by every tracker controller.
+- A record can be entered-in-error **and** still `is_active`, or both. The UI treats
+  entered-in-error as the stronger state. Filter with `record_state`; sites use a
+  separate `site_state` param on the clients page.
+- `filterRecordState()` in `FiltersFireTrackerRecords` resolves `record_state` to
+  `whereNotNull`/`whereNull('entered_in_error_at')`, defaulting to `whereNull` — so
+  entered-in-error records are hidden by default and revealed by the filter.
+- Deactivation also gates new work: FormRequests reject **new** records referencing an
+  inactive or entered-in-error parent, while still allowing an `update` to keep the
+  existing one (`SiteRequest` via `Rule::exists(...)->where('is_active', true)` guarded
+  by `! $site instanceof Site`; the other requests use explicit `whereKey(...)->exists()`
+  checks). Editing history is allowed; extending it is not.
+- `certificates` and `inspections` have **no** `destroy`/`restore` route at all — only
+  `entered-in-error`/`restore-error`. There is a test asserting
+  `->assertMethodNotAllowed()` on `DELETE`.
+- `MarksEnteredInError::deleteUnlinked()` backs the `purge` routes: it 409s if the record
+  has linked children, and also catches a `QueryException` (SQLite `19` / MySQL `23000`)
+  to close the race where a link appears between the check and the delete.
+- Inactive and entered-in-error parents stay **visible** on index pages — they are
+  excluded from status/alert/count computation, not from the listing.
+- `SyncFireNotifications` treats both states as ineligible, so deactivating or
+  marking-error prunes notifications and reversing recreates them. Both directions are
+  tested in `tests/Feature/HistoricalRetentionTest.php`.
 
 ## The RecordPage CRUD convention (most important structural fact)
 
