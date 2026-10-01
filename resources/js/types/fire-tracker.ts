@@ -7,7 +7,7 @@ export type Client = {
     billing_address: string | null;
     notes: string | null;
     is_active: boolean;
-    sites: Site[];
+    sites?: Pick<Site, 'id' | 'site_name' | 'address'>[];
     sites_count: number;
 };
 
@@ -134,7 +134,10 @@ export type TrackerFilters = Partial<
         | 'from'
         | 'to'
         | 'issue_from'
-        | 'issue_to',
+        | 'issue_to'
+        | 'active'
+        | 'site_presence'
+        | 'sort',
         string
     >
 >;
@@ -160,15 +163,26 @@ export type DashboardSummary = {
         overdueInspections: number;
         expiringCerts: number;
     };
-    upcomingTotal: number;
     upcomingDates: string[];
-    upcomingInspections: UpcomingInspection[];
     complianceRate: {
         pass: number;
         fail: number;
         needs_repair: number;
         total: number;
     };
+};
+
+export type CalendarDueEvent = {
+    id: string;
+    source: 'asset' | 'inspection';
+    dueDate: string;
+    typeName: string;
+    siteName: string;
+};
+
+export type DashboardCalendar = {
+    month: string;
+    events: Paginated<CalendarDueEvent>;
 };
 
 export type DashboardFilters = Partial<
@@ -178,7 +192,9 @@ export type DashboardFilters = Partial<
         | 'attention_page'
         | 'cert_from'
         | 'cert_to'
-        | 'cert_page',
+        | 'cert_page'
+        | 'calendar_month'
+        | 'calendar_page',
         string | number
     >
 >;
