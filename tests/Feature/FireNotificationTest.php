@@ -25,9 +25,9 @@ test('notification generation includes actionable records once and preserves rea
     $this->patch(route('notifications.update', $notification))->assertRedirect(route('assets.index'));
     $this->post(route('notifications.generate'))->assertRedirect();
 
-    $this->assertDatabaseCount('fire_notifications', 5);
+    $this->assertDatabaseCount('fire_notifications', 4);
     expect($notification->refresh()->is_read)->toBeTrue();
-    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->where('fireNotifications.unreadCount', 4)->has('fireNotifications.items', 5));
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->where('fireNotifications.unreadCount', 3)->has('fireNotifications.items', 4));
 });
 
 test('standalone notification polling returns current notifications as JSON', function () {
@@ -76,6 +76,44 @@ test('notification messages use calendar day counts and singular units', functio
         ->toContain('expired 1 day ago');
     expect(FireNotification::where('entity_type', 'certificate')->where('entity_id', $expiringCertificate->id)->value('message'))
         ->toContain('expires in 1 day');
+});
+
+test('notification boundaries agree with derived status and omit retired equipment', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
+    $user = User::factory()->create();
+    $assetToday = Asset::factory()->create(['next_service_due' => '2026-10-01']);
+    $assetBoundary = Asset::factory()->create(['next_service_due' => '2026-10-15']);
+    $assetOutside = Asset::factory()->create(['next_service_due' => '2026-10-16']);
+    $retired = Asset::factory()->create(['next_service_due' => '2026-09-30', 'status' => 'decommissioned']);
+    $certificateToday = Certificate::factory()->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-10-01']);
+    $certificateBoundary = Certificate::factory()->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-10-31']);
+    $certificateOutside = Certificate::factory()->create(['issue_date' => '2026-01-01', 'expiry_date' => '2026-11-01']);
+
+    $this->actingAs($user)->postJson(route('notifications.generate'))->assertJsonPath('unreadCount', 4);
+
+    $this->assertDatabaseHas('fire_notifications', ['entity_type' => 'asset', 'entity_id' => $assetToday->id, 'type' => 'due_soon_asset']);
+    $this->assertDatabaseHas('fire_notifications', ['entity_type' => 'asset', 'entity_id' => $assetBoundary->id, 'type' => 'due_soon_asset']);
+    $this->assertDatabaseHas('fire_notifications', ['entity_type' => 'certificate', 'entity_id' => $certificateToday->id, 'type' => 'expiring_cert']);
+    $this->assertDatabaseHas('fire_notifications', ['entity_type' => 'certificate', 'entity_id' => $certificateBoundary->id, 'type' => 'expiring_cert']);
+    $this->assertDatabaseMissing('fire_notifications', ['entity_type' => 'asset', 'entity_id' => $assetOutside->id]);
+    $this->assertDatabaseMissing('fire_notifications', ['entity_type' => 'asset', 'entity_id' => $retired->id]);
+    $this->assertDatabaseMissing('fire_notifications', ['entity_type' => 'certificate', 'entity_id' => $certificateOutside->id]);
+});
+
+test('a later passing inspection clears the old failure alert but preserves inspection history', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
+    $user = User::factory()->create();
+    $asset = Asset::factory()->create(['next_service_due' => '2027-01-01']);
+    $failure = Inspection::factory()->for($asset)->create(['inspection_date' => '2026-09-01', 'result' => 'fail']);
+
+    $this->actingAs($user)->postJson(route('notifications.generate'))->assertJsonPath('unreadCount', 1);
+    $this->assertDatabaseHas('fire_notifications', ['type' => 'failed_inspection', 'entity_id' => $failure->id]);
+
+    $passing = Inspection::factory()->for($asset)->create(['inspection_date' => '2026-09-30', 'result' => 'pass']);
+    $this->postJson(route('notifications.generate'))->assertJsonPath('unreadCount', 0);
+    $this->assertDatabaseMissing('fire_notifications', ['type' => 'failed_inspection', 'entity_id' => $failure->id]);
+    expect($failure->refresh()->result)->toBe('fail');
+    expect($passing->refresh()->result)->toBe('pass');
 });
 
 test('read alerts older than thirty days renew while newer read alerts stay read', function () {
