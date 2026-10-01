@@ -17,6 +17,7 @@ return new class extends Migration
             $table->text('billing_address')->nullable();
             $table->text('notes')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->timestamp('entered_in_error_at')->nullable();
             $table->timestamps();
         });
     }
