@@ -63,7 +63,7 @@ export function UpcomingInspectionsCalendar({
                     modifiersClassNames={{
                         due: 'rounded-md bg-warning/15 font-semibold text-warning',
                     }}
-                    aria-label="Service and inspection calendar"
+                    aria-label="Upcoming inspection calendar"
                 />
                 <p className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span
@@ -130,9 +130,7 @@ export function UpcomingInspectionsList({
                                         variant="secondary"
                                         className="shrink-0 text-xs font-normal"
                                     >
-                                        {item.source === 'inspection'
-                                            ? 'Inspection'
-                                            : 'Service'}
+                                        Inspection
                                     </Badge>
                                     <span
                                         className="min-w-0 truncate font-medium"
@@ -149,7 +147,7 @@ export function UpcomingInspectionsList({
                     </ScrollArea>
                 ) : (
                     <p className="flex h-28 items-center justify-center text-center text-xs text-muted-foreground">
-                        No inspections or services due this month
+                        No inspections due this month
                     </p>
                 )}
                 <div className="flex h-8 items-center justify-between gap-2 text-xs text-muted-foreground">
