@@ -16,7 +16,7 @@ test('inspections page exposes the required setup choices and only the data it d
     $this->actingAs($user)->get(route('inspections.index'))
         ->assertInertia(fn (Assert $page) => $page->component('inspections')
             ->has('assets', 1)->where('assets.0.id', $asset->id)
-            ->missing('assets.0.site.client')
+            ->where('assets.0.site.client.is_active', true)
             ->has('technicians', 1)->where('technicians.0.full_name', 'Mara Kila')
             ->missing('technicians.0.email')
             ->has('records.data', 1)->where('records.data.0.id', $inspection->id)
@@ -63,7 +63,7 @@ test('inspection date filters accept a single endpoint and exclude other dates',
             ->where('records.data.0.inspection_date', '2026-09-19'));
 });
 
-test('inspections return to the last populated filtered page after a deletion', function () {
+test('completed inspections remain on their filtered page after a forbidden delete', function () {
     $user = User::factory()->create();
     $asset = Asset::factory()->create(['serial_number' => 'EX-PAGED']);
     $technician = Technician::factory()->create();
@@ -75,13 +75,12 @@ test('inspections return to the last populated filtered page after a deletion', 
     $this->actingAs($user)->get($pageTwoUrl)
         ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
             ->where('records.current_page', 2)->missing('filters.page'));
-    $this->from($pageTwoUrl)->delete(route('inspections.destroy', $inspections->first()))
-        ->assertRedirect();
+    $this->from($pageTwoUrl)->delete('/inspections/'.$inspections->first()->id)
+        ->assertStatus(405);
 
-    $this->get($pageTwoUrl)->assertRedirect(route('inspections.index', $filters));
-    $this->get(route('inspections.index', $filters))
-        ->assertInertia(fn (Assert $page) => $page->has('records.data', 10)
-            ->where('records.current_page', 1)->where('records.total', 10));
+    $this->get($pageTwoUrl)
+        ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
+            ->where('records.current_page', 2)->where('records.total', 11));
 });
 
 test('inspection writes reject invalid relationships due dates and photo schemes', function () {
@@ -114,16 +113,16 @@ test('inspection writes reject invalid relationships due dates and photo schemes
     ]);
 });
 
-test('deleted technicians remain visible as unassigned in inspection history', function () {
+test('inactive technicians remain attributed in inspection history', function () {
     $user = User::factory()->create();
     $technician = Technician::factory()->create();
     $inspection = Inspection::factory()->for($technician)->create();
-    $technician->delete();
+    $this->actingAs($user)->delete(route('technicians.destroy', $technician))->assertRedirect();
 
     $this->actingAs($user)->get(route('inspections.index'))
         ->assertInertia(fn (Assert $page) => $page->component('inspections')
             ->where('records.data.0.id', $inspection->id)
-            ->where('records.data.0.technician', null));
+            ->where('records.data.0.technician.full_name', $technician->full_name));
 });
 
 test('logging a failed inspection creates an alert and passing it clears the alert', function () {
