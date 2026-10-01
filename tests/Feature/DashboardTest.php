@@ -3,7 +3,9 @@
 use App\Models\Asset;
 use App\Models\AssetType;
 use App\Models\Certificate;
+use App\Models\Inspection;
 use App\Models\Site;
+use App\Models\Technician;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -22,7 +24,8 @@ test('authenticated users can visit the dashboard', function () {
         ->where('summary.stats.totalAssets', 0)
         ->where('attention.total', 0)
         ->where('certificates.total', 0)
-        ->where('summary.upcomingTotal', 0));
+        ->where('calendar.events.total', 0)
+        ->has('summary.upcomingDates', 0));
 });
 
 test('unverified users are redirected before dashboard data is shown', function () {
@@ -32,7 +35,7 @@ test('unverified users are redirected before dashboard data is shown', function 
         ->assertRedirect(route('verification.notice'));
 });
 
-test('dashboard paginates alert tables independently and bounds the upcoming list', function () {
+test('dashboard paginates alert tables and the calendar independently', function () {
     $this->travelTo(now()->setDate(2026, 9, 29)->startOfDay());
     $user = User::factory()->create();
     $site = Site::factory()->create();
@@ -40,14 +43,61 @@ test('dashboard paginates alert tables independently and bounds the upcoming lis
     $assets = Asset::factory()->for($site)->for($type)->count(12)->create(['next_service_due' => '2026-10-01']);
     $certificates = Certificate::factory()->for($site)->count(12)->create(['expiry_date' => '2026-10-01']);
 
-    $this->actingAs($user)->get(route('dashboard', ['attention_page' => 2, 'cert_page' => 2]))
+    $this->actingAs($user)->get(route('dashboard', ['attention_page' => 2, 'cert_page' => 2, 'calendar_month' => '2026-10']))
         ->assertInertia(fn (Assert $page) => $page->component('dashboard')
             ->where('attention.total', 12)->where('attention.current_page', 2)
             ->has('attention.data', 2)->where('attention.data.0.assetId', $assets[10]->id)
             ->where('certificates.total', 12)->where('certificates.current_page', 2)
             ->has('certificates.data', 2)->where('certificates.data.0.certificateId', $certificates[10]->id)
-            ->where('summary.upcomingTotal', 12)->has('summary.upcomingDates', 1)
-            ->has('summary.upcomingInspections', 10));
+            ->where('summary.upcomingDates.0', '2026-10-01')
+            ->where('calendar.events.total', 12)
+            ->has('calendar.events.data', 10));
+});
+
+test('dashboard calendar marks asset and inspection due dates and pages through each month', function () {
+    $this->travelTo(now()->setDate(2026, 9, 29)->startOfDay());
+    $user = User::factory()->create();
+    $site = Site::factory()->create();
+    $type = AssetType::factory()->create();
+    $asset = Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-10-02']);
+    Inspection::factory()->for($asset)->create(['next_due_date' => '2026-10-03']);
+    Asset::factory()->for($site)->for($type)->count(10)->create(['next_service_due' => '2026-10-01']);
+    Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2027-01-01']);
+
+    $this->actingAs($user)->get(route('dashboard', ['calendar_month' => '2026-10', 'calendar_page' => 2]))
+        ->assertInertia(fn (Assert $page) => $page->component('dashboard')
+            ->where('calendar.month', '2026-10')
+            ->where('calendar.events.total', 12)
+            ->where('calendar.events.current_page', 2)
+            ->has('calendar.events.data', 2)
+            ->where('calendar.events.data.1.source', 'inspection')
+            ->where('calendar.events.data.1.dueDate', '2026-10-03')
+            ->where('summary.upcomingDates.0', '2026-10-01')
+            ->where('summary.upcomingDates.1', '2026-10-02')
+            ->where('summary.upcomingDates.2', '2026-10-03')
+            ->has('summary.upcomingDates', 3));
+});
+
+test('a newly logged inspection due date appears on the dashboard calendar', function () {
+    $this->travelTo(now()->setDate(2026, 9, 29)->startOfDay());
+    $user = User::factory()->create();
+    $asset = Asset::factory()->create(['next_service_due' => null]);
+    $technician = Technician::factory()->create();
+
+    $this->actingAs($user)->post(route('inspections.store'), [
+        'asset_id' => $asset->id,
+        'technician_id' => $technician->id,
+        'inspection_date' => '2026-09-29',
+        'result' => 'pass',
+        'next_due_date' => '2026-10-15',
+    ])->assertSessionHasNoErrors();
+
+    $this->get(route('dashboard', ['calendar_month' => '2026-10']))
+        ->assertInertia(fn (Assert $page) => $page->component('dashboard')
+            ->where('summary.upcomingDates.0', '2026-10-15')
+            ->where('calendar.events.total', 1)
+            ->where('calendar.events.data.0.source', 'inspection')
+            ->where('calendar.events.data.0.dueDate', '2026-10-15'));
 });
 
 test('dashboard shows the last available alert page when requested pages are out of range', function () {
@@ -94,6 +144,8 @@ test('dashboard rejects invalid date ranges and page numbers', function () {
         'attention_to' => '2026-10-01',
         'cert_from' => 'not-a-date',
         'cert_page' => 0,
+        'calendar_month' => '2026-99',
+        'calendar_page' => 0,
     ]))->assertRedirect(route('dashboard'))
-        ->assertSessionHasErrors(['attention_to', 'cert_from', 'cert_page']);
+        ->assertSessionHasErrors(['attention_to', 'cert_from', 'cert_page', 'calendar_month', 'calendar_page']);
 });
