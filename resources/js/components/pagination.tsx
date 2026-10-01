@@ -5,6 +5,7 @@ interface PaginationProps {
     currentPage: number;
     totalItems: number;
     pageSize: number;
+    loading?: boolean;
     onPageChange: (page: number) => void;
 }
 
@@ -12,6 +13,7 @@ export function Pagination({
     currentPage,
     totalItems,
     pageSize,
+    loading = false,
     onPageChange,
 }: PaginationProps) {
     const totalPages = Math.ceil(totalItems / pageSize);
@@ -47,6 +49,7 @@ export function Pagination({
                 <span className="font-medium text-foreground">
                     {totalItems}
                 </span>
+                {loading && <span role="status"> · Loading…</span>}
             </p>
             <div className="flex max-w-full items-center gap-0.5 overflow-x-auto">
                 <Button
@@ -54,7 +57,7 @@ export function Pagination({
                     size="icon"
                     aria-label="Previous page"
                     onClick={() => onPageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
+                    disabled={loading || currentPage === 1}
                 >
                     <ChevronLeft data-icon="inline-start" />
                 </Button>
@@ -78,6 +81,7 @@ export function Pagination({
                             aria-current={
                                 page === currentPage ? 'page' : undefined
                             }
+                            disabled={loading}
                             className="size-7"
                         >
                             {page}
@@ -89,7 +93,7 @@ export function Pagination({
                     size="icon"
                     aria-label="Next page"
                     onClick={() => onPageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
+                    disabled={loading || currentPage === totalPages}
                 >
                     <ChevronRight data-icon="inline-start" />
                 </Button>
