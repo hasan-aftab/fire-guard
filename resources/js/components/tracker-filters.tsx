@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -33,7 +34,12 @@ export function TrackerFilters({
     statusOptions?: { value: string; label: string }[];
     statusKey?: 'status' | 'result' | 'active';
     extraFilters?: {
-        key: 'site_presence' | 'sort';
+        key:
+            | 'site_presence'
+            | 'sort'
+            | 'site_id'
+            | 'asset_type_id'
+            | 'equipment_status';
         label: string;
         options: { value: string; label: string }[];
     }[];
@@ -59,6 +65,8 @@ export function TrackerFilters({
                 preserveScroll: true,
                 replace: true,
                 onStart: () => setFiltering(true),
+                onError: () =>
+                    toast.error('Could not apply filters. Please try again.'),
                 onFinish: () => setFiltering(false),
             },
         );
@@ -157,14 +165,16 @@ export function TrackerFilters({
                 return (
                     <Select
                         key={filter.key}
-                        value={
-                            filters[filter.key] ||
-                            (filter.key === 'sort'
-                                ? ''
-                                : filter.options[0].value)
-                        }
+                        value={filters[filter.key] || filter.options[0].value}
                         onValueChange={(value) =>
-                            apply({ [filter.key]: value })
+                            apply({
+                                [filter.key]:
+                                    value === 'all' &&
+                                    (filter.key === 'site_id' ||
+                                        filter.key === 'asset_type_id')
+                                        ? ''
+                                        : value,
+                            })
                         }
                     >
                         <SelectTrigger
@@ -213,6 +223,12 @@ export function TrackerFilters({
                                 preserveState: true,
                                 preserveScroll: true,
                                 replace: true,
+                                onStart: () => setFiltering(true),
+                                onError: () =>
+                                    toast.error(
+                                        'Could not reset filters. Please try again.',
+                                    ),
+                                onFinish: () => setFiltering(false),
                             },
                         );
                     }}
