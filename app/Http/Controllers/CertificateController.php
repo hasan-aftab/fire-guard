@@ -45,8 +45,8 @@ class CertificateController extends Controller
 
         return Inertia::render('compliance', [
             'records' => $records,
-            'sites' => Site::query()->select(['id', 'client_id', 'site_name'])
-                ->with('client:id,company_name')->orderBy('site_name')->get(),
+            'sites' => Site::query()->select(['id', 'client_id', 'site_name', 'is_active'])
+                ->with('client:id,company_name,is_active')->orderBy('site_name')->get(),
             'filters' => $filters,
         ]);
     }
@@ -63,14 +63,6 @@ class CertificateController extends Controller
     {
         $certificate->update($request->validated());
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Certificate updated.']);
-
-        return back();
-    }
-
-    public function destroy(Certificate $certificate): RedirectResponse
-    {
-        $certificate->delete();
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Certificate deleted.']);
 
         return back();
     }
