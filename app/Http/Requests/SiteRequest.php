@@ -22,7 +22,7 @@ class SiteRequest extends FormRequest
             'client_id' => [
                 'required',
                 'integer',
-                Rule::exists('clients', 'id')->when(! $site instanceof Site, fn ($rule) => $rule->where('is_active', true)),
+                Rule::exists('clients', 'id')->when(! $site instanceof Site, fn ($rule) => $rule->where('is_active', true)->whereNull('entered_in_error_at')),
                 ...($site instanceof Site ? [Rule::in([$site->client_id])] : []),
             ],
             'site_name' => ['required', 'string', 'max:255'],
