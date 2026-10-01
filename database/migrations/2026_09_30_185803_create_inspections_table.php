@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('inspections', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('asset_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('technician_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('asset_id')->constrained()->restrictOnDelete();
+            $table->foreignId('technician_id')->nullable()->constrained()->restrictOnDelete();
             $table->date('inspection_date');
             $table->string('result');
             $table->text('notes')->nullable();
