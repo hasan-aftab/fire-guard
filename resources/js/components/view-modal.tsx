@@ -13,6 +13,7 @@ interface ViewModalProps {
     title: string;
     description?: string;
     children: React.ReactNode;
+    restoreFocus?: () => void;
 }
 
 export function ViewModal({
@@ -21,10 +22,21 @@ export function ViewModal({
     title,
     description,
     children,
+    restoreFocus,
 }: ViewModalProps) {
     return (
         <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-            <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-xl">
+            <DialogContent
+                className="flex max-h-[85vh] flex-col sm:max-w-xl"
+                onCloseAutoFocus={
+                    restoreFocus
+                        ? (event) => {
+                              event.preventDefault();
+                              restoreFocus();
+                          }
+                        : undefined
+                }
+            >
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription
