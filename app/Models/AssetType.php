@@ -14,7 +14,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $type_name
  * @property string|null $category
- * @property int $default_interval_months
+ * @property int|null $default_interval_months
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Asset> $assets
