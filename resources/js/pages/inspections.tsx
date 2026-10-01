@@ -183,17 +183,25 @@ export default function Inspections({
                         { value: 'needs_repair', label: 'Needs repair' },
                     ],
                 },
-                { name: 'notes', label: 'Notes', type: 'textarea' },
+                {
+                    name: 'notes',
+                    label: 'Notes',
+                    type: 'textarea',
+                    maxLength: 10000,
+                },
                 {
                     name: 'next_due_date',
                     label: 'Next due date',
                     type: 'date',
+                    afterOrEqual: 'inspection_date',
                     description:
                         'Saved on this inspection. Update the asset schedule on the Assets page.',
                 },
                 {
                     name: 'photo_url',
                     label: 'Photo URL',
+                    type: 'url',
+                    maxLength: 2000,
                     description: 'Link to photo evidence for this inspection.',
                 },
             ]}
