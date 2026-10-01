@@ -25,7 +25,7 @@ class CertificateRequest extends FormRequest
                 if ($certificate instanceof Certificate && $certificate->site_id === (int) $value) {
                     return;
                 }
-                if (! Site::whereKey($value)->where('is_active', true)->whereHas('client', fn ($client) => $client->where('is_active', true))->exists()) {
+                if (! Site::whereKey($value)->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at'))->exists()) {
                     $fail('Choose an active site belonging to an active client.');
                 }
             }],
@@ -37,7 +37,7 @@ class CertificateRequest extends FormRequest
                 if ($certificate instanceof Certificate && $certificate->asset_id === (int) $value) {
                     return;
                 }
-                if (! Asset::whereKey($value)->where('status', 'active')->exists()) {
+                if (! Asset::whereKey($value)->where('status', 'active')->whereNull('entered_in_error_at')->exists()) {
                     $fail('Choose active equipment for a new certificate.');
                 }
             }],
