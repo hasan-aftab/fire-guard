@@ -45,7 +45,7 @@ class CertificateRequest extends FormRequest
             'issue_date' => ['required', 'date_format:Y-m-d'],
             'expiry_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:issue_date'],
             'issued_by' => ['nullable', 'string', 'max:255'],
-            'document_url' => ['nullable', 'url:http,https', 'max:2000'],
+            'upload_pending' => ['sometimes', 'boolean'],
         ];
     }
 }
