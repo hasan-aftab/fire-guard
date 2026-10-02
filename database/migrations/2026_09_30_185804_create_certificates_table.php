@@ -16,7 +16,6 @@ return new class extends Migration
             $table->date('issue_date');
             $table->date('expiry_date')->index();
             $table->string('issued_by')->nullable();
-            $table->text('document_url')->nullable();
             $table->string('status')->default('valid');
             $table->timestamp('entered_in_error_at')->nullable();
             $table->timestamps();
