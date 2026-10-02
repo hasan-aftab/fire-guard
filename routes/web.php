@@ -2,10 +2,13 @@
 
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\CertificateDocumentController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FireNotificationController;
 use App\Http\Controllers\InspectionController;
+use App\Http\Controllers\InspectionPhotoController;
+use App\Http\Controllers\ManagedUploadController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\TechnicianController;
 use App\Http\Middleware\SyncFireNotificationsAfterWrite;
@@ -38,13 +41,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('technicians/{technician}/restore-error', [TechnicianController::class, 'restoreError'])->name('technicians.restore-error');
         Route::delete('technicians/{technician}/permanent', [TechnicianController::class, 'purge'])->name('technicians.purge');
         Route::resource('inspections', InspectionController::class)->only(['index', 'store', 'update']);
+        Route::post('inspections/{inspection}/photos', [InspectionPhotoController::class, 'store'])->name('inspections.photos.store');
+        Route::delete('inspections/{inspection}/photos/{photo}', [InspectionPhotoController::class, 'destroy'])->name('inspections.photos.destroy');
         Route::patch('inspections/{inspection}/entered-in-error', [InspectionController::class, 'markError'])->name('inspections.mark-error');
         Route::patch('inspections/{inspection}/restore-error', [InspectionController::class, 'restoreError'])->name('inspections.restore-error');
         Route::get('compliance', [CertificateController::class, 'index'])->name('certificates.index');
         Route::resource('certificates', CertificateController::class)->only(['store', 'update']);
+        Route::post('certificates/{certificate}/document', [CertificateDocumentController::class, 'store'])->name('certificates.document.store');
+        Route::delete('certificates/{certificate}/document/{document}', [CertificateDocumentController::class, 'destroy'])->name('certificates.document.destroy');
         Route::patch('certificates/{certificate}/entered-in-error', [CertificateController::class, 'markError'])->name('certificates.mark-error');
         Route::patch('certificates/{certificate}/restore-error', [CertificateController::class, 'restoreError'])->name('certificates.restore-error');
     });
+
+    Route::get('inspections/{inspection}/photos/{photo}', [InspectionPhotoController::class, 'show'])->name('inspections.photos.show');
+    Route::get('inspections/{inspection}/photos/{photo}/thumbnail', [InspectionPhotoController::class, 'thumbnail'])->name('inspections.photos.thumbnail');
+    Route::get('inspections/{inspection}/photos/{photo}/download', [InspectionPhotoController::class, 'download'])->name('inspections.photos.download');
+    Route::get('certificates/{certificate}/document/{document}', [CertificateDocumentController::class, 'show'])->name('certificates.document.show');
+    Route::get('certificates/{certificate}/document/{document}/thumbnail', [CertificateDocumentController::class, 'thumbnail'])->name('certificates.document.thumbnail');
+    Route::get('certificates/{certificate}/document/{document}/download', [CertificateDocumentController::class, 'download'])->name('certificates.document.download');
+    Route::post('managed-uploads', [ManagedUploadController::class, 'store'])->name('managed-uploads.store');
+    Route::put('managed-uploads/{upload}/chunks/{index}', [ManagedUploadController::class, 'chunk'])->name('managed-uploads.chunk');
+    Route::post('managed-uploads/{upload}/complete', [ManagedUploadController::class, 'complete'])->name('managed-uploads.complete');
+    Route::delete('managed-uploads/{upload}', [ManagedUploadController::class, 'destroy'])->name('managed-uploads.destroy');
 
     Route::post('notifications/generate', [FireNotificationController::class, 'store'])->name('notifications.generate');
     Route::patch('notifications/read-all', [FireNotificationController::class, 'markAllRead'])->name('notifications.read-all');
