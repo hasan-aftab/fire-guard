@@ -19,7 +19,7 @@ class CertificateController extends Controller
 
     public function index(TrackerFilterRequest $request): Response|RedirectResponse
     {
-        $query = Certificate::query()->with(['site:id,client_id,site_name', 'site.client:id,company_name']);
+        $query = Certificate::query()->with(['site:id,client_id,site_name', 'site.client:id,company_name', 'document' => fn ($query) => $query->select(['certificate_documents.id', 'certificate_documents.certificate_id', 'original_name', 'mime_type', 'file_size'])]);
         $this->filterRecordState($query, $request);
         if ($request->filled('search')) {
             $pattern = $this->searchPattern($request);
@@ -56,16 +56,21 @@ class CertificateController extends Controller
 
     public function store(CertificateRequest $request): RedirectResponse
     {
-        Certificate::create($request->validated());
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Certificate created.']);
+        $certificate = Certificate::create($request->safe()->except(['upload_pending']));
+        Inertia::flash('createdRecordId', $certificate->id);
+        if (! $request->boolean('upload_pending')) {
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Certificate created.']);
+        }
 
         return back();
     }
 
     public function update(CertificateRequest $request, Certificate $certificate): RedirectResponse
     {
-        $certificate->update($request->validated());
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Certificate updated.']);
+        $certificate->update($request->safe()->except(['upload_pending']));
+        if (! $request->boolean('upload_pending')) {
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Certificate updated.']);
+        }
 
         return back();
     }
