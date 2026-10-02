@@ -49,7 +49,7 @@ class InspectionRequest extends FormRequest
                 }),
                 'nullable', 'date_format:Y-m-d', 'after_or_equal:inspection_date',
             ],
-            'photo_url' => ['nullable', 'url:http,https', 'max:2000'],
+            'upload_pending' => ['sometimes', 'boolean'],
         ];
     }
 
