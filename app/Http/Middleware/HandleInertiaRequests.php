@@ -50,6 +50,10 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'today' => today()->toDateString(),
+            'fileUploadLimits' => [
+                'photoBytes' => (int) config('fire-tracker.photo_max_kilobytes') * 1024,
+                'documentBytes' => (int) config('fire-tracker.document_max_kilobytes') * 1024,
+            ],
             'counts' => fn (): ?array => $request->user() ? [
                 'clients' => Client::whereNull('entered_in_error_at')->count(),
                 'sites' => Site::whereNull('entered_in_error_at')->count(),
