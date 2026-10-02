@@ -345,3 +345,7 @@ export default function Assets({
         />
     );
 }
+
+Assets.layout = {
+    breadcrumbs: [{ title: 'Assets', href: index() }],
+};
