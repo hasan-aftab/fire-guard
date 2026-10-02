@@ -14,6 +14,11 @@ use App\ReportType;
 use Illuminate\Support\Facades\Storage;
 use Spatie\LaravelPdf\Facades\Pdf;
 
+beforeEach(function (): void {
+    Storage::fake('report-tests');
+    config()->set('fire-tracker.report.disk', 'report-tests');
+});
+
 function reportQuery(Client $client, array $overrides = []): array
 {
     return array_replace([
