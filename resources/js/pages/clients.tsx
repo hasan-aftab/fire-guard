@@ -924,3 +924,7 @@ export default function Clients({
         </>
     );
 }
+
+Clients.layout = {
+    breadcrumbs: [{ title: 'Clients & Sites', href: index() }],
+};
