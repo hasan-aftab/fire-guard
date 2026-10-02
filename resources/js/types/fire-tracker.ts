@@ -89,7 +89,7 @@ export type Inspection = {
     result: string;
     notes: string | null;
     next_due_date: string | null;
-    photo_url: string | null;
+    photos: ManagedFile[];
     entered_in_error_at: string | null;
     asset: Pick<Asset, 'id' | 'serial_number' | 'location_desc'>;
     technician: Pick<Technician, 'id' | 'full_name'> | null;
@@ -122,10 +122,17 @@ export type Certificate = {
     issue_date: string;
     expiry_date: string;
     issued_by: string | null;
-    document_url: string | null;
+    document: ManagedFile | null;
     status: DateStatus;
     entered_in_error_at: string | null;
     site: CertificateSite;
+};
+
+export type ManagedFile = {
+    id: number;
+    original_name: string;
+    mime_type: string;
+    file_size: number;
 };
 
 export type FireNotification = {
