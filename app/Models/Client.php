@@ -45,4 +45,10 @@ class Client extends Model
     {
         return $this->hasMany(Site::class);
     }
+
+    /** @return HasMany<GeneratedReport, $this> */
+    public function generatedReports(): HasMany
+    {
+        return $this->hasMany(GeneratedReport::class);
+    }
 }
