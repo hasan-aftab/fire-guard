@@ -1,6 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { useEffect, useRef } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -29,7 +29,6 @@ export type FormField = {
     type?:
         | 'text'
         | 'email'
-        | 'url'
         | 'tel'
         | 'date'
         | 'textarea'
@@ -66,9 +65,6 @@ function validateField(
         input.validity.typeMismatch
     ) {
         return `Enter a valid ${field.label.toLowerCase()}.`;
-    }
-    if (value && field.type === 'url' && !/^https?:\/\//i.test(value)) {
-        return `${field.label} must start with http:// or https://.`;
     }
     if (
         value &&
@@ -117,15 +113,23 @@ export function RecordForm({
     initialValues,
     action,
     saveLabel,
+    submitExtra,
     onSuccess,
     onCancel,
+    locked = false,
+    onProcessingChange,
+    children,
 }: {
     fields: FormField[];
     initialValues: Record<string, string>;
     action: RouteDefinition<'post' | 'put' | 'patch'>;
     saveLabel: string;
-    onSuccess: () => void;
+    submitExtra?: Record<string, string>;
+    onSuccess: (createdId?: number) => void;
     onCancel: () => void;
+    locked?: boolean;
+    onProcessingChange?: (processing: boolean) => void;
+    children?: ReactNode;
 }) {
     const form = useForm(initialValues);
     const formRef = useRef<HTMLFormElement>(null);
@@ -149,6 +153,7 @@ export function RecordForm({
     }, [form.errors, form.hasErrors]);
     const submit = (event: FormEvent) => {
         event.preventDefault();
+        if (locked || form.processing) return;
         const errors: Record<string, string> = {};
         for (const field of fields) {
             const input = formRef.current?.querySelector<
@@ -164,14 +169,17 @@ export function RecordForm({
             form.setError(errors);
             return;
         }
+        form.transform((data) => ({ ...data, ...submitExtra }));
         form.submit(action, {
             preserveScroll: true,
+            onStart: () => onProcessingChange?.(true),
+            onFinish: () => onProcessingChange?.(false),
             onError: () => {
                 shouldFocusErrors.current = true;
             },
-            onSuccess: () => {
-                form.reset();
-                onSuccess();
+            onSuccess: (page) => {
+                const id = page.flash.createdRecordId;
+                onSuccess(typeof id === 'number' ? id : undefined);
             },
         });
     };
@@ -183,7 +191,7 @@ export function RecordForm({
             className="flex min-h-0 flex-1 flex-col gap-6"
             noValidate
         >
-            <FieldGroup className="min-h-0 overflow-y-auto p-1">
+            <FieldGroup className="min-h-0 gap-5 overflow-y-auto p-1 pr-2">
                 {otherErrors.length > 0 && (
                     <div
                         data-form-error
@@ -254,6 +262,7 @@ export function RecordForm({
                                 <Select
                                     value={form.data[field.name] || undefined}
                                     onValueChange={change}
+                                    disabled={locked}
                                 >
                                     <SelectTrigger
                                         id={id}
@@ -287,6 +296,7 @@ export function RecordForm({
                                     <Checkbox
                                         id={id}
                                         checked={form.data[field.name] === '1'}
+                                        disabled={locked}
                                         onCheckedChange={(checked) =>
                                             change(checked ? '1' : '0')
                                         }
@@ -301,6 +311,7 @@ export function RecordForm({
                                 <Textarea
                                     id={id}
                                     value={form.data[field.name] ?? ''}
+                                    disabled={locked}
                                     onChange={(event) =>
                                         change(event.target.value)
                                     }
@@ -317,6 +328,7 @@ export function RecordForm({
                                     id={id}
                                     type={field.type || 'text'}
                                     value={form.data[field.name] ?? ''}
+                                    disabled={locked}
                                     onChange={(event) =>
                                         change(event.target.value)
                                     }
@@ -342,18 +354,21 @@ export function RecordForm({
                         </Field>
                     );
                 })}
+                {children}
             </FieldGroup>
-            <div className="mt-auto flex justify-end gap-2">
+            <div className="flex shrink-0 justify-end gap-2 border-t pt-4">
                 <Button
                     type="button"
                     variant="outline"
-                    disabled={form.processing}
+                    disabled={form.processing || locked}
                     onClick={onCancel}
                 >
                     Cancel
                 </Button>
-                <Button type="submit" disabled={form.processing}>
-                    {form.processing && <Spinner data-icon="inline-start" />}
+                <Button type="submit" disabled={form.processing || locked}>
+                    {(form.processing || locked) && (
+                        <Spinner data-icon="inline-start" />
+                    )}
                     {saveLabel}
                 </Button>
             </div>
