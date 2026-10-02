@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('result');
             $table->text('notes')->nullable();
             $table->date('next_due_date')->nullable()->index();
-            $table->text('photo_url')->nullable();
             $table->timestamp('entered_in_error_at')->nullable();
             $table->timestamps();
             $table->index('entered_in_error_at');
