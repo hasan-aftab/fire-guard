@@ -1,16 +1,18 @@
-import { Flame } from 'lucide-react';
+import { usePage } from '@inertiajs/react';
+
+import AppLogoIcon from '@/components/app-logo-icon';
+
 export default function AppLogo() {
+    const { name } = usePage().props;
+
     return (
         <>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary/15">
-                <Flame className="size-5 text-sidebar-primary" />
+            <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+                <AppLogoIcon className="size-5 fill-current text-white dark:text-black" />
             </div>
-            <div className="flex min-w-0 flex-col text-left">
-                <span className="truncate text-sm leading-tight font-semibold text-sidebar-foreground">
-                    FireTrack PNG
-                </span>
-                <span className="text-[11px] leading-tight text-sidebar-foreground/50">
-                    Fire Safety Management
+            <div className="ml-1 grid flex-1 text-left text-sm">
+                <span className="mb-0.5 truncate leading-tight font-semibold">
+                    {name}
                 </span>
             </div>
         </>
