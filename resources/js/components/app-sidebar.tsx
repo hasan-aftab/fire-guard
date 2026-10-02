@@ -7,6 +7,7 @@ import {
     ShieldCheck,
     Users,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { index as assets } from '@/actions/App/Http/Controllers/AssetController';
 import { index as certificates } from '@/actions/App/Http/Controllers/CertificateController';
 import { index as clients } from '@/actions/App/Http/Controllers/ClientController';
@@ -19,58 +20,66 @@ import {
     SidebarContent,
     SidebarFooter,
     SidebarGroup,
-    SidebarGroupContent,
     SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarSeparator,
     useSidebar,
 } from '@/components/ui/sidebar';
-import { cn } from '@/lib/utils';
+import { useCurrentUrl } from '@/hooks/use-current-url';
 import { dashboard } from '@/routes';
-const management = [
+import type { Counts } from '@/types/fire-tracker';
+import type { NavItem } from '@/types';
+
+type PlatformNavItem = Omit<NavItem, 'icon'> & {
+    icon: LucideIcon;
+    count?: keyof Counts;
+};
+
+const platformNavItems: PlatformNavItem[] = [
+    { title: 'Dashboard', href: dashboard(), icon: LayoutDashboard },
     {
-        href: clients,
+        title: 'Clients & Sites',
+        href: clients(),
         icon: Building2,
-        label: 'Clients & Sites',
         count: 'clients',
     },
-    { href: assets, icon: Flame, label: 'Assets', count: 'assets' },
+    { title: 'Assets', href: assets(), icon: Flame, count: 'assets' },
     {
-        href: inspections,
+        title: 'Inspections',
+        href: inspections(),
         icon: ClipboardCheck,
-        label: 'Inspections',
         count: 'inspections',
     },
     {
-        href: certificates,
+        title: 'Compliance',
+        href: certificates(),
         icon: ShieldCheck,
-        label: 'Compliance',
         count: 'certificates',
     },
     {
-        href: technicians,
+        title: 'Technicians',
+        href: technicians(),
         icon: Users,
-        label: 'Technicians',
         count: 'technicians',
     },
-] as const;
+];
+
 export function AppSidebar() {
     const { counts } = usePage().props;
-    const currentPath = usePage().url.split('?')[0];
+    const { isCurrentUrl } = useCurrentUrl();
     const { isMobile, setOpenMobile } = useSidebar();
+
     const closeMobileSidebar = () => {
         if (isMobile) {
             setOpenMobile(false);
         }
     };
-    const activeItemClass =
-        'relative border border-sidebar-border bg-sidebar-accent font-semibold text-sidebar-accent-foreground shadow-xs before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-brand group-data-[collapsible=icon]:before:hidden';
+
     return (
-        <Sidebar collapsible="icon">
+        <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
@@ -87,69 +96,33 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
-                <SidebarGroup>
-                    <SidebarGroupLabel>Main</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            <SidebarMenuItem>
+                <SidebarGroup className="px-2 py-0">
+                    <SidebarGroupLabel>Platform</SidebarGroupLabel>
+                    <SidebarMenu>
+                        {platformNavItems.map((item) => (
+                            <SidebarMenuItem key={item.title}>
                                 <SidebarMenuButton
                                     asChild
-                                    tooltip="Dashboard"
-                                    isActive={currentPath === dashboard.url()}
-                                    className={cn(
-                                        currentPath === dashboard.url() &&
-                                            activeItemClass,
-                                    )}
+                                    tooltip={item.title}
+                                    isActive={isCurrentUrl(item.href)}
                                 >
                                     <Link
-                                        href={dashboard()}
+                                        href={item.href}
                                         prefetch
                                         onClick={closeMobileSidebar}
                                     >
-                                        <LayoutDashboard />
-                                        <span>Dashboard</span>
+                                        <item.icon />
+                                        <span>{item.title}</span>
                                     </Link>
                                 </SidebarMenuButton>
+                                {!!item.count && !!counts?.[item.count] && (
+                                    <SidebarMenuBadge className="bg-sidebar-accent text-sidebar-accent-foreground">
+                                        {counts[item.count]}
+                                    </SidebarMenuBadge>
+                                )}
                             </SidebarMenuItem>
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-                <SidebarSeparator className="max-w-[calc(100%_-_1rem)]" />
-                <SidebarGroup>
-                    <SidebarGroupLabel>Management</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {management.map((item) => (
-                                <SidebarMenuItem key={item.count}>
-                                    <SidebarMenuButton
-                                        asChild
-                                        tooltip={item.label}
-                                        isActive={
-                                            currentPath === item.href.url()
-                                        }
-                                        className={cn(
-                                            currentPath === item.href.url() &&
-                                                activeItemClass,
-                                        )}
-                                    >
-                                        <Link
-                                            href={item.href()}
-                                            prefetch
-                                            onClick={closeMobileSidebar}
-                                        >
-                                            <item.icon />
-                                            <span>{item.label}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                    {!!counts?.[item.count] && (
-                                        <SidebarMenuBadge className="bg-sidebar-accent text-sidebar-accent-foreground">
-                                            {counts[item.count]}
-                                        </SidebarMenuBadge>
-                                    )}
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
+                        ))}
+                    </SidebarMenu>
                 </SidebarGroup>
             </SidebarContent>
             <SidebarFooter>
