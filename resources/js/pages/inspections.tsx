@@ -8,6 +8,7 @@ import {
     restoreError,
 } from '@/actions/App/Http/Controllers/InspectionController';
 import { RecordPage } from '@/components/record-page';
+import { InspectionPhotos } from '@/components/managed-file-panel';
 import { ResultBadge } from '@/components/status-badge';
 import { ViewField } from '@/components/view-modal';
 import type {
@@ -17,17 +18,6 @@ import type {
     Technician,
     TrackerFilters,
 } from '@/types/fire-tracker';
-
-function safePhotoUrl(value: string): string | null {
-    try {
-        const url = new URL(value);
-        return url.protocol === 'https:' || url.protocol === 'http:'
-            ? url.href
-            : null;
-    } catch {
-        return null;
-    }
-}
 
 export default function Inspections({
     records,
@@ -88,6 +78,11 @@ export default function Inspections({
             ]}
             addLabel="Log inspection"
             createTitle="Log inspection"
+            fileUpload={{
+                kind: 'photo',
+                title: 'Inspection Photos',
+                files: (inspection) => inspection.photos,
+            }}
             columns={[
                 {
                     key: 'asset',
@@ -120,43 +115,22 @@ export default function Inspections({
                     render: (inspection) => inspection.notes || '—',
                 },
             ]}
-            viewContent={(inspection) => {
-                const photoUrl = inspection.photo_url
-                    ? safePhotoUrl(inspection.photo_url)
-                    : null;
-
-                return inspection.next_due_date || inspection.photo_url ? (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        {inspection.next_due_date && (
+            viewContent={(inspection) => (
+                <div className="space-y-4">
+                    {inspection.next_due_date && (
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <ViewField
                                 label="Next due date"
                                 value={inspection.next_due_date}
                             />
-                        )}
-                        {inspection.photo_url && (
-                            <ViewField
-                                label="Photo URL"
-                                value={
-                                    photoUrl ? (
-                                        <a
-                                            href={photoUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="break-all underline underline-offset-4"
-                                        >
-                                            {inspection.photo_url}
-                                        </a>
-                                    ) : (
-                                        <span className="break-all">
-                                            {inspection.photo_url}
-                                        </span>
-                                    )
-                                }
-                            />
-                        )}
-                    </div>
-                ) : null;
-            }}
+                        </div>
+                    )}
+                    <InspectionPhotos
+                        inspectionId={inspection.id}
+                        photos={inspection.photos}
+                    />
+                </div>
+            )}
             defaults={{
                 asset_id: String(activeAssets[0]?.id ?? ''),
                 technician_id: String(activeTechnicians[0]?.id ?? ''),
@@ -164,7 +138,6 @@ export default function Inspections({
                 result: 'pass',
                 notes: '',
                 next_due_date: '',
-                photo_url: '',
             }}
             fields={(editing) => [
                 {
@@ -249,14 +222,11 @@ export default function Inspections({
                         return `${expected ? `Expected: ${expected}. ` : ''}The normal interval is ${interval} ${interval === 1 ? 'month' : 'months'} after the inspection date. Leave blank to calculate automatically, or enter a date to override it.`;
                     },
                 },
-                {
-                    name: 'photo_url',
-                    label: 'Photo URL',
-                    type: 'url',
-                    maxLength: 2000,
-                    description: 'Link to photo evidence for this inspection.',
-                },
             ]}
         />
     );
 }
+
+Inspections.layout = {
+    breadcrumbs: [{ title: 'Inspections', href: index() }],
+};
