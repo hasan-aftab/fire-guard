@@ -8,6 +8,7 @@ import {
     restoreError,
 } from '@/actions/App/Http/Controllers/CertificateController';
 import { RecordPage } from '@/components/record-page';
+import { CertificateDocument } from '@/components/managed-file-panel';
 import { StatusBadge } from '@/components/status-badge';
 import { ViewField } from '@/components/view-modal';
 import { index as clientsIndex } from '@/routes/clients';
@@ -17,18 +18,6 @@ import type {
     Paginated,
     TrackerFilters,
 } from '@/types/fire-tracker';
-
-function safeDocumentUrl(value: string): string | null {
-    try {
-        const url = new URL(value);
-
-        return url.protocol === 'https:' || url.protocol === 'http:'
-            ? url.href
-            : null;
-    } catch {
-        return null;
-    }
-}
 
 export default function Compliance({
     records,
@@ -52,6 +41,12 @@ export default function Compliance({
             title="Compliance Certificates"
             description="Track certificate expiry and compliance status"
             noun="certificate"
+            fileUpload={{
+                kind: 'document',
+                title: 'Certificate Document',
+                files: (certificate) =>
+                    certificate.document ? [certificate.document] : [],
+            }}
             icon={ShieldCheck}
             addDisabled={activeSites.length === 0}
             addHint={
@@ -123,50 +118,28 @@ export default function Compliance({
                     ),
                 },
             ]}
-            viewContent={(certificate) => {
-                const documentUrl = certificate.document_url
-                    ? safeDocumentUrl(certificate.document_url)
-                    : null;
-
-                return (
-                    (certificate.issued_by || certificate.document_url) && (
+            viewContent={(certificate) => (
+                <div className="space-y-4">
+                    {certificate.issued_by && (
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            {certificate.issued_by && (
-                                <ViewField
-                                    label="Issued by"
-                                    value={certificate.issued_by}
-                                />
-                            )}
-                            {certificate.document_url && (
-                                <ViewField
-                                    label="Document"
-                                    value={
-                                        documentUrl ? (
-                                            <a
-                                                href={documentUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="underline underline-offset-2 hover:text-primary"
-                                            >
-                                                Open document
-                                            </a>
-                                        ) : (
-                                            'Unavailable'
-                                        )
-                                    }
-                                />
-                            )}
+                            <ViewField
+                                label="Issued by"
+                                value={certificate.issued_by}
+                            />
                         </div>
-                    )
-                );
-            }}
+                    )}
+                    <CertificateDocument
+                        certificateId={certificate.id}
+                        document={certificate.document}
+                    />
+                </div>
+            )}
             defaults={{
                 site_id: String(activeSites[0]?.id ?? ''),
                 certificate_type: '',
                 issue_date: '',
                 expiry_date: '',
                 issued_by: '',
-                document_url: '',
             }}
             fields={(editing) => [
                 {
@@ -209,14 +182,11 @@ export default function Compliance({
                     afterOrEqual: 'issue_date',
                 },
                 { name: 'issued_by', label: 'Issued by', maxLength: 255 },
-                {
-                    name: 'document_url',
-                    label: 'Document URL',
-                    type: 'url',
-                    maxLength: 2000,
-                    placeholder: 'https://example.com/certificate.pdf',
-                },
             ]}
         />
     );
 }
+
+Compliance.layout = {
+    breadcrumbs: [{ title: 'Compliance', href: index() }],
+};
