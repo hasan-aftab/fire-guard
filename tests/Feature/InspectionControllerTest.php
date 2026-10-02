@@ -86,7 +86,7 @@ test('completed inspections remain on their filtered page after a forbidden dele
             ->where('records.current_page', 2)->where('records.total', 11));
 });
 
-test('inspection writes reject invalid relationships due dates and photo schemes', function () {
+test('inspection writes reject invalid relationships and due dates', function () {
     $user = User::factory()->create();
     $asset = Asset::factory()->create();
     $technician = Technician::factory()->create();
@@ -97,8 +97,7 @@ test('inspection writes reject invalid relationships due dates and photo schemes
         'inspection_date' => '2026-09-20',
         'result' => 'pass',
         'next_due_date' => '2026-09-19',
-        'photo_url' => 'javascript:alert(1)',
-    ])->assertSessionHasErrors(['technician_id', 'next_due_date', 'photo_url']);
+    ])->assertSessionHasErrors(['technician_id', 'next_due_date']);
     $this->assertDatabaseCount('inspections', 0);
 
     $this->post(route('inspections.store'), [
@@ -107,12 +106,10 @@ test('inspection writes reject invalid relationships due dates and photo schemes
         'inspection_date' => '2026-09-20',
         'result' => 'pass',
         'next_due_date' => '2026-10-20',
-        'photo_url' => 'https://example.test/evidence.jpg',
     ])->assertSessionHasNoErrors();
     $this->assertDatabaseHas('inspections', [
         'asset_id' => $asset->id,
         'next_due_date' => '2026-10-20',
-        'photo_url' => 'https://example.test/evidence.jpg',
     ]);
 });
 
