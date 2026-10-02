@@ -149,3 +149,7 @@ export default function Technicians({
         />
     );
 }
+
+Technicians.layout = {
+    breadcrumbs: [{ title: 'Technicians', href: index() }],
+};
