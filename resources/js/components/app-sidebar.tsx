@@ -4,6 +4,7 @@ import {
     ClipboardCheck,
     Flame,
     LayoutDashboard,
+    FileText,
     ShieldCheck,
     Users,
 } from 'lucide-react';
@@ -13,6 +14,7 @@ import { index as certificates } from '@/actions/App/Http/Controllers/Certificat
 import { index as clients } from '@/actions/App/Http/Controllers/ClientController';
 import { index as inspections } from '@/actions/App/Http/Controllers/InspectionController';
 import { index as technicians } from '@/actions/App/Http/Controllers/TechnicianController';
+import { index as reports } from '@/actions/App/Http/Controllers/ReportController';
 import AppLogo from '@/components/app-logo';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -65,6 +67,7 @@ const platformNavItems: PlatformNavItem[] = [
         icon: Users,
         count: 'technicians',
     },
+    { title: 'Reports', href: reports(), icon: FileText },
 ];
 
 export function AppSidebar() {
