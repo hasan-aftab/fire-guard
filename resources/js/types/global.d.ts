@@ -14,6 +14,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             today: string;
+            fileUploadLimits: { photoBytes: number; documentBytes: number };
             counts: Counts | null;
             fireNotifications: NotificationData | null;
             [key: string]: unknown;
