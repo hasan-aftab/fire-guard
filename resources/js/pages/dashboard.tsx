@@ -653,3 +653,7 @@ export default function Dashboard({
         </div>
     );
 }
+
+Dashboard.layout = {
+    breadcrumbs: [{ title: 'Dashboard', href: dashboard() }],
+};
