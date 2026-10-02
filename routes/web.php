@@ -19,7 +19,12 @@ Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
-    Route::get('reports/pdf', ReportController::class)->name('reports.pdf');
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::post('reports', [ReportController::class, 'store'])->name('reports.store');
+    Route::get('reports/pdf', [ReportController::class, 'legacyPdf'])->name('reports.pdf');
+    Route::get('reports/{generatedReport}/view', [ReportController::class, 'show'])->name('reports.show');
+    Route::get('reports/{generatedReport}/download', [ReportController::class, 'download'])->name('reports.download');
+    Route::post('reports/{generatedReport}/regenerate', [ReportController::class, 'regenerate'])->name('reports.regenerate');
 
     Route::middleware(SyncFireNotificationsAfterWrite::class)->group(function (): void {
         Route::resource('clients', ClientController::class)->only(['index', 'store', 'update', 'destroy']);
