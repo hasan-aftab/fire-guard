@@ -9,6 +9,7 @@ use App\Http\Controllers\FireNotificationController;
 use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\InspectionPhotoController;
 use App\Http\Controllers\ManagedUploadController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\TechnicianController;
 use App\Http\Middleware\SyncFireNotificationsAfterWrite;
@@ -18,6 +19,7 @@ Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('reports/pdf', ReportController::class)->name('reports.pdf');
 
     Route::middleware(SyncFireNotificationsAfterWrite::class)->group(function (): void {
         Route::resource('clients', ClientController::class)->only(['index', 'store', 'update', 'destroy']);
