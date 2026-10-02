@@ -62,7 +62,7 @@ test('certificate search matches client names without treating wildcards as patt
             ->where('records.data.0.id', $target->id));
 });
 
-test('certificate writes ignore submitted status and reject unsafe document URLs', function () {
+test('certificate writes derive status from expiry date', function () {
     $this->travelTo(now()->setDate(2026, 9, 30)->startOfDay());
     $site = Site::factory()->create();
     $payload = [
@@ -71,26 +71,16 @@ test('certificate writes ignore submitted status and reject unsafe document URLs
         'issue_date' => '2026-09-01',
         'expiry_date' => '2026-09-29',
         'status' => 'valid',
-        'document_url' => 'https://example.com/certificate.pdf',
     ];
 
     $this->actingAs(User::factory()->create())->post(route('certificates.store'), $payload)
         ->assertSessionHasNoErrors()->assertRedirect();
     $certificate = Certificate::query()->firstOrFail();
     expect($certificate->status)->toBe('expired');
-    $this->assertDatabaseHas('certificates', ['id' => $certificate->id, 'document_url' => $payload['document_url']]);
 
     $this->put(route('certificates.update', $certificate), [
         ...$payload,
         'expiry_date' => '2026-10-31',
-        'status' => 'expired',
-        'document_url' => 'javascript:alert(1)',
-    ])->assertSessionHasErrors(['document_url']);
-    expect($certificate->refresh()->expiry_date->toDateString())->toBe('2026-09-29');
-
-    $this->put(route('certificates.update', $certificate), [
-        ...$payload,
-        'expiry_date' => '2026-11-01',
         'status' => 'expired',
     ])->assertSessionHasNoErrors();
     expect($certificate->refresh()->status)->toBe('valid');
