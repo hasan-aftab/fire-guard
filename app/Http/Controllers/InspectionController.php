@@ -19,7 +19,7 @@ class InspectionController extends Controller
 
     public function index(TrackerFilterRequest $request, ScheduleInspection $schedule): Response|RedirectResponse
     {
-        $query = Inspection::query()->with(['asset:id,serial_number,location_desc', 'technician:id,full_name']);
+        $query = Inspection::query()->with(['asset:id,serial_number,location_desc', 'technician:id,full_name', 'photos:id,inspection_id,original_name,mime_type,file_size']);
         $this->filterRecordState($query, $request);
         if ($request->filled('search')) {
             $pattern = $this->searchPattern($request);
@@ -58,16 +58,21 @@ class InspectionController extends Controller
 
     public function store(InspectionRequest $request, ScheduleInspection $schedule): RedirectResponse
     {
-        $schedule->save($request->validated());
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Inspection logged.']);
+        $inspection = $schedule->save($request->safe()->except(['upload_pending']));
+        Inertia::flash('createdRecordId', $inspection->id);
+        if (! $request->boolean('upload_pending')) {
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Inspection logged.']);
+        }
 
         return back();
     }
 
     public function update(InspectionRequest $request, Inspection $inspection, ScheduleInspection $schedule): RedirectResponse
     {
-        $schedule->save($request->validated(), $inspection);
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Inspection updated.']);
+        $schedule->save($request->safe()->except(['upload_pending']), $inspection);
+        if (! $request->boolean('upload_pending')) {
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Inspection updated.']);
+        }
 
         return back();
     }
