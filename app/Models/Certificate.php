@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -19,7 +20,6 @@ use Illuminate\Support\Carbon;
  * @property CarbonImmutable $issue_date
  * @property CarbonImmutable $expiry_date
  * @property string|null $issued_by
- * @property string|null $document_url
  * @property string $status
  * @property CarbonImmutable|null $entered_in_error_at
  * @property Carbon|null $created_at
@@ -27,7 +27,7 @@ use Illuminate\Support\Carbon;
  * @property-read Site $site
  * @property-read Asset|null $asset
  */
-#[Fillable(['site_id', 'asset_id', 'certificate_type', 'issue_date', 'expiry_date', 'issued_by', 'document_url'])]
+#[Fillable(['site_id', 'asset_id', 'certificate_type', 'issue_date', 'expiry_date', 'issued_by'])]
 class Certificate extends Model
 {
     public const EXPIRING_SOON_DAYS = 30;
@@ -69,5 +69,11 @@ class Certificate extends Model
     public function asset(): BelongsTo
     {
         return $this->belongsTo(Asset::class);
+    }
+
+    /** @return HasOne<CertificateDocument, $this> */
+    public function document(): HasOne
+    {
+        return $this->hasOne(CertificateDocument::class)->whereNull('certificate_documents.pending_deletion_at')->latestOfMany();
     }
 }
