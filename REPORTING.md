@@ -2,7 +2,11 @@
 
 Authenticated, verified users can request `GET /reports/pdf` with `type`, `client_id`, optional `site_id`, `date_from`, `date_to`, optional `include_entered_in_error=1`, and optional `disposition=download` (default: inline). Dates use `YYYY-MM-DD`; the selected site must belong to the client. The four types are `inspection`, `service`, `maintenance`, and `audit`.
 
-Reports are generated on demand from current records. No PDF artifact or report snapshot is saved, so a later generation may differ if client, site, asset, or inspection data changes. The planned report history feature is the place to add retained, immutable PDF artifacts and disk/path metadata. Report generation never changes source records.
+The Reports sidebar page lets users select a client, optional site, report type, and date range, then generate a PDF. Each successful generation stores a private PDF and a `generated_reports` history row. The existing `GET /reports/pdf` URL still works and now saves its generated PDF too. Report generation never changes source records.
+
+Report History filters and paginates saved reports on the server. View and Download retrieve the exact stored PDF through authenticated routes; they never generate a replacement. Generate Again uses the original criteria with current data and saves a separate report. History keeps the client/site names and author name from generation time. PDFs have unique paths and a SHA-256 checksum that is checked when they are viewed or downloaded. There is no report deletion route.
+
+New PDFs use `REPORT_DISK` when set, otherwise `FIRE_TRACKER_DISK`. Each report saves its own disk and path, so changing the default for new reports does not redirect old report downloads. The old disk must remain configured and its files retained after such a change.
 
 The default renderer is `spatie/laravel-pdf` with `dompdf/dompdf`, selected by `LARAVEL_PDF_DRIVER=dompdf` in `config/laravel-pdf.php`. This is the simplest current deployment choice because the repository does not specify a Chrome, Node, Docker, or PDF service installation on its VPS. The report templates use print CSS, tables, A4 paper, and private image data URIs, which are compatible with DOMPDF. The production PHP runtime needs the Composer platform requirements (including DOM and mbstring) plus GD for report photo resizing. No browser, Node, or external PDF service is needed for this driver. The actual VPS configuration must be checked before deployment.
 
