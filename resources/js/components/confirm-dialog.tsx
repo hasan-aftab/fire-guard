@@ -39,6 +39,7 @@ export function ConfirmDialog({
         >
             <DialogContent
                 role="alertdialog"
+                className="duration-150 motion-reduce:animate-none"
                 onCloseAutoFocus={
                     restoreFocus
                         ? (event) => {
@@ -54,6 +55,7 @@ export function ConfirmDialog({
                 </DialogHeader>
                 <DialogFooter>
                     <Button
+                        type="button"
                         variant="outline"
                         disabled={loading}
                         onClick={() => onOpenChange(false)}
@@ -61,6 +63,7 @@ export function ConfirmDialog({
                         Cancel
                     </Button>
                     <Button
+                        type="button"
                         variant={destructive ? 'destructive' : 'default'}
                         disabled={loading}
                         onClick={onConfirm}
