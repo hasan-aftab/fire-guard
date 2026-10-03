@@ -132,6 +132,23 @@ test('inactive certificate types remain on existing records but cannot be newly 
     expect($type->refresh()->is_active)->toBeTrue();
 });
 
+test('sidebar counts report every reference type including deactivated ones', function () {
+    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $assetType = AssetType::factory()->create();
+    $certificateType = CertificateType::factory()->create();
+
+    $this->actingAs($admin)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('counts.assetTypes', 1)
+        ->where('counts.certificateTypes', 1));
+
+    $this->actingAs($admin)->delete(route('asset-types.destroy', $assetType))->assertRedirect();
+    $this->actingAs($admin)->delete(route('certificate-types.destroy', $certificateType))->assertRedirect();
+
+    $this->actingAs($admin)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('counts.assetTypes', 1)
+        ->where('counts.certificateTypes', 1));
+});
+
 test('duplicate names are rejected after case and whitespace normalization', function () {
     $this->actingAs(User::factory()->create(['role' => User::ROLE_ADMIN]));
     $assetType = AssetType::factory()->create(['type_name' => 'Fire Alarm']);
