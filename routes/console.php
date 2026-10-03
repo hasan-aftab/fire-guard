@@ -9,3 +9,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('fire-tracker:prune-files')->hourly()->withoutOverlapping(60);
+Schedule::command('fire-tracker:send-reminders')
+    ->dailyAt(config('fire-tracker.reminders.send_at'))
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping(60);
