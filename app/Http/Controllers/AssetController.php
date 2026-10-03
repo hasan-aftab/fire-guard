@@ -23,7 +23,7 @@ class AssetController extends Controller
         $query = Asset::query()
             ->select(['id', 'site_id', 'asset_type_id', 'serial_number', 'location_desc', 'install_date', 'last_service_date', 'next_service_due', 'status', 'entered_in_error_at'])
             ->withCount(['inspections', 'certificates'])
-            ->with(['site:id,client_id,site_name,is_active,entered_in_error_at', 'site.client:id,company_name,is_active,entered_in_error_at', 'assetType:id,type_name,category']);
+            ->with(['site:id,client_id,site_name,is_active,entered_in_error_at', 'site.client:id,company_name,is_active,entered_in_error_at', 'assetType:id,type_name,is_active']);
         $this->filterRecordState($query, $request);
         if ($request->filled('search')) {
             $pattern = $this->searchPattern($request);
@@ -71,7 +71,7 @@ class AssetController extends Controller
         return Inertia::render('assets', [
             'records' => $records,
             'sites' => Site::select(['id', 'client_id', 'site_name', 'is_active', 'entered_in_error_at'])->with('client:id,company_name,is_active,entered_in_error_at')->orderBy('site_name')->orderBy('id')->get(),
-            'assetTypes' => AssetType::select(['id', 'type_name', 'category'])->orderBy('type_name')->orderBy('id')->get(),
+            'assetTypes' => AssetType::select(['id', 'type_name', 'is_active'])->orderBy('type_name')->orderBy('id')->get(),
             'filters' => $filters,
         ]);
     }
