@@ -14,6 +14,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { ViewField } from '@/components/view-modal';
 import { index as clientsIndex } from '@/routes/clients';
 import type {
+    Asset,
     Certificate,
     CertificateType,
     CertificateSite,
@@ -25,11 +26,21 @@ export default function Compliance({
     records,
     sites,
     certificateTypes,
+    assets,
     filters,
 }: {
     records: Paginated<Certificate>;
     sites: CertificateSite[];
     certificateTypes: CertificateType[];
+    assets: Pick<
+        Asset,
+        | 'id'
+        | 'site_id'
+        | 'serial_number'
+        | 'location_desc'
+        | 'status'
+        | 'entered_in_error_at'
+    >[];
     filters: TrackerFilters;
 }) {
     const isAdmin = usePage().props.auth.user.role === 'admin';
@@ -40,6 +51,7 @@ export default function Compliance({
             !site.entered_in_error_at &&
             !site.client.entered_in_error_at,
     );
+    const activeTypes = certificateTypes.filter((type) => type.is_active);
 
     return (
         <RecordPage
@@ -53,10 +65,7 @@ export default function Compliance({
                     certificate.document ? [certificate.document] : [],
             }}
             icon={ShieldCheck}
-            addDisabled={
-                activeSites.length === 0 ||
-                !certificateTypes.some((type) => type.is_active)
-            }
+            addDisabled={activeSites.length === 0 || activeTypes.length === 0}
             addHint={
                 activeSites.length === 0 ? (
                     <>
@@ -90,8 +99,19 @@ export default function Compliance({
                 isEnteredInError: (certificate) =>
                     certificate.entered_in_error_at !== null,
             }}
-            searchPlaceholder="Search by type or site..."
+            searchPlaceholder="Search type, site, issuer, or equipment..."
             extraFilters={[
+                {
+                    key: 'site_id',
+                    label: 'Site',
+                    options: [
+                        { value: 'all', label: 'All sites' },
+                        ...sites.map((site) => ({
+                            value: String(site.id),
+                            label: `${site.client.company_name} > ${site.site_name}`,
+                        })),
+                    ],
+                },
                 {
                     key: 'certificate_type_id',
                     label: 'Certificate type',
@@ -101,6 +121,14 @@ export default function Compliance({
                             value: String(type.id),
                             label: type.name,
                         })),
+                    ],
+                },
+                {
+                    key: 'sort',
+                    label: 'Sort',
+                    options: [
+                        { value: 'all', label: 'Earliest expiry' },
+                        { value: 'due_latest', label: 'Latest expiry' },
                     ],
                 },
             ]}
@@ -163,6 +191,12 @@ export default function Compliance({
                             />
                         </div>
                     )}
+                    {certificate.asset && (
+                        <ViewField
+                            label="Equipment"
+                            value={`${certificate.asset.serial_number || 'No S/N'} — ${certificate.asset.location_desc || 'No location'}`}
+                        />
+                    )}
                     <CertificateDocument
                         certificateId={certificate.id}
                         document={certificate.document}
@@ -171,9 +205,8 @@ export default function Compliance({
             )}
             defaults={{
                 site_id: String(activeSites[0]?.id ?? ''),
-                certificate_type_id: String(
-                    certificateTypes.find((type) => type.is_active)?.id ?? '',
-                ),
+                certificate_type_id: String(activeTypes[0]?.id ?? ''),
+                asset_id: '',
                 issue_date: '',
                 expiry_date: '',
                 issued_by: '',
@@ -184,6 +217,7 @@ export default function Compliance({
                     label: 'Site',
                     type: 'select',
                     required: true,
+                    resetFieldsOnChange: ['asset_id'],
                     options: sites
                         .filter(
                             (site) =>
@@ -195,8 +229,29 @@ export default function Compliance({
                         )
                         .map((site) => ({
                             value: String(site.id),
-                            label: `${site.client.company_name} > ${site.site_name}${!site.is_active || !site.client.is_active ? ' (Inactive)' : ''}`,
+                            label: `${site.client.company_name} > ${site.site_name}${site.entered_in_error_at || site.client.entered_in_error_at ? ' (Entered in error)' : !site.is_active || !site.client.is_active ? ' (Inactive)' : ''}`,
                         })),
+                },
+                {
+                    name: 'asset_id',
+                    label: 'Equipment',
+                    type: 'select',
+                    emptyLabel: 'No linked equipment',
+                    description:
+                        'Optional. Choose equipment at the selected site.',
+                    options: (values) =>
+                        assets
+                            .filter(
+                                (asset) =>
+                                    String(asset.site_id) === values.site_id &&
+                                    ((asset.status === 'active' &&
+                                        !asset.entered_in_error_at) ||
+                                        asset.id === editing?.asset_id),
+                            )
+                            .map((asset) => ({
+                                value: String(asset.id),
+                                label: `${asset.serial_number || 'No S/N'} — ${asset.location_desc || 'No location'}${asset.entered_in_error_at ? ' (Entered in error)' : asset.status !== 'active' ? ' (Inactive)' : ''}`,
+                            })),
                 },
                 {
                     name: 'certificate_type_id',
