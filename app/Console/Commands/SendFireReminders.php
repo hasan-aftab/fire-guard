@@ -8,7 +8,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 #[Signature('fire-tracker:send-reminders')]
-#[Description('Discover and queue team and client inspection and certificate reminders')]
+#[Description('Discover and queue internal inspection and certificate reminders')]
 class SendFireReminders extends Command
 {
     public function handle(DiscoverFireReminders $reminders): int
