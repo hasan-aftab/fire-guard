@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { useEffect, useRef } from 'react';
 import type { FormEvent, ReactNode } from 'react';
+import { DatePicker } from '@/components/date-picker';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -261,7 +262,18 @@ export function RecordForm({
                                     )}
                                 </FieldLabel>
                             )}
-                            {field.type === 'select' ? (
+                            {field.type === 'date' ? (
+                                <DatePicker
+                                    id={id}
+                                    label={field.label}
+                                    value={form.data[field.name] ?? ''}
+                                    onChange={change}
+                                    required={field.required}
+                                    disabled={locked}
+                                    invalid={!!error}
+                                    describedBy={describedBy}
+                                />
+                            ) : field.type === 'select' ? (
                                 <Select
                                     value={form.data[field.name] || undefined}
                                     onValueChange={change}
