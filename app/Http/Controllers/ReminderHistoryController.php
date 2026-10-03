@@ -52,9 +52,15 @@ class ReminderHistoryController extends Controller
             ]),
             'filters' => $filters,
             'clients' => Client::query()->orderBy('company_name')->get(['id', 'company_name']),
-            'recipients' => ReminderRecipient::query()->orderBy('email')->get(['id', 'email']),
+            'recipients' => ReminderRecipient::query()->orderBy('email')->get(['id', 'email'])
+                ->map(fn (ReminderRecipient $recipient): array => [
+                    'id' => $recipient->id,
+                    'email' => $recipient->email,
+                    'excluded' => ReminderRecipient::isClientContactEmail($recipient->email),
+                ]),
             'fallbackAdmins' => User::query()->where('role', User::ROLE_ADMIN)->whereNotNull('email_verified_at')
-                ->orderBy('name')->get(['id', 'name', 'email']),
+                ->orderBy('name')->get(['id', 'name', 'email'])
+                ->filter(fn (User $admin): bool => ! ReminderRecipient::isClientContactEmail($admin->email))->values(),
             'summary' => [
                 'sent' => (int) $statusCounts->get('sent', 0),
                 'in_progress' => (int) $statusCounts->get('pending', 0) + (int) $statusCounts->get('processing', 0),
