@@ -32,6 +32,11 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ViewField, ViewModal } from '@/components/view-modal';
 import type {
     ManagedFile,
@@ -54,6 +59,7 @@ type ResourceRoutes = {
 export function RecordPage<T extends { id: number }>({
     title,
     description,
+    overview,
     noun,
     icon,
     records,
@@ -81,6 +87,7 @@ export function RecordPage<T extends { id: number }>({
 }: {
     title: string;
     description: string;
+    overview?: ReactNode;
     noun: string;
     icon: LucideIcon;
     records: Paginated<T>;
@@ -103,6 +110,8 @@ export function RecordPage<T extends { id: number }>({
             | 'asset_type_id'
             | 'certificate_type_id'
             | 'equipment_status'
+            | 'license_status'
+            | 'inspection_activity'
             | 'record_state';
         label: string;
         options: { value: string; label: string }[];
@@ -225,7 +234,8 @@ export function RecordPage<T extends { id: number }>({
         {
             key: 'number',
             header: '#',
-            className: 'w-10 text-xs text-muted-foreground',
+            className:
+                'hidden w-10 text-xs text-muted-foreground sm:table-cell',
             render: (_, index) => start + index + 1,
         },
         ...columns,
@@ -249,97 +259,135 @@ export function RecordPage<T extends { id: number }>({
             className: 'sticky right-0 z-10 border-l bg-card',
             render: (record) => (
                 <div className="flex gap-0.5">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7"
-                        aria-label={`View ${noun} #${record.id}`}
-                        onClick={(event) => {
-                            viewTrigger.current = event.currentTarget;
-                            skipViewFocusRestore.current = false;
-                            setViewing(record);
-                        }}
-                    >
-                        <Eye />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7"
-                        aria-label={`Edit ${noun} #${record.id}`}
-                        data-record-edit-id={record.id}
-                        onClick={(event) => {
-                            editorTrigger.current = event.currentTarget;
-                            editorRecordId.current = record.id;
-                            setSavedRecordId(null);
-                            setSelectedFiles([]);
-                            setUploadRequest(null);
-                            setEditing(record);
-                            setEditorOpen(true);
-                        }}
-                    >
-                        <Pencil />
-                    </Button>
-                    {rowActions?.(record)}
-                    {archive && !mistake?.isEnteredInError(record) && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-7"
-                            aria-label={`${archive.isArchived(record) ? (archive.restoreAction ?? 'Reactivate') : archive.action} ${noun} #${record.id}`}
-                            onClick={(event) => {
-                                deleteTrigger.current = event.currentTarget;
-                                setDeleting(record);
-                            }}
-                        >
-                            {archive.isArchived(record) ? (
-                                <RotateCcw />
-                            ) : (
-                                <Archive />
-                            )}
-                        </Button>
-                    )}
-                    {mistake && (
-                        <>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 className="size-7"
-                                aria-label={`${mistake.isEnteredInError(record) ? 'Restore' : 'Mark entered in error'} ${noun} #${record.id}`}
+                                aria-label={`View ${noun} #${record.id}`}
                                 onClick={(event) => {
-                                    mistakeTrigger.current =
-                                        event.currentTarget;
-                                    setMistakeTarget({
-                                        record,
-                                        action: mistake.isEnteredInError(record)
-                                            ? 'restore'
-                                            : 'mark',
-                                    });
+                                    viewTrigger.current = event.currentTarget;
+                                    skipViewFocusRestore.current = false;
+                                    setViewing(record);
                                 }}
                             >
-                                {mistake.isEnteredInError(record) ? (
-                                    <RotateCcw />
-                                ) : (
-                                    <CircleOff />
-                                )}
+                                <Eye />
                             </Button>
-                            {mistake.canPurge?.(record) && (
+                        </TooltipTrigger>
+                        <TooltipContent>View details</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7"
+                                aria-label={`Edit ${noun} #${record.id}`}
+                                data-record-edit-id={record.id}
+                                onClick={(event) => {
+                                    editorTrigger.current = event.currentTarget;
+                                    editorRecordId.current = record.id;
+                                    setSavedRecordId(null);
+                                    setSelectedFiles([]);
+                                    setUploadRequest(null);
+                                    setEditing(record);
+                                    setEditorOpen(true);
+                                }}
+                            >
+                                <Pencil />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Edit record</TooltipContent>
+                    </Tooltip>
+                    {rowActions?.(record)}
+                    {archive && !mistake?.isEnteredInError(record) && (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     className="size-7"
-                                    aria-label={`Permanently delete ${noun} #${record.id}`}
+                                    aria-label={`${archive.isArchived(record) ? (archive.restoreAction ?? 'Reactivate') : archive.action} ${noun} #${record.id}`}
                                     onClick={(event) => {
-                                        mistakeTrigger.current =
+                                        deleteTrigger.current =
                                             event.currentTarget;
-                                        setMistakeTarget({
-                                            record,
-                                            action: 'purge',
-                                        });
+                                        setDeleting(record);
                                     }}
                                 >
-                                    <Trash2 />
+                                    {archive.isArchived(record) ? (
+                                        <RotateCcw />
+                                    ) : (
+                                        <Archive />
+                                    )}
                                 </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {archive.isArchived(record)
+                                    ? (archive.restoreAction ?? 'Reactivate')
+                                    : archive.action}
+                            </TooltipContent>
+                        </Tooltip>
+                    )}
+                    {mistake && (
+                        <>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="size-7"
+                                        aria-label={`${mistake.isEnteredInError(record) ? 'Restore' : 'Mark entered in error'} ${noun} #${record.id}`}
+                                        onClick={(event) => {
+                                            mistakeTrigger.current =
+                                                event.currentTarget;
+                                            setMistakeTarget({
+                                                record,
+                                                action: mistake.isEnteredInError(
+                                                    record,
+                                                )
+                                                    ? 'restore'
+                                                    : 'mark',
+                                            });
+                                        }}
+                                    >
+                                        {mistake.isEnteredInError(record) ? (
+                                            <RotateCcw />
+                                        ) : (
+                                            <CircleOff />
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    {mistake.isEnteredInError(record)
+                                        ? 'Restore record'
+                                        : 'Mark as entered in error'}
+                                </TooltipContent>
+                            </Tooltip>
+                            {mistake.canPurge?.(record) && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="size-7"
+                                            aria-label={`Permanently delete ${noun} #${record.id}`}
+                                            onClick={(event) => {
+                                                mistakeTrigger.current =
+                                                    event.currentTarget;
+                                                setMistakeTarget({
+                                                    record,
+                                                    action: 'purge',
+                                                });
+                                            }}
+                                        >
+                                            <Trash2 />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        Permanently delete record
+                                    </TooltipContent>
+                                </Tooltip>
                             )}
                         </>
                     )}
@@ -390,6 +438,7 @@ export function RecordPage<T extends { id: number }>({
                 description={description}
                 actions={createButton}
             />
+            {overview}
             {addDisabled && addHint && (
                 <p className="mb-4 text-sm text-muted-foreground" role="status">
                     {addHint}
@@ -447,8 +496,13 @@ export function RecordPage<T extends { id: number }>({
                     className="gap-0 overflow-hidden py-0"
                     aria-busy={pageLoading}
                 >
-                    <CardHeader className="sr-only">
-                        <CardTitle>{title}</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30 px-4 py-2">
+                        <CardTitle className="text-sm font-medium">
+                            {title}{' '}
+                            <span className="font-normal text-muted-foreground">
+                                ({records.total} total)
+                            </span>
+                        </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
                         <DataTable
@@ -726,7 +780,11 @@ export function RecordPage<T extends { id: number }>({
                                 <ViewField
                                     key={column.key}
                                     label={column.header}
-                                    value={column.render(currentViewing, 0)}
+                                    value={
+                                        column.viewRender
+                                            ? column.viewRender(currentViewing)
+                                            : column.render(currentViewing, 0)
+                                    }
                                 />
                             ))}
                     </div>
