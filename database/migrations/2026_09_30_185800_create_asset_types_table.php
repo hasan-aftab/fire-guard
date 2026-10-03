@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('asset_types', function (Blueprint $table): void {
             $table->id();
             $table->string('type_name')->unique();
-            $table->string('category')->nullable();
             $table->unsignedSmallInteger('default_interval_months')->nullable()->default(12);
+            $table->boolean('is_active')->default(true)->index();
             $table->timestamps();
         });
     }
