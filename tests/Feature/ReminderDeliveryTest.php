@@ -135,6 +135,27 @@ test('client contact addresses are excluded from configured reminders', function
 
     Mail::assertNothingSent();
     $this->assertDatabaseCount('reminder_deliveries', 0);
+    $this->actingAs(User::query()->where('email', 'admin@example.test')->sole())
+        ->get(route('reminders.index'))
+        ->assertInertia(fn (Assert $page) => $page->component('reminders')
+            ->where('recipients.0.excluded', true)
+            ->etc());
+});
+
+test('an admin address shared with a client contact cannot receive fallback reminders', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
+    reminderAsset(7, ['email' => 'ADMIN@example.test']);
+    Mail::fake();
+
+    $this->artisan('fire-tracker:send-reminders')->assertExitCode(0);
+
+    Mail::assertNothingSent();
+    $this->assertDatabaseCount('reminder_deliveries', 0);
+    $this->actingAs(User::query()->where('email', 'admin@example.test')->sole())
+        ->get(route('reminders.index'))
+        ->assertInertia(fn (Assert $page) => $page->component('reminders')
+            ->has('fallbackAdmins', 0)
+            ->etc());
 });
 
 test('a queued recipient is skipped when their address becomes a client contact', function () {
