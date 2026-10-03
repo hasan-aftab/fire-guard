@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Asset;
+use App\Models\AssetType;
 use App\Models\Site;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
@@ -28,7 +29,15 @@ class AssetRequest extends FormRequest
                     $fail('Choose an active site belonging to an active client.');
                 }
             }],
-            'asset_type_id' => ['required', 'integer', Rule::exists('asset_types', 'id')],
+            'asset_type_id' => ['required', 'integer', Rule::exists('asset_types', 'id'), function (string $attribute, mixed $value, Closure $fail): void {
+                $asset = $this->route('asset');
+                if ($asset instanceof Asset && $asset->asset_type_id === (int) $value) {
+                    return;
+                }
+                if (! AssetType::query()->whereKey($value)->where('is_active', true)->exists()) {
+                    $fail('Choose an active asset type.');
+                }
+            }],
             'serial_number' => ['nullable', 'string', 'max:255'],
             'location_desc' => ['nullable', 'string', 'max:5000'],
             'install_date' => ['nullable', 'date_format:Y-m-d'],
