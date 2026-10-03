@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { Download, FileText, Trash2, X } from 'lucide-react';
+import { Download, FileText, FileUp, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -37,6 +37,8 @@ import {
 } from '@/components/ui/dialog';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { uploadManagedFile } from '@/lib/managed-upload';
 import type { ManagedFile } from '@/types/fire-tracker';
@@ -142,12 +144,8 @@ function AttachmentCard({
                 ) : (
                     <FileText />
                 )}
-                {(state === 'uploading' ||
-                    state === 'processing' ||
-                    (imageUrl && !imageReady && !imageFailed)) && (
-                    <span className="absolute inset-0 flex items-center justify-center bg-background/70">
-                        <Spinner className="size-5" />
-                    </span>
+                {imageUrl && !imageReady && !imageFailed && (
+                    <Skeleton className="absolute inset-0 rounded-none" />
                 )}
             </AttachmentMedia>
             <AttachmentContent>
@@ -155,12 +153,11 @@ function AttachmentCard({
                 <AttachmentDescription title={description}>
                     {description}
                 </AttachmentDescription>
-                {state === 'uploading' && (
-                    <progress
-                        className="w-full accent-primary"
+                {(state === 'uploading' || state === 'processing') && (
+                    <Progress
                         value={progress ?? 0}
-                        max={100}
                         aria-label={`${name} upload progress`}
+                        className="mt-2"
                     />
                 )}
             </AttachmentContent>
@@ -579,13 +576,11 @@ export function ManagedFilePanel({
                 </div>
             )}
             <Field data-invalid={!!error}>
-                <FieldLabel htmlFor={`managed-file-${kind}`}>
-                    {multiple ? 'Choose photos' : 'Choose document'}
-                </FieldLabel>
                 <Input
                     ref={input}
                     id={`managed-file-${kind}`}
                     type="file"
+                    className="peer sr-only"
                     accept={accept}
                     multiple={multiple}
                     disabled={busy || disabled}
@@ -595,6 +590,29 @@ export function ManagedFilePanel({
                         selectFiles(Array.from(event.target.files ?? []))
                     }
                 />
+                <FieldLabel
+                    htmlFor={`managed-file-${kind}`}
+                    className="flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-input bg-muted/30 px-4 py-5 text-center transition-colors group-data-[invalid=true]/field:border-destructive peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50 peer-disabled:pointer-events-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 hover:bg-muted/50"
+                >
+                    <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <FileUp className="size-5" aria-hidden="true" />
+                    </span>
+                    <span className="text-sm font-medium text-foreground">
+                        {multiple
+                            ? selected.length > 0
+                                ? 'Add more photos'
+                                : 'Choose photos'
+                            : selected.length > 0
+                              ? 'Change selected document'
+                              : files.length > 0
+                                ? 'Choose replacement document'
+                                : 'Choose document'}
+                    </span>
+                    <span className="text-xs font-normal text-muted-foreground">
+                        Select {multiple ? 'images' : 'a PDF or image'} from
+                        your device
+                    </span>
+                </FieldLabel>
                 {error && (
                     <p role="alert" className="text-sm text-destructive">
                         {error}
