@@ -20,12 +20,12 @@
         </table>
     </td></tr>
     @if ($preview)
-    <tr><td style="padding:11px 34px;background:#fff1d9;color:#80510e;font-size:12px;font-weight:700;border-bottom:1px solid #efddbd">TEST COPY · Sent only to your signed-in inbox</td></tr>
+    <tr><td style="padding:11px 34px;background:#fff1d9;color:#80510e;font-size:12px;font-weight:700;border-bottom:1px solid #efddbd">TEST COPY · Sample internal reminder</td></tr>
     @endif
     <tr><td style="padding:38px 34px 18px">
         <p style="margin:0 0 12px;color:#996219;font-size:12px;font-weight:700;letter-spacing:.5px">@yield('eyebrow')</p>
         <h1 style="margin:0 0 16px;color:#202725;font-size:30px;line-height:1.18;font-weight:700;letter-spacing:-.7px">@yield('headline')</h1>
-        <p style="margin:0;color:#4b5650;font-size:15px;line-height:1.7">Hello {{ ! $delivery->isClientAudience() ? ($delivery->recipient_name ?: 'team') : ($delivery->client_contact_name ?: $delivery->client_name) }},<br>@yield('intro')</p>
+        <p style="margin:0;color:#4b5650;font-size:15px;line-height:1.7">Hello {{ $delivery->recipient_name ?: 'team' }},<br>@yield('intro')</p>
     </td></tr>
     <tr><td style="padding:8px 34px 24px">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background:#f7f3e9;border-left:4px solid #d89936">
@@ -44,14 +44,12 @@
             <tr><td valign="top" style="padding:13px 0;border-bottom:1px solid #dde1da;color:#69746e;font-size:13px">Site</td><td valign="top" style="padding:13px 0;border-bottom:1px solid #dde1da;color:#202725;font-size:14px;font-weight:600">{{ $delivery->site_name }}@if ($delivery->site_address)<br><span style="font-size:13px;font-weight:400;color:#66716b">{{ $delivery->site_address }}</span>@endif</td></tr>
         </table>
     </td></tr>
-    @if (! $delivery->isClientAudience())
     <tr><td style="padding:18px 34px 0">
         <p style="margin:0 0 9px;color:#202725;font-size:13px;font-weight:700">Client contact</p>
         <p style="margin:0;color:#4b5650;font-size:14px;line-height:1.65">{{ $delivery->client_contact_name ?: 'No contact name on file' }}<br>
         @if ($delivery->client_email){{ $delivery->client_email }}<br>@endif
         @if ($delivery->client_phone){{ $delivery->client_phone }}@elseif (! $delivery->client_email)<span style="color:#7d8781">No email or phone on file</span>@endif</p>
     </td></tr>
-    @endif
     <tr><td style="padding:25px 34px 35px">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background:#eef1ec">
             <tr><td style="padding:18px 20px;color:#34403a;font-size:14px;line-height:1.65"><strong style="color:#202725">Next step</strong><br>@yield('next_step')</td></tr>
