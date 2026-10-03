@@ -12,7 +12,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('site_id')->constrained()->restrictOnDelete();
             $table->foreignId('asset_id')->nullable()->constrained()->restrictOnDelete();
-            $table->string('certificate_type');
+            $table->foreignId('certificate_type_id')->constrained()->restrictOnDelete();
+            $table->string('legacy_certificate_type')->nullable();
             $table->date('issue_date');
             $table->date('expiry_date')->index();
             $table->string('issued_by')->nullable();
