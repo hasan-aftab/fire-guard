@@ -99,7 +99,11 @@ export type Inspection = {
     next_due_date: string | null;
     photos: ManagedFile[];
     entered_in_error_at: string | null;
-    asset: Pick<Asset, 'id' | 'serial_number' | 'location_desc'>;
+    asset: Pick<Asset, 'id' | 'serial_number' | 'location_desc'> & {
+        site: Pick<Site, 'id' | 'site_name'> & {
+            client: Pick<Client, 'id' | 'company_name'>;
+        };
+    };
     technician: Pick<Technician, 'id' | 'full_name'> | null;
 };
 
@@ -118,7 +122,10 @@ export type InspectionAssetOption = Pick<
         Site,
         'id' | 'site_name' | 'is_active' | 'entered_in_error_at'
     > & {
-        client: Pick<Client, 'id' | 'is_active' | 'entered_in_error_at'>;
+        client: Pick<
+            Client,
+            'id' | 'company_name' | 'is_active' | 'entered_in_error_at'
+        >;
     };
 };
 
@@ -195,6 +202,8 @@ export type TrackerFilters = Partial<
         | 'active'
         | 'site_presence'
         | 'site_id'
+        | 'technician_id'
+        | 'asset_id'
         | 'asset_type_id'
         | 'certificate_type_id'
         | 'equipment_status'
