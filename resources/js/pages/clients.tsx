@@ -43,6 +43,11 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ViewField, ViewModal } from '@/components/view-modal';
 import type {
     Client,
@@ -675,56 +680,39 @@ export default function Clients({
                                             </div>
                                         </div>
                                         <div className="flex shrink-0 self-end sm:self-auto">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                aria-label={`View ${site.site_name}`}
-                                                disabled={
-                                                    addingSite ||
-                                                    editingSite !== null ||
-                                                    siteLoading
-                                                }
-                                                onClick={(event) => {
-                                                    siteViewTrigger.current =
-                                                        event.currentTarget;
-                                                    setViewingSite(site);
-                                                }}
-                                            >
-                                                <Eye />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                aria-label={`${site.entered_in_error_at ? 'Restore' : 'Mark entered in error'} ${site.site_name}`}
-                                                disabled={
-                                                    addingSite ||
-                                                    editingSite !== null ||
-                                                    siteLoading
-                                                }
-                                                onClick={(event) => {
-                                                    siteMistakeTrigger.current =
-                                                        event.currentTarget;
-                                                    setSiteMistakeTarget({
-                                                        site,
-                                                        action: site.entered_in_error_at
-                                                            ? 'restore'
-                                                            : 'mark',
-                                                    });
-                                                }}
-                                            >
-                                                {site.entered_in_error_at ? (
-                                                    <RotateCcw />
-                                                ) : (
-                                                    <CircleOff />
-                                                )}
-                                            </Button>
-                                            {site.assets_count === 0 &&
-                                                site.certificates_count ===
-                                                    0 && (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        aria-label={`Permanently delete ${site.site_name}`}
+                                                        aria-label={`View ${site.site_name}`}
+                                                        disabled={
+                                                            addingSite ||
+                                                            editingSite !==
+                                                                null ||
+                                                            siteLoading
+                                                        }
+                                                        onClick={(event) => {
+                                                            siteViewTrigger.current =
+                                                                event.currentTarget;
+                                                            setViewingSite(
+                                                                site,
+                                                            );
+                                                        }}
+                                                    >
+                                                        <Eye />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    View site
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        aria-label={`${site.entered_in_error_at ? 'Restore' : 'Mark entered in error'} ${site.site_name}`}
                                                         disabled={
                                                             addingSite ||
                                                             editingSite !==
@@ -737,13 +725,62 @@ export default function Clients({
                                                             setSiteMistakeTarget(
                                                                 {
                                                                     site,
-                                                                    action: 'purge',
+                                                                    action: site.entered_in_error_at
+                                                                        ? 'restore'
+                                                                        : 'mark',
                                                                 },
                                                             );
                                                         }}
                                                     >
-                                                        <Trash2 />
+                                                        {site.entered_in_error_at ? (
+                                                            <RotateCcw />
+                                                        ) : (
+                                                            <CircleOff />
+                                                        )}
                                                     </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    {site.entered_in_error_at
+                                                        ? 'Restore site'
+                                                        : 'Mark site as entered in error'}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            {site.assets_count === 0 &&
+                                                site.certificates_count ===
+                                                    0 && (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                aria-label={`Permanently delete ${site.site_name}`}
+                                                                disabled={
+                                                                    addingSite ||
+                                                                    editingSite !==
+                                                                        null ||
+                                                                    siteLoading
+                                                                }
+                                                                onClick={(
+                                                                    event,
+                                                                ) => {
+                                                                    siteMistakeTrigger.current =
+                                                                        event.currentTarget;
+                                                                    setSiteMistakeTarget(
+                                                                        {
+                                                                            site,
+                                                                            action: 'purge',
+                                                                        },
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <Trash2 />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            Permanently delete
+                                                            site
+                                                        </TooltipContent>
+                                                    </Tooltip>
                                                 )}
                                             <Button
                                                 variant="ghost"
