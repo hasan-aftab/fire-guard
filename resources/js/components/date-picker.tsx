@@ -106,10 +106,15 @@ export function DatePicker({
                 onMonthChange={setDisplayMonth}
                 captionLayout="dropdown"
                 startMonth={new Date(Math.min(1900, selectedYear - 10), 0)}
-                endMonth={new Date(
-                    Math.max(new Date().getFullYear() + 50, selectedYear + 10),
-                    11,
-                )}
+                endMonth={
+                    new Date(
+                        Math.max(
+                            new Date().getFullYear() + 50,
+                            selectedYear + 10,
+                        ),
+                        11,
+                    )
+                }
             />
             <div className="space-y-2 border-t p-3">
                 <label
@@ -177,7 +182,7 @@ export function DatePicker({
         return (
             <Dialog open={open} onOpenChange={handleOpenChange}>
                 <DialogTrigger asChild>{trigger}</DialogTrigger>
-                <DialogContent className="max-h-[calc(100dvh-2rem)] w-auto max-w-[calc(100vw-2rem)] gap-0 overflow-y-auto p-0">
+                <DialogContent className="z-[70] max-h-[calc(100dvh-2rem)] w-auto max-w-[calc(100vw-2rem)] gap-0 overflow-y-auto p-0">
                     <DialogHeader className="px-3 pt-3 text-left">
                         <DialogTitle className="pr-8 text-base">
                             {label}
@@ -195,7 +200,7 @@ export function DatePicker({
     return (
         <Popover open={open} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-            <PopoverContent align="start" className="w-auto p-0">
+            <PopoverContent align="start" className="z-[60] w-auto p-0">
                 <PopoverHeader className="p-3 pb-0">
                     <PopoverTitle>{label}</PopoverTitle>
                     <PopoverDescription>
