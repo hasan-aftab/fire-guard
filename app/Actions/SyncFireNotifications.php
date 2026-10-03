@@ -11,6 +11,15 @@ use Illuminate\Support\Facades\DB;
 
 class SyncFireNotifications
 {
+    public function handleAll(): void
+    {
+        User::query()->select('id')->chunkById(100, function ($users): void {
+            foreach ($users as $user) {
+                $this->handle($user);
+            }
+        });
+    }
+
     public function handle(User $user): void
     {
         $candidates = [];
@@ -35,14 +44,14 @@ class SyncFireNotifications
             ];
         }
 
-        foreach (Certificate::with('site')->whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')))->where('expiry_date', '<=', today()->addDays(Certificate::EXPIRING_SOON_DAYS)->toDateString())->get() as $certificate) {
+        foreach (Certificate::with(['site', 'certificateType'])->whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')))->where('expiry_date', '<=', today()->addDays(Certificate::EXPIRING_SOON_DAYS)->toDateString())->get() as $certificate) {
             $expired = $certificate->status === 'expired';
             $days = (int) abs(today()->diffInDays($certificate->expiry_date));
             $dayLabel = $days === 1 ? 'day' : 'days';
             $candidates[] = [
                 'type' => $expired ? 'expired_cert' : 'expiring_cert',
                 'title' => $expired ? 'Certificate Expired' : 'Certificate Expiring',
-                'message' => "{$certificate->certificate_type} certificate at {$certificate->site->site_name} ".
+                'message' => "{$certificate->certificateType->name} certificate at {$certificate->site->site_name} ".
                     ($expired ? "expired {$days} {$dayLabel} ago" : "expires in {$days} {$dayLabel}"),
                 'entity_type' => 'certificate',
                 'entity_id' => $certificate->id,
