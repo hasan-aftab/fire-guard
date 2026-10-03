@@ -27,6 +27,7 @@ class TrackerFilterRequest extends FormRequest
             'issue_to' => ['nullable', 'date_format:Y-m-d', Rule::when($this->filled('issue_from'), 'after_or_equal:issue_from')],
             'client_id' => ['nullable', 'integer', Rule::exists('clients', 'id')],
             'site_id' => ['nullable', 'integer', Rule::exists('sites', 'id')],
+            'certificate_type_id' => ['nullable', 'integer', Rule::exists('certificate_types', 'id')],
             'asset_id' => ['nullable', 'integer', Rule::exists('assets', 'id')],
         ];
     }
