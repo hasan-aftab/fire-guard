@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Certificate;
+use App\Models\CertificateType;
 use App\Models\Client;
 use App\Models\Site;
 use App\Models\User;
@@ -55,7 +56,7 @@ test('certificate search matches client names without treating wildcards as patt
     $client = Client::factory()->create(['company_name' => 'Harbour % Safety']);
     $site = Site::factory()->for($client)->create(['site_name' => 'Main Depot']);
     $target = Certificate::factory()->for($site)->create();
-    Certificate::factory()->create(['certificate_type' => 'Annual Fire Safety Statement']);
+    Certificate::factory()->create();
 
     $this->actingAs(User::factory()->create())->get(route('certificates.index', ['search' => '%']))
         ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
@@ -67,7 +68,7 @@ test('certificate writes derive status from expiry date', function () {
     $site = Site::factory()->create();
     $payload = [
         'site_id' => $site->id,
-        'certificate_type' => 'Fire Safety',
+        'certificate_type_id' => CertificateType::factory()->create()->id,
         'issue_date' => '2026-09-01',
         'expiry_date' => '2026-09-29',
         'status' => 'valid',
