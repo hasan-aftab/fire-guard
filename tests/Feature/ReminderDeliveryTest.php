@@ -125,20 +125,32 @@ test('a configured email list replaces admins and client addresses', function ()
     expect(ReminderDelivery::query()->where('reminder_type', 'certificate')->pluck('audience')->unique()->all())->toBe(['configured']);
 });
 
-test('an explicitly selected client address gets the client version of the email', function () {
+test('client contact addresses are excluded from configured reminders', function () {
     $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
-    reminderAsset(7, ['email' => 'client@example.test', 'contact_name' => 'Grace']);
-    ReminderRecipient::query()->create(['email' => 'client@example.test']);
+    reminderAsset(7, ['email' => 'client@example.test']);
+    ReminderRecipient::query()->create(['email' => 'CLIENT@example.test']);
     Mail::fake();
 
     $this->artisan('fire-tracker:send-reminders')->assertExitCode(0);
 
-    Mail::assertSent(AssetInspectionReminderMail::class, 1);
+    Mail::assertNothingSent();
+    $this->assertDatabaseCount('reminder_deliveries', 0);
+});
+
+test('a queued recipient is skipped when their address becomes a client contact', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
+    $asset = reminderAsset(7, ['email' => null]);
+    ReminderRecipient::query()->create(['email' => 'chosen@example.test']);
+    config()->set('queue.default', 'database');
+    Mail::fake();
+    $this->artisan('fire-tracker:send-reminders')->assertExitCode(0);
     $delivery = ReminderDelivery::query()->sole();
-    expect($delivery->audience)->toBe('configured_client');
-    $mail = new AssetInspectionReminderMail($delivery);
-    $mail->assertSeeInHtml('Hello Grace');
-    $mail->assertSeeInHtml('Please make the equipment available for inspection.');
+    $asset->site->client->update(['email' => 'CHOSEN@example.test']);
+
+    (new SendReminderEmail($delivery->id))->handle();
+
+    Mail::assertNothingSent();
+    expect($delivery->fresh()->status)->toBe('skipped');
 });
 
 test('queued staff delivery is skipped when user verification is revoked', function () {
@@ -434,51 +446,49 @@ test('history date filters and stale pages stay server bounded', function () {
         ->assertSessionHasErrors('due_to');
 });
 
-test('sample previews require a verified user and use fictional details without a delivery', function () {
-    $this->get(route('reminders.templates.preview', 'asset'))->assertRedirect(route('login'));
-    $this->actingAs(User::factory()->unverified()->create())
-        ->get(route('reminders.templates.preview', 'asset'))->assertRedirect(route('verification.notice'));
-    auth()->logout();
+test('sample reminder command sends each internal design without a delivery record', function (string $type, string $mailClass) {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
+    Mail::fake();
+
+    $this->artisan('fire-tracker:test-reminder-email', ['type' => $type, 'email' => 'INTERNAL@example.test'])
+        ->assertExitCode(0);
+
+    Mail::assertSent($mailClass, function ($mail): bool {
+        $mail->assertSeeInHtml('TEST COPY');
+        $mail->assertSeeInHtml('Hello team');
+        $mail->assertSeeInHtml('Waigani Office');
+
+        return $mail->hasTo('internal@example.test') && $mail->preview
+            && str_contains($mail->envelope()->subject, 'TEST COPY');
+    });
+    $this->assertDatabaseCount('reminder_deliveries', 0);
+})->with([
+    ['asset', AssetInspectionReminderMail::class],
+    ['certificate', CertificateExpiryReminderMail::class],
+]);
+
+test('sample reminder command rejects invalid types and client contact addresses', function () {
+    Client::factory()->create(['email' => 'client@example.test']);
+    Mail::fake();
+
+    $this->artisan('fire-tracker:test-reminder-email', ['type' => 'other', 'email' => 'internal@example.test'])
+        ->assertExitCode(1);
+    $this->artisan('fire-tracker:test-reminder-email', ['type' => 'asset', 'email' => 'not-an-email'])
+        ->assertExitCode(1);
+    $this->artisan('fire-tracker:test-reminder-email', ['type' => 'asset', 'email' => 'CLIENT@example.test'])
+        ->assertExitCode(1);
+
+    Mail::assertNothingSent();
+    $this->assertDatabaseCount('reminder_deliveries', 0);
+});
+
+test('web preview and test email routes are removed', function () {
     $this->actingAs(User::factory()->create());
 
-    $this->get(route('reminders.templates.preview', 'asset'))
-        ->assertOk()->assertSee('Waigani Office')->assertSee('Equipment inspection')
-        ->assertHeader('X-Content-Type-Options', 'nosniff');
-    $this->get(route('reminders.templates.preview', 'certificate'))
-        ->assertOk()->assertSee('Annual fire safety certificate');
-    $this->get('/reminders/templates/other/preview')->assertNotFound();
-    $this->assertDatabaseCount('reminder_deliveries', 0);
-});
-
-test('sample test copies go only to the signed in user and leave the delivery ledger untouched', function () {
-    $user = User::factory()->create(['email' => 'viewer@example.test']);
-    $this->actingAs($user);
-    Mail::fake();
-
-    $this->post(route('reminders.templates.test-email', 'asset'))->assertRedirect();
-    $this->post(route('reminders.templates.test-email', 'certificate'))->assertRedirect();
-
-    Mail::assertSent(AssetInspectionReminderMail::class, fn (AssetInspectionReminderMail $mail) => $mail->hasTo($user->email) && $mail->preview && str_contains($mail->envelope()->subject, 'TEST COPY'));
-    Mail::assertSent(CertificateExpiryReminderMail::class, fn (CertificateExpiryReminderMail $mail) => $mail->hasTo($user->email) && $mail->preview && str_contains($mail->envelope()->subject, 'TEST COPY'));
-    $this->assertDatabaseCount('reminder_deliveries', 0);
-});
-
-test('historical delivery preview and test copy use saved details without resending to client', function () {
-    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
-    reminderAsset(7, ['company_name' => 'Koki Trading', 'email' => 'client@example.test']);
-    Mail::fake();
-    $this->artisan('fire-tracker:send-reminders')->assertExitCode(0);
-    $delivery = ReminderDelivery::query()->sole();
-    $viewer = User::factory()->create(['email' => 'viewer@example.test']);
-    $this->actingAs($viewer);
-
-    $this->get(route('reminders.preview', $delivery))->assertOk()->assertSee('Koki Trading');
-    $this->post(route('reminders.test-email', $delivery))->assertRedirect();
-
-    Mail::assertSent(AssetInspectionReminderMail::class, 2);
-    Mail::assertSent(AssetInspectionReminderMail::class, fn (AssetInspectionReminderMail $mail) => $mail->hasTo($viewer->email) && $mail->preview);
-    expect($delivery->fresh()->attempt_count)->toBe(1);
-    expect($delivery->fresh()->status)->toBe('sent');
+    $this->get('/reminders/templates/asset/preview')->assertNotFound();
+    $this->post('/reminders/templates/asset/test-email')->assertNotFound();
+    $this->get('/reminders/1/preview')->assertNotFound();
+    $this->post('/reminders/1/test-email')->assertNotFound();
 });
 
 test('history audience filter summary and sidebar count show reminder activity', function () {
@@ -531,6 +541,9 @@ test('recipient editor rejects invalid and duplicate addresses and requires veri
     auth()->logout();
     $this->actingAs(User::factory()->create());
     $this->post(route('reminders.recipients.store'), ['email' => 'bad address'])
+        ->assertSessionHasErrors('email');
+    Client::factory()->create(['email' => 'client@example.test']);
+    $this->post(route('reminders.recipients.store'), ['email' => 'CLIENT@example.test'])
         ->assertSessionHasErrors('email');
     $this->post(route('reminders.recipients.store'), ['email' => 'chosen@example.test'])
         ->assertRedirect();
