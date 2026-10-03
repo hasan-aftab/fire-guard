@@ -594,6 +594,9 @@ export default function Reminders({
                             >
                                 <TableHeader className="bg-muted/40">
                                     <TableRow>
+                                        <TableHead className="pl-4 w-16">
+                                            #
+                                        </TableHead>
                                         <TableHead className="pl-4">
                                             Reminder
                                         </TableHead>
@@ -606,7 +609,7 @@ export default function Reminders({
                                     {records.data.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={4}
+                                                colSpan={5}
                                                 className="h-28 text-center text-muted-foreground"
                                             >
                                                 No deliveries match these
@@ -614,8 +617,11 @@ export default function Reminders({
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        records.data.map((record) => (
+                                        records.data.map((record, index) => (
                                             <TableRow key={record.id}>
+                                                <TableCell className="w-16 py-4 pl-4 text-muted-foreground">
+                                                    {(records.current_page - 1) * records.per_page + index + 1}
+                                                </TableCell>
                                                 <TableCell className="min-w-64 py-4 pl-4">
                                                     <div className="flex items-start gap-3">
                                                         <TypeMark
@@ -696,7 +702,7 @@ export default function Reminders({
                                     No deliveries match these filters.
                                 </p>
                             ) : (
-                                records.data.map((record) => (
+                                records.data.map((record, index) => (
                                     <div
                                         key={record.id}
                                         className="space-y-4 rounded-lg border p-4"
@@ -705,6 +711,7 @@ export default function Reminders({
                                             <TypeMark type={record.type} />
                                             <div className="min-w-0 flex-1">
                                                 <p className="font-medium text-foreground">
+                                                    <span className="text-muted-foreground">{(records.current_page - 1) * records.per_page + index + 1}.</span>{' '}
                                                     {record.subject_name}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
