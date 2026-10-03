@@ -75,6 +75,7 @@ test('generation stores a private PDF and records its disk author snapshot and c
 
     $this->get(route('reports.index'))->assertInertia(fn (Assert $page) => $page
         ->component('reports')
+        ->where('counts.reports', 1)
         ->has('records.data', 1)
         ->where('records.data.0.client_name', 'Original Client')
         ->where('recentReport.id', $report->id)
