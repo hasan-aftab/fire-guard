@@ -39,6 +39,7 @@ export function TrackerFilters({
             | 'sort'
             | 'site_id'
             | 'asset_type_id'
+            | 'certificate_type_id'
             | 'equipment_status'
             | 'record_state';
         label: string;
@@ -172,7 +173,8 @@ export function TrackerFilters({
                                 [filter.key]:
                                     value === 'all' &&
                                     (filter.key === 'site_id' ||
-                                        filter.key === 'asset_type_id')
+                                        filter.key === 'asset_type_id' ||
+                                        filter.key === 'certificate_type_id')
                                         ? ''
                                         : value,
                             })
