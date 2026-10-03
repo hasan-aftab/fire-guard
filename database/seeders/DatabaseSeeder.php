@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             AssetTypeSeeder::class,
+            CertificateTypeSeeder::class,
             FireTrackerDemoSeeder::class,
         ]);
 
