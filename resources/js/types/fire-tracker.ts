@@ -47,8 +47,16 @@ export type CertificateSite = Pick<
 export type AssetType = {
     id: number;
     type_name: string;
-    category: string | null;
     default_interval_months: number | null;
+    is_active: boolean;
+    assets_count?: number;
+};
+
+export type CertificateType = {
+    id: number;
+    name: string;
+    is_active: boolean;
+    certificates_count?: number;
 };
 
 export type Asset = {
@@ -118,7 +126,8 @@ export type Certificate = {
     id: number;
     site_id: number;
     asset_id: number | null;
-    certificate_type: string;
+    certificate_type_id: number;
+    certificate_type: CertificateType;
     issue_date: string;
     expiry_date: string;
     issued_by: string | null;
@@ -187,6 +196,7 @@ export type TrackerFilters = Partial<
         | 'site_presence'
         | 'site_id'
         | 'asset_type_id'
+        | 'certificate_type_id'
         | 'equipment_status'
         | 'record_state'
         | 'sort',
