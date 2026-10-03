@@ -2,6 +2,7 @@
 
 use App\Models\Asset;
 use App\Models\Certificate;
+use App\Models\CertificateType;
 use App\Models\Client;
 use App\Models\Inspection;
 use App\Models\InspectionPhoto;
@@ -110,7 +111,7 @@ test('selected site and period scope activity while audit retains its equipment 
     Inspection::factory()->for($selectedAsset)->create(['inspection_date' => '2026-09-20', 'notes' => 'Within period']);
     Inspection::factory()->for($selectedAsset)->create(['inspection_date' => '2026-08-20', 'notes' => 'Outside period']);
     Inspection::factory()->for($otherAsset)->create(['inspection_date' => '2026-09-20', 'notes' => 'Other site work']);
-    Certificate::factory()->for($selectedSite)->create(['certificate_type' => 'Site Fire Certificate']);
+    Certificate::factory()->for($selectedSite)->for(CertificateType::factory()->create(['name' => 'Site Fire Certificate']))->create();
     $pdf = Pdf::fake();
 
     $this->actingAs($user)->get(route('reports.pdf', reportQuery($client, [
