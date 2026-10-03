@@ -38,11 +38,16 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { Paginated } from '@/types/fire-tracker';
 
 type ReminderType = 'asset' | 'certificate';
-type ReminderAudience = 'configured' | 'configured_client' | 'staff' | 'client';
+type ReminderAudience = 'configured' | 'staff';
 type ReminderStatus =
     | 'pending'
     | 'processing'
@@ -77,7 +82,7 @@ type Filters = {
     due_to: string;
 };
 type Client = { id: number; company_name: string };
-type Recipient = { id: number; email: string };
+type Recipient = { id: number; email: string; excluded: boolean };
 type FallbackAdmin = { id: number; name: string; email: string };
 function formatDate(value: string): string {
     return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
@@ -99,13 +104,11 @@ function windowLabel(offset: number): string {
     return `${offset} ${offset === 1 ? 'day' : 'days'} ahead`;
 }
 
-function audienceLabel(audience: ReminderAudience): string {
+function audienceLabel(audience: ReminderAudience | string): string {
     return {
         configured: 'Selected email',
-        configured_client: 'Past client copy',
-        staff: 'Admin',
-        client: 'Past client copy',
-    }[audience];
+        staff: 'Team',
+    }[audience as string] ?? 'Internal';
 }
 
 function DeliveryBadge({ status }: { status: ReminderStatus }) {
@@ -216,6 +219,9 @@ export default function Reminders({
         number | null
     >(null);
     const appliedFilterCount = Object.values(filters).filter(Boolean).length;
+    const activeRecipientCount = recipients.filter(
+        (recipient) => !recipient.excluded,
+    ).length;
 
     const apply = (next: Filters, page = 1) => {
         router.get(
@@ -314,7 +320,7 @@ export default function Reminders({
                         </div>
                         <Badge variant="secondary">
                             {recipients.length > 0
-                                ? `${recipients.length} selected ${recipients.length === 1 ? 'email' : 'emails'}`
+                                ? `${activeRecipientCount} active ${activeRecipientCount === 1 ? 'email' : 'emails'}`
                                 : 'Admin fallback'}
                         </Badge>
                     </div>
@@ -376,32 +382,49 @@ export default function Reminders({
                                         key={recipient.id}
                                         className="flex min-w-0 items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2"
                                     >
-                                        <span className="min-w-0 truncate text-sm font-medium">
-                                            {recipient.email}
+                                        <span className="min-w-0 text-sm font-medium">
+                                            <span className="block truncate">
+                                                {recipient.email}
+                                            </span>
+                                            {recipient.excluded && (
+                                                <span className="block text-xs font-normal text-destructive">
+                                                    Excluded: client contact
+                                                    address
+                                                </span>
+                                            )}
                                         </span>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="shrink-0 text-muted-foreground"
-                                            aria-label={`Remove ${recipient.email}`}
-                                            disabled={
-                                                removingRecipientId ===
-                                                recipient.id
-                                            }
-                                            onClick={() =>
-                                                removeRecipient(recipient)
-                                            }
-                                        >
-                                            <Trash2 className="size-4" />
-                                        </Button>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="shrink-0 text-muted-foreground"
+                                                    aria-label={`Remove ${recipient.email}`}
+                                                    disabled={
+                                                        removingRecipientId ===
+                                                        recipient.id
+                                                    }
+                                                    onClick={() =>
+                                                        removeRecipient(
+                                                            recipient,
+                                                        )
+                                                    }
+                                                >
+                                                    <Trash2 className="size-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                Remove recipient
+                                            </TooltipContent>
+                                        </Tooltip>
                                     </div>
                                 ))}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Only these addresses receive scheduled
-                                reminders. Removing the last address switches
-                                back to verified admins.
+                                Only eligible addresses in this list receive
+                                reminders. Remove excluded addresses to restore
+                                verified admin fallback when the list is empty.
                             </p>
                         </div>
                     ) : (
@@ -420,8 +443,8 @@ export default function Reminders({
                                 </p>
                             ) : (
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    No verified admin is available. Add an email
-                                    above to enable reminders.
+                                    No eligible verified admin is available. Add
+                                    an internal email above to enable reminders.
                                 </p>
                             )}
                         </div>
@@ -489,12 +512,7 @@ export default function Reminders({
                                     value: 'configured',
                                     label: 'Selected email',
                                 },
-                                {
-                                    value: 'configured_client',
-                                    label: 'Past client copy',
-                                },
                                 { value: 'staff', label: 'Team' },
-                                { value: 'client', label: 'Past client copy' },
                             ]}
                             onChange={(value) =>
                                 update({
@@ -550,6 +568,21 @@ export default function Reminders({
 
                     <div aria-busy={filtering}>
                         <div className="hidden md:block">
+                            <div className="mb-2 flex items-center justify-between">
+                                <p className="text-xs text-muted-foreground">
+                                    {records.total} total record
+                                    {records.total === 1 ? '' : 's'}
+                                </p>
+                                <Pagination
+                                    currentPage={records.current_page}
+                                    totalItems={records.total}
+                                    pageSize={records.per_page}
+                                    loading={filtering}
+                                    onPageChange={(page) =>
+                                        apply(working, page)
+                                    }
+                                />
+                            </div>
                             <Table
                                 containerProps={{
                                     className:
