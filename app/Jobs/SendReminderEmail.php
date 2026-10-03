@@ -92,8 +92,7 @@ class SendReminderEmail implements ShouldQueue
             return false;
         }
         if ($delivery->audience === 'configured') {
-            if (! ReminderRecipient::query()->where('email', $delivery->recipient)->exists()
-                || ReminderRecipient::isClientContactEmail($delivery->recipient)) {
+            if (! ReminderRecipient::query()->where('email', $delivery->recipient)->exists()) {
                 return false;
             }
         } elseif ($delivery->audience === 'staff') {
