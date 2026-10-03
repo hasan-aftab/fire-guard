@@ -12,9 +12,7 @@
 @endsection
 
 @section('intro')
-@if (! $delivery->isClientAudience()) The certificate below needs a renewal follow-up for {{ $delivery->site_name }}.
-@else The certificate below is approaching its expiry date for {{ $delivery->site_name }}.
-@endif
+The certificate below needs a renewal follow-up for {{ $delivery->site_name }}.
 @endsection
 
 @section('timing')
@@ -29,7 +27,5 @@
 @endsection
 
 @section('next_step')
-@if (! $delivery->isClientAudience()) Check the certificate record and contact the client about renewal before the expiry date.
-@else Contact our team if you need help arranging renewal or if the certificate details have changed.
-@endif
+Check the certificate record and contact the client about renewal before the expiry date.
 @endsection
