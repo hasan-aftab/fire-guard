@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Asset;
 use App\Models\AssetType;
 use App\Models\Certificate;
+use App\Models\CertificateType;
 use App\Models\Client;
 use App\Models\Inspection;
 use App\Models\Site;
@@ -17,6 +18,7 @@ class FireTrackerDemoSeeder extends Seeder
     public function run(): void
     {
         $this->call(AssetTypeSeeder::class);
+        $this->call(CertificateTypeSeeder::class);
         if (Client::exists() || Asset::exists()) {
             return;
         }
@@ -78,6 +80,8 @@ class FireTrackerDemoSeeder extends Seeder
                 ['id' => 5, 'site_id' => 101, 'certificate_type' => 'Electrical Safety Certificate', 'issue_date' => '2025-08-20', 'expiry_date' => '2026-08-20'],
                 ['id' => 6, 'site_id' => 104, 'certificate_type' => 'Emergency Evacuation Plan', 'issue_date' => '2026-01-15', 'expiry_date' => '2026-09-30']];
             foreach ($certificates as $attributes) {
+                $attributes['certificate_type_id'] = CertificateType::query()->where('name', $attributes['certificate_type'])->value('id');
+                unset($attributes['certificate_type']);
                 Certificate::unguarded(fn () => Certificate::create($attributes));
             }
         });
