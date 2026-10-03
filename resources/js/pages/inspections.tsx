@@ -48,6 +48,13 @@ export default function Inspections({
     );
     const addDisabled =
         activeAssets.length === 0 || activeTechnicians.length === 0;
+    const siteOptions = Array.from(
+        new Map(assets.map((asset) => [asset.site.id, asset.site])).values(),
+    ).sort((a, b) =>
+        `${a.client.company_name} ${a.site_name}`.localeCompare(
+            `${b.client.company_name} ${b.site_name}`,
+        ),
+    );
     return (
         <RecordPage
             title="Inspections"
@@ -68,13 +75,45 @@ export default function Inspections({
                 isEnteredInError: (inspection) =>
                     inspection.entered_in_error_at !== null,
             }}
-            searchPlaceholder="Search by asset, technician, or notes..."
+            searchPlaceholder="Search asset, site, client, technician, or notes..."
             dateLabel="Inspection date range"
             statusKey="result"
             statusOptions={[
                 { value: 'pass', label: 'Pass' },
                 { value: 'fail', label: 'Fail' },
                 { value: 'needs_repair', label: 'Needs repair' },
+            ]}
+            extraFilters={[
+                {
+                    key: 'site_id',
+                    label: 'Site',
+                    options: [
+                        { value: 'all', label: 'All sites' },
+                        ...siteOptions.map((site) => ({
+                            value: String(site.id),
+                            label: `${site.client.company_name} > ${site.site_name}`,
+                        })),
+                    ],
+                },
+                {
+                    key: 'technician_id',
+                    label: 'Technician',
+                    options: [
+                        { value: 'all', label: 'All technicians' },
+                        ...technicians.map((technician) => ({
+                            value: String(technician.id),
+                            label: technician.full_name,
+                        })),
+                    ],
+                },
+                {
+                    key: 'sort',
+                    label: 'Sort',
+                    options: [
+                        { value: 'all', label: 'Newest first' },
+                        { value: 'oldest', label: 'Oldest first' },
+                    ],
+                },
             ]}
             addLabel="Log inspection"
             createTitle="Log inspection"
@@ -87,6 +126,7 @@ export default function Inspections({
                 {
                     key: 'asset',
                     header: 'Asset',
+                    className: 'max-w-56 truncate',
                     render: (inspection) =>
                         `${inspection.asset.serial_number || 'No S/N'} — ${inspection.asset.location_desc || '—'}`,
                 },
@@ -95,6 +135,13 @@ export default function Inspections({
                     header: 'Technician',
                     render: (inspection) =>
                         inspection.technician?.full_name || 'Unassigned',
+                },
+                {
+                    key: 'site',
+                    header: 'Site',
+                    className: 'max-w-48 truncate',
+                    render: (inspection) =>
+                        `${inspection.asset.site.client.company_name} > ${inspection.asset.site.site_name}`,
                 },
                 {
                     key: 'date',
@@ -132,8 +179,8 @@ export default function Inspections({
                 </div>
             )}
             defaults={{
-                asset_id: String(activeAssets[0]?.id ?? ''),
-                technician_id: String(activeTechnicians[0]?.id ?? ''),
+                asset_id: '',
+                technician_id: '',
                 inspection_date: today,
                 result: 'pass',
                 notes: '',
@@ -210,8 +257,11 @@ export default function Inspections({
                         const asset = assets.find(
                             (option) => String(option.id) === values.asset_id,
                         );
+                        if (!asset) {
+                            return 'Choose an asset to see its normal inspection interval.';
+                        }
                         const interval =
-                            asset?.asset_type.default_interval_months;
+                            asset.asset_type.default_interval_months;
                         if (!interval || interval < 1) {
                             return 'This asset type has no inspection interval. Enter the next date manually.';
                         }
