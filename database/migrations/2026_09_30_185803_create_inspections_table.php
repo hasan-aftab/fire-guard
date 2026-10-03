@@ -18,7 +18,9 @@ return new class extends Migration
             $table->date('next_due_date')->nullable()->index();
             $table->timestamp('entered_in_error_at')->nullable();
             $table->timestamps();
-            $table->index('entered_in_error_at');
+            $table->index(['entered_in_error_at', 'inspection_date', 'id']);
+            $table->index(['inspection_date', 'id']);
+            $table->index(['asset_id', 'inspection_date', 'id']);
         });
     }
 
