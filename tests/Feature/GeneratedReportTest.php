@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Asset;
+use App\Models\Certificate;
 use App\Models\Client;
 use App\Models\GeneratedReport;
 use App\Models\Inspection;
@@ -137,6 +138,41 @@ test('original view and download read saved bytes after current data and default
     expect($old->fresh()->metadata['client_name'])->toBe('Before');
     expect(Storage::disk('local')->get($old->storage_path))->toBe($originalBytes);
     Storage::disk('archive')->assertExists($new->storage_path);
+});
+
+test('type edits affect new report data while saved report bytes remain unchanged', function () {
+    $client = Client::factory()->create();
+    $site = Site::factory()->for($client)->create();
+    $asset = Asset::factory()->for($site)->create();
+    $certificate = Certificate::factory()->for($site)->create();
+    Storage::fake('local');
+    Pdf::fake();
+    $this->actingAs(User::factory()->create(['role' => User::ROLE_ADMIN]));
+
+    $this->post(route('reports.store'), generatedReportInput($client, [
+        'type' => 'audit', 'site_id' => $site->id,
+    ]))->assertRedirect(route('reports.index'));
+    $saved = GeneratedReport::query()->sole();
+    $originalBytes = Storage::disk('local')->get($saved->storage_path);
+
+    $assetType = $asset->assetType;
+    $this->put(route('asset-types.update', $assetType), [
+        'type_name' => 'Updated Equipment',
+        'default_interval_months' => $assetType->default_interval_months,
+    ])->assertSessionHasNoErrors();
+    $this->put(route('certificate-types.update', $certificate->certificateType), [
+        'name' => 'Updated Certificate',
+    ])->assertSessionHasNoErrors();
+    expect($assetType->refresh()->type_name)->toBe('Updated Equipment');
+    expect($certificate->certificateType->refresh()->name)->toBe('Updated Certificate');
+    Pdf::fake();
+
+    $this->get(route('reports.pdf', generatedReportInput($client, [
+        'type' => 'audit', 'site_id' => $site->id,
+    ])))->assertOk();
+    Pdf::assertSee(['Updated Equipment', 'Updated Certificate']);
+    expect(Storage::disk('local')->get($saved->storage_path))->toBe($originalBytes);
+    expect($this->get(route('reports.show', $saved))->streamedContent())->toBe($originalBytes);
 });
 
 test('the previous direct PDF link also persists every generated report', function () {
