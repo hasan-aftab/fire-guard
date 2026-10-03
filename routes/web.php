@@ -33,13 +33,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('reminders', [ReminderHistoryController::class, 'index'])->name('reminders.index');
     Route::post('reminders/recipients', [ReminderRecipientController::class, 'store'])->name('reminders.recipients.store');
     Route::delete('reminders/recipients/{reminderRecipient}', [ReminderRecipientController::class, 'destroy'])->name('reminders.recipients.destroy');
-    Route::get('reminders/templates/{type}/preview', [ReminderHistoryController::class, 'samplePreview'])
-        ->whereIn('type', ['asset', 'certificate'])->name('reminders.templates.preview');
-    Route::post('reminders/templates/{type}/test-email', [ReminderHistoryController::class, 'sampleTestEmail'])
-        ->whereIn('type', ['asset', 'certificate'])->middleware('throttle:5,1')->name('reminders.templates.test-email');
-    Route::get('reminders/{reminderDelivery}/preview', [ReminderHistoryController::class, 'preview'])->name('reminders.preview');
-    Route::post('reminders/{reminderDelivery}/test-email', [ReminderHistoryController::class, 'testEmail'])
-        ->middleware('throttle:5,1')->name('reminders.test-email');
     Route::post('reports', [ReportController::class, 'store'])->name('reports.store');
     Route::get('reports/pdf', [ReportController::class, 'legacyPdf'])->name('reports.pdf');
     Route::get('reports/{generatedReport}/view', [ReportController::class, 'show'])->name('reports.show');
