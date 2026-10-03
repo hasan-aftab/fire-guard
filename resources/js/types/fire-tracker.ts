@@ -157,7 +157,9 @@ export type Counts = Record<
     | 'assets'
     | 'inspections'
     | 'certificates'
-    | 'technicians',
+    | 'technicians'
+    | 'reports'
+    | 'reminders',
     number
 >;
 export type NotificationData = {
