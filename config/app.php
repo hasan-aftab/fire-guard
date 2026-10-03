@@ -65,7 +65,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'Pacific/Port_Moresby'),
 
     /*
     |--------------------------------------------------------------------------
