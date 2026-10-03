@@ -12,6 +12,11 @@ import { useState } from 'react';
 import { dashboard } from '@/routes';
 import { ComplianceGauge } from '@/components/compliance-gauge';
 import { DataTable } from '@/components/data-table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
@@ -190,15 +195,20 @@ export default function Dashboard({
             header: '',
             className: 'w-16',
             render: (asset: UpcomingInspection) => (
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`View ${asset.typeName} ${asset.serialNumber || 'asset'}`}
-                    onClick={() => setViewingAttention(asset)}
-                    className="size-8 text-muted-foreground hover:text-foreground"
-                >
-                    <Eye className="size-4" />
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`View ${asset.typeName} ${asset.serialNumber || 'asset'}`}
+                            onClick={() => setViewingAttention(asset)}
+                            className="size-8 text-muted-foreground hover:text-foreground"
+                        >
+                            <Eye className="size-4" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>View asset details</TooltipContent>
+                </Tooltip>
             ),
         },
     ];
@@ -250,15 +260,20 @@ export default function Dashboard({
             header: '',
             className: 'w-16',
             render: (certificate: ExpiringCertificate) => (
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`View ${certificate.certificateType} at ${certificate.siteName}`}
-                    onClick={() => setViewingCert(certificate)}
-                    className="size-8 text-muted-foreground hover:text-foreground"
-                >
-                    <Eye className="size-4" />
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`View ${certificate.certificateType} at ${certificate.siteName}`}
+                            onClick={() => setViewingCert(certificate)}
+                            className="size-8 text-muted-foreground hover:text-foreground"
+                        >
+                            <Eye className="size-4" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>View certificate details</TooltipContent>
+                </Tooltip>
             ),
         },
     ];
@@ -397,21 +412,33 @@ export default function Dashboard({
                                         placeholder="Filter by due date"
                                     />
                                     {attentionFiltered && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            aria-label="Clear due date filter"
-                                            onClick={() =>
-                                                applyFilters('attention', {
-                                                    attention_from: '',
-                                                    attention_to: '',
-                                                    attention_page: 1,
-                                                })
-                                            }
-                                            className="h-8 px-2 text-muted-foreground"
-                                        >
-                                            <RotateCcw className="size-3.5" />
-                                        </Button>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    aria-label="Clear due date filter"
+                                                    onClick={() =>
+                                                        applyFilters(
+                                                            'attention',
+                                                            {
+                                                                attention_from:
+                                                                    '',
+                                                                attention_to:
+                                                                    '',
+                                                                attention_page: 1,
+                                                            },
+                                                        )
+                                                    }
+                                                    className="h-8 px-2 text-muted-foreground"
+                                                >
+                                                    <RotateCcw className="size-3.5" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                Clear filter
+                                            </TooltipContent>
+                                        </Tooltip>
                                     )}
                                 </div>
                             </div>
@@ -435,11 +462,16 @@ export default function Dashboard({
                                 </div>
                             ) : (
                                 <>
+                                    <div className="border-b px-4 py-2 text-xs text-muted-foreground">
+                                        {attention.total} total record
+                                        {attention.total === 1 ? '' : 's'}
+                                    </div>
                                     <DataTable
                                         columns={attentionColumns}
                                         data={attention.data}
                                         startIndex={attentionStart}
                                         rowKey={(asset) => asset.assetId}
+                                        scrollLabel={`Needs attention (${attention.total} total)`}
                                     />
                                     {attention.total > attention.per_page && (
                                         <div className="border-t">
@@ -500,21 +532,31 @@ export default function Dashboard({
                                         placeholder="Filter by expiry date"
                                     />
                                     {certFiltered && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            aria-label="Clear expiry date filter"
-                                            onClick={() =>
-                                                applyFilters('certificates', {
-                                                    cert_from: '',
-                                                    cert_to: '',
-                                                    cert_page: 1,
-                                                })
-                                            }
-                                            className="h-8 px-2 text-muted-foreground"
-                                        >
-                                            <RotateCcw className="size-3.5" />
-                                        </Button>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    aria-label="Clear expiry date filter"
+                                                    onClick={() =>
+                                                        applyFilters(
+                                                            'certificates',
+                                                            {
+                                                                cert_from: '',
+                                                                cert_to: '',
+                                                                cert_page: 1,
+                                                            },
+                                                        )
+                                                    }
+                                                    className="h-8 px-2 text-muted-foreground"
+                                                >
+                                                    <RotateCcw className="size-3.5" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                Clear filter
+                                            </TooltipContent>
+                                        </Tooltip>
                                     )}
                                 </div>
                             </div>
@@ -538,6 +580,10 @@ export default function Dashboard({
                                 </div>
                             ) : (
                                 <>
+                                    <div className="border-b px-4 py-2 text-xs text-muted-foreground">
+                                        {certificates.total} total record
+                                        {certificates.total === 1 ? '' : 's'}
+                                    </div>
                                     <DataTable
                                         columns={certificateColumns}
                                         data={certificates.data}
@@ -545,6 +591,7 @@ export default function Dashboard({
                                         rowKey={(certificate) =>
                                             certificate.certificateId
                                         }
+                                        scrollLabel={`Expiring certificates (${certificates.total} total)`}
                                     />
                                     {certificates.total >
                                         certificates.per_page && (
