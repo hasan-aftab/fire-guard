@@ -38,6 +38,8 @@ export function TrackerFilters({
             | 'site_presence'
             | 'sort'
             | 'site_id'
+            | 'technician_id'
+            | 'asset_id'
             | 'asset_type_id'
             | 'certificate_type_id'
             | 'equipment_status'
@@ -174,6 +176,8 @@ export function TrackerFilters({
                                     value === 'all' &&
                                     (filter.key === 'site_id' ||
                                         filter.key === 'asset_type_id' ||
+                                        filter.key === 'technician_id' ||
+                                        filter.key === 'asset_id' ||
                                         filter.key === 'certificate_type_id')
                                         ? ''
                                         : value,
