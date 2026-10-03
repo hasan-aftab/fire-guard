@@ -114,11 +114,13 @@ const navGroups: NavGroup[] = [
                 title: 'Asset Types',
                 href: assetTypes(),
                 icon: Shapes,
+                count: 'assetTypes',
             },
             {
                 title: 'Certificate Types',
                 href: certificateTypes(),
                 icon: Files,
+                count: 'certificateTypes',
             },
         ],
     },
