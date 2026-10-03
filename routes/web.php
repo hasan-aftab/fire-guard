@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AssetTypeController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CertificateDocumentController;
+use App\Http\Controllers\CertificateTypeController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FireNotificationController;
@@ -20,6 +22,12 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::middleware('can:manage-reference-data')->group(function (): void {
+        Route::resource('asset-types', AssetTypeController::class)->parameters(['asset-types' => 'assetType'])->only(['index', 'store', 'update', 'destroy']);
+        Route::patch('asset-types/{assetType}/restore', [AssetTypeController::class, 'restore'])->name('asset-types.restore');
+        Route::resource('certificate-types', CertificateTypeController::class)->parameters(['certificate-types' => 'certificateType'])->only(['index', 'store', 'update', 'destroy']);
+        Route::patch('certificate-types/{certificateType}/restore', [CertificateTypeController::class, 'restore'])->name('certificate-types.restore');
+    });
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reminders', [ReminderHistoryController::class, 'index'])->name('reminders.index');
