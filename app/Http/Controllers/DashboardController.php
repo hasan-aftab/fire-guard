@@ -65,8 +65,8 @@ class DashboardController extends Controller
         }
 
         $certificatesQuery = Certificate::query()
-            ->select(['id', 'site_id', 'certificate_type', 'expiry_date'])
-            ->with('site:id,site_name')
+            ->select(['id', 'site_id', 'certificate_type_id', 'expiry_date'])
+            ->with(['site:id,site_name', 'certificateType:id,name'])
             ->where('expiry_date', '<=', $certificateAlertEnd)->whereNull('entered_in_error_at');
         $certificatesQuery->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')
             ->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))
@@ -147,7 +147,7 @@ class DashboardController extends Controller
 
                 return $page->through(fn (Certificate $certificate): array => [
                     'certificateId' => $certificate->id,
-                    'certificateType' => $certificate->certificate_type,
+                    'certificateType' => $certificate->certificateType->name,
                     'expiryDate' => $certificate->expiry_date->toDateString(),
                     'status' => $certificate->status,
                     'siteName' => $certificate->site->site_name,
