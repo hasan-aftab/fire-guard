@@ -98,6 +98,8 @@ export function RecordPage<T extends { id: number }>({
             | 'site_presence'
             | 'sort'
             | 'site_id'
+            | 'technician_id'
+            | 'asset_id'
             | 'asset_type_id'
             | 'certificate_type_id'
             | 'equipment_status'
