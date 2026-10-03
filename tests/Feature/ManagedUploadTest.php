@@ -2,6 +2,7 @@
 
 use App\Models\Asset;
 use App\Models\Certificate;
+use App\Models\CertificateType;
 use App\Models\Inspection;
 use App\Models\ManagedUpload;
 use App\Models\Site;
@@ -33,7 +34,7 @@ test('create forms return record ids for file handoff without an early success t
     $site = Site::factory()->create();
     $this->post(route('certificates.store'), [
         'site_id' => $site->id,
-        'certificate_type' => 'Test Certificate',
+        'certificate_type_id' => CertificateType::factory()->create()->id,
         'issue_date' => '2026-10-01',
         'expiry_date' => '2027-10-01',
         'upload_pending' => '1',
@@ -53,7 +54,7 @@ test('editing details with selected files waits for upload before showing succes
 
     $this->put(route('certificates.update', $certificate), [
         'site_id' => $certificate->site_id,
-        'certificate_type' => 'Updated Certificate',
+        'certificate_type_id' => $certificate->certificate_type_id,
         'issue_date' => '2026-10-01',
         'expiry_date' => '2027-10-01',
         'upload_pending' => '1',
