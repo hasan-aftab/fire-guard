@@ -91,7 +91,7 @@ class DiscoverFireReminders
     {
         $created = 0;
         Certificate::query()
-            ->with(['site.client', 'asset.assetType'])
+            ->with(['site.client', 'asset.assetType', 'certificateType'])
             ->whereNull('entered_in_error_at')
             ->whereHas('site', fn ($query) => $query->where('is_active', true)->whereNull('entered_in_error_at')
                 ->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))
@@ -99,7 +99,7 @@ class DiscoverFireReminders
             ->whereDate('expiry_date', $overdue ? '<' : '=', $date)
             ->chunkById(100, function ($certificates) use ($offset, $recipients, &$created): void {
                 foreach ($certificates as $certificate) {
-                    $name = $certificate->certificate_type;
+                    $name = $certificate->certificateType->name;
                     if ($certificate->asset !== null) {
                         $name .= ' — '.$certificate->asset->assetType->type_name;
                         if ($certificate->asset->serial_number !== null) {
