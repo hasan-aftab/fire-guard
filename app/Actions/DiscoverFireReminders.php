@@ -50,6 +50,9 @@ class DiscoverFireReminders
         $recipients = [];
         if ($configured->isNotEmpty()) {
             foreach ($configured as $recipient) {
+                if (ReminderRecipient::isClientContactEmail($recipient->email)) {
+                    continue;
+                }
                 $recipients[] = ['email' => $recipient->email, 'name' => 'team', 'audience' => 'configured'];
             }
 
@@ -59,6 +62,9 @@ class DiscoverFireReminders
         $admins = User::query()->where('role', User::ROLE_ADMIN)->whereNotNull('email_verified_at')
             ->orderBy('id')->get(['name', 'email']);
         foreach ($admins as $admin) {
+            if (ReminderRecipient::isClientContactEmail($admin->email)) {
+                continue;
+            }
             $recipients[] = ['email' => $admin->email, 'name' => $admin->name, 'audience' => 'staff'];
         }
 
@@ -120,13 +126,8 @@ class DiscoverFireReminders
         $client = $site->client;
         $created = 0;
         foreach ($recipients as $recipient) {
-            $audience = $recipient['audience'];
-            $clientEmail = trim((string) $client->email);
-            if ($audience === 'configured' && $clientEmail !== '' && strcasecmp($recipient['email'], $clientEmail) === 0) {
-                $audience = 'configured_client';
-            }
             $created += $this->createDelivery($type, $subject, $client, $site, $dueDate, $offset, $name,
-                $recipient['email'], $recipient['name'], $audience);
+                $recipient['email'], $recipient['name'], $recipient['audience']);
         }
 
         return $created;
