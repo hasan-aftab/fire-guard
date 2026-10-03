@@ -18,6 +18,8 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamp('entered_in_error_at')->nullable();
             $table->timestamps();
+            $table->index('license_expiry');
+            $table->index(['full_name', 'id']);
         });
     }
 
