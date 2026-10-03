@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Asset;
 use App\Models\Certificate;
+use App\Models\CertificateType;
 use App\Models\Site;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
@@ -41,7 +42,15 @@ class CertificateRequest extends FormRequest
                     $fail('Choose active equipment for a new certificate.');
                 }
             }],
-            'certificate_type' => ['required', 'string', 'max:255'],
+            'certificate_type_id' => ['required', 'integer', Rule::exists('certificate_types', 'id'), function (string $attribute, mixed $value, Closure $fail): void {
+                $certificate = $this->route('certificate');
+                if ($certificate instanceof Certificate && $certificate->certificate_type_id === (int) $value) {
+                    return;
+                }
+                if (! CertificateType::query()->whereKey($value)->where('is_active', true)->exists()) {
+                    $fail('Choose an active certificate type.');
+                }
+            }],
             'issue_date' => ['required', 'date_format:Y-m-d'],
             'expiry_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:issue_date'],
             'issued_by' => ['nullable', 'string', 'max:255'],
