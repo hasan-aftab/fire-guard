@@ -37,7 +37,13 @@ export type FormField = {
         | 'select'
         | 'checkbox';
     required?: boolean;
-    options?: { value: string; label: string }[];
+    options?:
+        | { value: string; label: string }[]
+        | ((
+              values: Record<string, string>,
+          ) => { value: string; label: string }[]);
+    emptyLabel?: string;
+    resetFieldsOnChange?: string[];
     placeholder?: string;
     description?: string | ((values: Record<string, string>) => string);
     maxLength?: number;
@@ -230,7 +236,19 @@ export function RecordForm({
                             .filter(Boolean)
                             .join(' ') || undefined;
                     const change = (value: string) => {
-                        form.setData(field.name, value);
+                        if (field.resetFieldsOnChange) {
+                            const resetFields = field.resetFieldsOnChange;
+                            form.setData((data) => ({
+                                ...data,
+                                [field.name]: value,
+                                ...Object.fromEntries(
+                                    resetFields.map((name) => [name, '']),
+                                ),
+                            }));
+                            form.clearErrors(...resetFields);
+                        } else {
+                            form.setData(field.name, value);
+                        }
                         const input = formRef.current?.querySelector<
                             HTMLInputElement | HTMLTextAreaElement
                         >(`#${id}`);
@@ -275,8 +293,17 @@ export function RecordForm({
                                 />
                             ) : field.type === 'select' ? (
                                 <Select
-                                    value={form.data[field.name] || undefined}
-                                    onValueChange={change}
+                                    value={
+                                        form.data[field.name] ||
+                                        (field.emptyLabel
+                                            ? '__none__'
+                                            : undefined)
+                                    }
+                                    onValueChange={(value) =>
+                                        change(
+                                            value === '__none__' ? '' : value,
+                                        )
+                                    }
                                     disabled={locked}
                                 >
                                     <SelectTrigger
@@ -295,7 +322,16 @@ export function RecordForm({
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectGroup>
-                                            {field.options?.map((option) => (
+                                            {field.emptyLabel && (
+                                                <SelectItem value="__none__">
+                                                    {field.emptyLabel}
+                                                </SelectItem>
+                                            )}
+                                            {(typeof field.options ===
+                                            'function'
+                                                ? field.options(form.data)
+                                                : field.options
+                                            )?.map((option) => (
                                                 <SelectItem
                                                     key={option.value}
                                                     value={option.value}
