@@ -40,6 +40,7 @@ class ReportDataBuilder
 
         $certificates = Certificate::query()->whereIn('site_id', $siteIds)
             ->when(! $filters->includeEnteredInError, fn ($query) => $query->whereNull('entered_in_error_at'))
+            ->with('certificateType:id,name')
             ->orderBy('id')->limit($this->limit('max_certificates') + 1)->get();
         $this->assertWithinLimit('client_id', $certificates->count(), 'max_certificates');
 
@@ -156,7 +157,7 @@ class ReportDataBuilder
     private function certificateRows(Collection $certificates): array
     {
         return array_values($certificates->map(fn (Certificate $certificate): array => [
-            'type' => $certificate->certificate_type,
+            'type' => $certificate->certificateType->name,
             'issue_date' => $certificate->issue_date->toDateString(),
             'expiry_date' => $certificate->expiry_date->toDateString(),
             'issued_by' => $certificate->issued_by,
