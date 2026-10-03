@@ -12,9 +12,7 @@
 @endsection
 
 @section('intro')
-@if (! $delivery->isClientAudience()) The equipment below needs an inspection follow-up at {{ $delivery->site_name }}.
-@else The equipment below is approaching its next inspection at {{ $delivery->site_name }}.
-@endif
+The equipment below needs an inspection follow-up at {{ $delivery->site_name }}.
 @endsection
 
 @section('timing')
@@ -29,7 +27,5 @@
 @endsection
 
 @section('next_step')
-@if (! $delivery->isClientAudience()) Contact the client to confirm access and arrange the inspection. Review the asset record before the visit.
-@else Please make the equipment available for inspection. Contact our team if the site or access details have changed.
-@endif
+Contact the client to confirm access and arrange the inspection. Review the asset record before the visit.
 @endsection
