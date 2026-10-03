@@ -6,12 +6,16 @@ import {
     LayoutDashboard,
     FileText,
     Mail,
+    Shapes,
+    Files,
     ShieldCheck,
     Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { index as assets } from '@/actions/App/Http/Controllers/AssetController';
+import { index as assetTypes } from '@/actions/App/Http/Controllers/AssetTypeController';
 import { index as certificates } from '@/actions/App/Http/Controllers/CertificateController';
+import { index as certificateTypes } from '@/actions/App/Http/Controllers/CertificateTypeController';
 import { index as clients } from '@/actions/App/Http/Controllers/ClientController';
 import { index as inspections } from '@/actions/App/Http/Controllers/InspectionController';
 import { index as technicians } from '@/actions/App/Http/Controllers/TechnicianController';
@@ -75,7 +79,7 @@ const platformNavItems: PlatformNavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { counts } = usePage().props;
+    const { counts, auth } = usePage().props;
     const { isCurrentUrl } = useCurrentUrl();
     const { isMobile, setOpenMobile } = useSidebar();
 
@@ -138,6 +142,46 @@ export function AppSidebar() {
                         ))}
                     </SidebarMenu>
                 </SidebarGroup>
+                {auth.user.role === 'admin' && (
+                    <SidebarGroup className="px-2 py-0">
+                        <SidebarGroupLabel>Reference data</SidebarGroupLabel>
+                        <SidebarMenu>
+                            {[
+                                {
+                                    title: 'Asset Types',
+                                    href: assetTypes(),
+                                    icon: Shapes,
+                                },
+                                {
+                                    title: 'Certificate Types',
+                                    href: certificateTypes(),
+                                    icon: Files,
+                                },
+                            ].map((item) => (
+                                <SidebarMenuItem key={item.title}>
+                                    <SidebarMenuButton
+                                        asChild
+                                        tooltip={item.title}
+                                        isActive={isCurrentUrl(item.href)}
+                                        className={cn(
+                                            isCurrentUrl(item.href) &&
+                                                activeItemClass,
+                                        )}
+                                    >
+                                        <Link
+                                            href={item.href}
+                                            prefetch
+                                            onClick={closeMobileSidebar}
+                                        >
+                                            <item.icon />
+                                            <span>{item.title}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroup>
+                )}
             </SidebarContent>
             <SidebarFooter>
                 <NavUser />
