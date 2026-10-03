@@ -1,9 +1,10 @@
-import { Head, Link, router, useForm, usePage } from "@inertiajs/react";
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     Archive,
     CalendarDays,
     Check,
     ChevronDown,
+    CircleOff,
     Download,
     Eye,
     FileCheck2,
@@ -12,30 +13,30 @@ import {
     RotateCcw,
     SlidersHorizontal,
     X,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { useRef, useState } from "react";
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { useRef, useState } from 'react';
 import {
     download,
     index,
     regenerate,
     show,
     store,
-} from "@/actions/App/Http/Controllers/ReportController";
-import { index as clientsIndex } from "@/actions/App/Http/Controllers/ClientController";
-import { DatePicker } from "@/components/date-picker";
-import { Pagination } from "@/components/pagination";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+} from '@/actions/App/Http/Controllers/ReportController';
+import { index as clientsIndex } from '@/actions/App/Http/Controllers/ClientController';
+import { DatePicker } from '@/components/date-picker';
+import { Pagination } from '@/components/pagination';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -43,10 +44,15 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from "@/components/ui/table";
-import { cn } from "@/lib/utils";
-import type { Paginated } from "@/types/fire-tracker";
-import { PageHeader } from "@/components/page-header";
+} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
+import type { Paginated } from '@/types/fire-tracker';
+import { PageHeader } from '@/components/page-header';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 type Option = { value: string; label: string };
 type Client = { id: number; company_name: string };
@@ -77,21 +83,21 @@ type HistoryFilters = {
 };
 
 const dateFilterKeys: (keyof HistoryFilters)[] = [
-    "generated_from",
-    "generated_to",
-    "period_from",
-    "period_to",
+    'generated_from',
+    'generated_to',
+    'period_from',
+    'period_to',
 ];
 
 function emptyFilters(): HistoryFilters {
     return {
-        type: "",
-        client_id: "",
-        site_id: "",
-        generated_from: "",
-        generated_to: "",
-        period_from: "",
-        period_to: "",
+        type: '',
+        client_id: '',
+        site_id: '',
+        generated_from: '',
+        generated_to: '',
+        period_from: '',
+        period_to: '',
     };
 }
 
@@ -100,15 +106,15 @@ function filtersToHistory(filters: Partial<HistoryFilters>): HistoryFilters {
 }
 
 function dateLabel(value: string): string {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
-        new Date(value + "T12:00:00"),
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
+        new Date(value + 'T12:00:00'),
     );
 }
 
 function generatedLabel(value: string): string {
     return new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
+        dateStyle: 'medium',
+        timeStyle: 'short',
     }).format(new Date(value));
 }
 
@@ -117,30 +123,30 @@ function typeDetails(value: string): {
     description: string;
 } {
     switch (value) {
-        case "inspection":
+        case 'inspection':
             return {
                 icon: FileSearch,
-                description: "Inspection results and evidence",
+                description: 'Inspection results and evidence',
             };
-        case "service":
+        case 'service':
             return {
                 icon: FileCheck2,
-                description: "Service view of inspection activity",
+                description: 'Service view of inspection activity',
             };
-        case "maintenance":
+        case 'maintenance':
             return {
                 icon: SlidersHorizontal,
-                description: "Maintenance view of inspection activity",
+                description: 'Maintenance view of inspection activity',
             };
-        case "audit":
+        case 'audit':
             return {
                 icon: Archive,
-                description: "Assets, certificates and activity",
+                description: 'Assets, certificates and activity',
             };
         default:
             return {
                 icon: FileText,
-                description: "Report from current records",
+                description: 'Report from current records',
             };
     }
 }
@@ -166,15 +172,15 @@ function Choice({
 }) {
     return (
         <Select
-            value={value || "none"}
-            onValueChange={(next) => onChange(next === "none" ? "" : next)}
+            value={value || 'none'}
+            onValueChange={(next) => onChange(next === 'none' ? '' : next)}
             disabled={disabled}
         >
             <SelectTrigger
                 id={id}
                 aria-invalid={invalid}
                 aria-required={required}
-                aria-describedby={invalid ? id + "-error" : undefined}
+                aria-describedby={invalid ? id + '-error' : undefined}
                 className="w-full bg-background"
             >
                 <SelectValue placeholder={placeholder} />
@@ -204,52 +210,93 @@ function ReportActions({
 }) {
     return (
         <div className="flex flex-wrap items-center gap-1.5">
-            <Button asChild size="sm" variant="outline">
-                <a
-                    href={show(report.id).url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={
-                        "View original " +
-                        report.title +
-                        " for " +
-                        report.client_name
-                    }
-                >
-                    <Eye data-icon="inline-start" />
-                    View
-                </a>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-                <a
-                    href={download(report.id).url}
-                    aria-label={
-                        "Download original " +
-                        report.title +
-                        " for " +
-                        report.client_name
-                    }
-                >
-                    <Download data-icon="inline-start" />
-                    Download
-                </a>
-            </Button>
-            <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={disabled}
-                onClick={() => onRegenerate(report)}
-                aria-label={
-                    "Generate a new " +
-                    report.title +
-                    " for " +
-                    report.client_name
-                }
-            >
-                <RotateCcw data-icon="inline-start" />
-                {regenerating ? "Generating…" : "Generate Again"}
-            </Button>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        asChild
+                        size="icon"
+                        variant="ghost"
+                        className="size-7"
+                    >
+                        <a
+                            href={show(report.id).url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={
+                                'View original ' +
+                                report.title +
+                                ' for ' +
+                                report.client_name
+                            }
+                        >
+                            <Eye className="size-4" />
+                            <span className="sr-only">View</span>
+                        </a>
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>View</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        asChild
+                        size="icon"
+                        variant="ghost"
+                        className="size-7"
+                    >
+                        <a
+                            href={download(report.id).url}
+                            aria-label={
+                                'Download original ' +
+                                report.title +
+                                ' for ' +
+                                report.client_name
+                            }
+                        >
+                            <Download className="size-4" />
+                            <span className="sr-only">Download</span>
+                        </a>
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>Download</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="size-7"
+                        disabled={disabled}
+                        onClick={() => onRegenerate(report)}
+                        aria-label={
+                            regenerating
+                                ? 'Regenerating ' +
+                                  report.title +
+                                  ' for ' +
+                                  report.client_name +
+                                  '…'
+                                : 'Regenerate ' +
+                                  report.title +
+                                  ' for ' +
+                                  report.client_name
+                        }
+                    >
+                        <RotateCcw
+                            className={cn(
+                                'size-4',
+                                regenerating && 'animate-spin',
+                            )}
+                        />
+                        <span className="sr-only">
+                            {regenerating ? 'Regenerating…' : 'Regenerate'}
+                        </span>
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    {regenerating ? 'Regenerating…' : 'Regenerate'}
+                </TooltipContent>
+            </Tooltip>
         </div>
     );
 }
@@ -266,11 +313,18 @@ function ReportIdentity({ report }: { report: SavedReport }) {
                 <p className="mt-0.5 text-xs text-muted-foreground">
                     Report #{report.id}
                     {report.regenerated_from_id &&
-                        " · From #" + report.regenerated_from_id}
+                        ' · From #' + report.regenerated_from_id}
                 </p>
                 {report.include_entered_in_error && (
-                    <Badge variant="outline" className="mt-2 whitespace-normal">
-                        Includes entered-in-error records
+                    <Badge
+                        variant="secondary"
+                        className="mt-2 inline-flex items-center gap-1.5 border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] leading-tight font-medium text-amber-900 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100"
+                    >
+                        <CircleOff
+                            className="size-3 shrink-0"
+                            aria-hidden="true"
+                        />
+                        <span>Entered-in-error included</span>
                     </Badge>
                 )}
             </div>
@@ -295,10 +349,10 @@ export default function Reports({
 }) {
     const { today } = usePage().props;
     const form = useForm({
-        client_id: "",
-        site_id: "",
-        type: reportTypes[0]?.value ?? "",
-        date_from: today.slice(0, 7) + "-01",
+        client_id: '',
+        site_id: '',
+        type: reportTypes[0]?.value ?? '',
+        date_from: today.slice(0, 7) + '-01',
         date_to: today,
         include_entered_in_error: false,
     });
@@ -312,9 +366,9 @@ export default function Reports({
         dateFilterKeys.some((key) => Boolean(filters[key])),
     );
     const [filtering, setFiltering] = useState(false);
-    const [filterError, setFilterError] = useState("");
+    const [filterError, setFilterError] = useState('');
     const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
-    const [regenerationError, setRegenerationError] = useState("");
+    const [regenerationError, setRegenerationError] = useState('');
     const applied = filtersToHistory(filters);
     const activeFilterCount = Object.values(applied).filter(Boolean).length;
     const dateFilterCount = dateFilterKeys.filter((key) =>
@@ -333,13 +387,13 @@ export default function Reports({
             }));
     const selectedClient =
         clients.find((client) => String(client.id) === form.data.client_id)
-            ?.company_name ?? "Choose a client";
+            ?.company_name ?? 'Choose a client';
     const selectedSite = form.data.site_id
         ? sites.find((site) => String(site.id) === form.data.site_id)?.site_name
-        : "All client sites";
+        : 'All client sites';
     const selectedType =
         reportTypes.find((type) => type.value === form.data.type)?.label ??
-        "Choose a report type";
+        'Choose a report type';
 
     const applyHistory = (values: HistoryFilters, page = 1) => {
         if (
@@ -348,7 +402,7 @@ export default function Reports({
             values.generated_from > values.generated_to
         ) {
             setShowDateFilters(true);
-            setFilterError("Generated from must be on or before generated to.");
+            setFilterError('Generated from must be on or before generated to.');
             return;
         }
         if (
@@ -357,12 +411,12 @@ export default function Reports({
             values.period_from > values.period_to
         ) {
             setShowDateFilters(true);
-            setFilterError("Period from must be on or before period to.");
+            setFilterError('Period from must be on or before period to.');
             return;
         }
-        setFilterError("");
+        setFilterError('');
         const query = Object.fromEntries(
-            Object.entries(values).filter(([, value]) => value !== ""),
+            Object.entries(values).filter(([, value]) => value !== ''),
         );
         router.get(
             index().url,
@@ -373,7 +427,7 @@ export default function Reports({
                 onError: (errors) =>
                     setFilterError(
                         Object.values(errors)[0] ??
-                            "Could not apply the report filters.",
+                            'Could not apply the report filters.',
                     ),
                 onFinish: () => setFiltering(false),
             },
@@ -382,19 +436,19 @@ export default function Reports({
     const resetHistory = () => {
         const empty = emptyFilters();
         setHistory(empty);
-        setFilterError("");
+        setFilterError('');
         applyHistory(empty);
     };
     const removeFilter = (key: keyof HistoryFilters) => {
-        const next = { ...applied, [key]: "" };
-        if (key === "client_id") {
-            next.site_id = "";
+        const next = { ...applied, [key]: '' };
+        if (key === 'client_id') {
+            next.site_id = '';
         }
         setHistory(next);
         applyHistory(next);
     };
     const regenerateReport = (report: SavedReport) => {
-        setRegenerationError("");
+        setRegenerationError('');
         setRegeneratingId(report.id);
         router.post(
             regenerate(report.id).url,
@@ -402,7 +456,7 @@ export default function Reports({
             {
                 onError: (errors) =>
                     setRegenerationError(
-                        errors.report ?? "Could not generate the report again.",
+                        errors.report ?? 'Could not generate the report again.',
                     ),
                 onFinish: () => setRegeneratingId(null),
             },
@@ -418,51 +472,57 @@ export default function Reports({
     );
     const appliedChips: { key: keyof HistoryFilters; label: string }[] = [
         {
-            key: "type",
+            key: 'type',
             label:
                 reportTypes.find((type) => type.value === applied.type)
                     ?.label ?? applied.type,
         },
         {
-            key: "client_id",
+            key: 'client_id',
             label:
                 clientOptions.find(
                     (client) => client.value === applied.client_id,
-                )?.label ?? "Client",
+                )?.label ?? 'Client',
         },
         {
-            key: "site_id",
+            key: 'site_id',
             label:
                 siteOptions(applied.client_id).find(
                     (site) => site.value === applied.site_id,
-                )?.label ?? "Site",
+                )?.label ?? 'Site',
         },
         {
-            key: "generated_from",
-            label: "Generated from " + applied.generated_from,
+            key: 'generated_from',
+            label: 'Generated from ' + applied.generated_from,
         },
-        { key: "generated_to", label: "Generated to " + applied.generated_to },
-        { key: "period_from", label: "Period from " + applied.period_from },
-        { key: "period_to", label: "Period to " + applied.period_to },
+        { key: 'generated_to', label: 'Generated to ' + applied.generated_to },
+        { key: 'period_from', label: 'Period from ' + applied.period_from },
+        { key: 'period_to', label: 'Period to ' + applied.period_to },
     ];
 
     return (
-        <div className="pb-8">
+        <>
             <Head title="Reports" />
-            <header className="flex items-center justify-between gap-4">
-                <PageHeader
-                    title="Reports"
-                    description="Build a PDF from current fire safety records, then return to the exact saved copy whenever you need it."
-                />
+            <header className="flex flex-nowrap items-center justify-between gap-4">
+                <div className="min-w-0">
+                    <PageHeader
+                        title="Reports"
+                        description="Build a PDF from current fire safety records, then return to the exact saved copy whenever you need it."
+                    />
+                </div>
 
-                <Button asChild variant="outline" className="shrink-0">
+                <Button
+                    asChild
+                    variant="outline"
+                    className="shrink-0 whitespace-nowrap"
+                >
                     <a href="#report-history">
                         <Archive data-icon="inline-start" />
                         Browse saved reports
                     </a>
                 </Button>
             </header>
-            <div className="space-y-7 ">
+            <div className="space-y-7">
                 <section
                     id="generate-report"
                     aria-labelledby="generate-heading"
@@ -500,33 +560,33 @@ export default function Reports({
                                 event.preventDefault();
                                 if (!form.data.date_from) {
                                     form.setError(
-                                        "date_from",
-                                        "From is required.",
+                                        'date_from',
+                                        'From is required.',
                                     );
                                     generationForm.current
                                         ?.querySelector<HTMLElement>(
-                                            "#report-from",
+                                            '#report-from',
                                         )
                                         ?.focus();
                                     return;
                                 }
                                 if (!form.data.date_to) {
-                                    form.setError("date_to", "To is required.");
+                                    form.setError('date_to', 'To is required.');
                                     generationForm.current
                                         ?.querySelector<HTMLElement>(
-                                            "#report-to",
+                                            '#report-to',
                                         )
                                         ?.focus();
                                     return;
                                 }
                                 if (form.data.date_from > form.data.date_to) {
                                     form.setError(
-                                        "date_to",
-                                        "To must be on or after From.",
+                                        'date_to',
+                                        'To must be on or after From.',
                                     );
                                     generationForm.current
                                         ?.querySelector<HTMLElement>(
-                                            "#report-to",
+                                            '#report-to',
                                         )
                                         ?.focus();
                                     return;
@@ -534,11 +594,11 @@ export default function Reports({
                                 form.post(store().url, {
                                     onError: (errors) => {
                                         const firstField = [
-                                            ["client_id", "report-client"],
-                                            ["site_id", "report-site"],
-                                            ["type", "report-type-first"],
-                                            ["date_from", "report-from"],
-                                            ["date_to", "report-to"],
+                                            ['client_id', 'report-client'],
+                                            ['site_id', 'report-site'],
+                                            ['type', 'report-type-first'],
+                                            ['date_from', 'report-from'],
+                                            ['date_to', 'report-to'],
                                         ].find(([key]) => errors[key]);
                                         if (firstField) {
                                             requestAnimationFrame(() =>
@@ -583,7 +643,7 @@ export default function Reports({
                                                     form.setData((data) => ({
                                                         ...data,
                                                         client_id: value,
-                                                        site_id: "",
+                                                        site_id: '',
                                                     }))
                                                 }
                                             />
@@ -611,7 +671,7 @@ export default function Reports({
                                                 invalid={!!form.errors.site_id}
                                                 onChange={(value) =>
                                                     form.setData(
-                                                        "site_id",
+                                                        'site_id',
                                                         value,
                                                     )
                                                 }
@@ -653,30 +713,30 @@ export default function Reports({
                                                     id={
                                                         type.value ===
                                                         reportTypes[0]?.value
-                                                            ? "report-type-first"
+                                                            ? 'report-type-first'
                                                             : undefined
                                                     }
                                                     type="button"
                                                     aria-pressed={selected}
                                                     onClick={() =>
                                                         form.setData(
-                                                            "type",
+                                                            'type',
                                                             type.value,
                                                         )
                                                     }
                                                     className={cn(
-                                                        "flex min-h-20 items-start gap-3 rounded-xl border p-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                                        'flex min-h-20 items-start gap-3 rounded-xl border p-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
                                                         selected
-                                                            ? "border-brand/70 bg-brand/10"
-                                                            : "bg-background hover:border-foreground/30 hover:bg-muted/40",
+                                                            ? 'border-brand/70 bg-brand/10'
+                                                            : 'bg-background hover:border-foreground/30 hover:bg-muted/40',
                                                     )}
                                                 >
                                                     <span
                                                         className={cn(
-                                                            "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                                                            'flex size-9 shrink-0 items-center justify-center rounded-lg',
                                                             selected
-                                                                ? "bg-brand/20 text-brand-foreground dark:text-brand"
-                                                                : "bg-muted text-muted-foreground",
+                                                                ? 'bg-brand/20 text-brand-foreground dark:text-brand'
+                                                                : 'bg-muted text-muted-foreground',
                                                         )}
                                                     >
                                                         <Icon
@@ -733,15 +793,18 @@ export default function Reports({
                                                 }
                                                 describedBy={
                                                     form.errors.date_from
-                                                        ? "report-from-error"
+                                                        ? 'report-from-error'
                                                         : undefined
                                                 }
-                                                onChange={(value) =>
+                                                onChange={(value) => {
                                                     form.setData(
-                                                        "date_from",
+                                                        'date_from',
                                                         value,
-                                                    )
-                                                }
+                                                    );
+                                                    form.clearErrors(
+                                                        'date_from',
+                                                    );
+                                                }}
                                             />
                                             {form.errors.date_from && (
                                                 <p
@@ -764,15 +827,16 @@ export default function Reports({
                                                 invalid={!!form.errors.date_to}
                                                 describedBy={
                                                     form.errors.date_to
-                                                        ? "report-to-error"
+                                                        ? 'report-to-error'
                                                         : undefined
                                                 }
-                                                onChange={(value) =>
+                                                onChange={(value) => {
                                                     form.setData(
-                                                        "date_to",
+                                                        'date_to',
                                                         value,
-                                                    )
-                                                }
+                                                    );
+                                                    form.clearErrors('date_to');
+                                                }}
                                             />
                                             {form.errors.date_to && (
                                                 <p
@@ -794,7 +858,7 @@ export default function Reports({
                                         }
                                         onCheckedChange={(checked) =>
                                             form.setData(
-                                                "include_entered_in_error",
+                                                'include_entered_in_error',
                                                 checked === true,
                                             )
                                         }
@@ -819,7 +883,7 @@ export default function Reports({
                                 )}
                                 {clients.length === 0 && (
                                     <p className="text-sm text-muted-foreground">
-                                        Add a client before creating a report.{" "}
+                                        Add a client before creating a report.{' '}
                                         <Link
                                             href={clientsIndex()}
                                             className="font-medium text-foreground underline underline-offset-4"
@@ -843,8 +907,8 @@ export default function Reports({
                                 >
                                     <FileText data-icon="inline-start" />
                                     {form.processing
-                                        ? "Generating PDF…"
-                                        : "Generate PDF"}
+                                        ? 'Generating PDF…'
+                                        : 'Generate PDF'}
                                 </Button>
                             </div>
                         </form>
@@ -911,11 +975,11 @@ export default function Reports({
                                                     ? dateLabel(
                                                           form.data.date_from,
                                                       ) +
-                                                      " – " +
+                                                      ' – ' +
                                                       dateLabel(
                                                           form.data.date_to,
                                                       )
-                                                    : "Select a date range"}
+                                                    : 'Select a date range'}
                                             </p>
                                         </div>
                                     </div>
@@ -944,7 +1008,7 @@ export default function Reports({
                             <div>
                                 <h2 className="font-semibold">Report saved</h2>
                                 <p className="text-sm text-muted-foreground">
-                                    {recentReport.title} for{" "}
+                                    {recentReport.title} for{' '}
                                     {recentReport.client_name} is ready.
                                 </p>
                             </div>
@@ -980,10 +1044,10 @@ export default function Reports({
                             </div>
                         </div>
                         <Badge variant="secondary" className="text-xs">
-                            {records.total}{" "}
+                            {records.total}{' '}
                             {records.total === 1
-                                ? "matching report"
-                                : "matching reports"}
+                                ? 'matching report'
+                                : 'matching reports'}
                         </Badge>
                     </div>
 
@@ -994,7 +1058,7 @@ export default function Reports({
                         }}
                         className="space-y-4 border-b bg-muted/20 px-5 py-5 sm:px-7"
                     >
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_auto] lg:items-end">
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-start">
                             <div className="space-y-1.5">
                                 <Label htmlFor="history-type">
                                     Report type
@@ -1020,7 +1084,7 @@ export default function Reports({
                                         setHistory({
                                             ...history,
                                             client_id,
-                                            site_id: "",
+                                            site_id: '',
                                         })
                                     }
                                 />
@@ -1038,31 +1102,36 @@ export default function Reports({
                                     }
                                 />
                             </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="justify-between"
-                                aria-expanded={showDateFilters}
-                                aria-controls="history-date-filters"
-                                onClick={() =>
-                                    setShowDateFilters(!showDateFilters)
-                                }
-                            >
-                                <CalendarDays data-icon="inline-start" />
-                                Dates
-                                {dateFilterCount > 0 && (
-                                    <span className="rounded-full bg-brand/20 px-1.5 text-xs">
-                                        {dateFilterCount}
-                                    </span>
-                                )}
-                                <ChevronDown
-                                    className={cn(
-                                        "size-4 transition-transform",
-                                        showDateFilters && "rotate-180",
+                            <div className="space-y-1.5">
+                                <Label className="invisible" aria-hidden="true">
+                                    Dates
+                                </Label>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="w-full justify-start"
+                                    aria-expanded={showDateFilters}
+                                    aria-controls="history-date-filters"
+                                    onClick={() =>
+                                        setShowDateFilters(!showDateFilters)
+                                    }
+                                >
+                                    <CalendarDays data-icon="inline-start" />
+                                    Dates
+                                    {dateFilterCount > 0 && (
+                                        <span className="rounded-full bg-brand/20 px-1.5 text-xs">
+                                            {dateFilterCount}
+                                        </span>
                                     )}
-                                    aria-hidden="true"
-                                />
-                            </Button>
+                                    <ChevronDown
+                                        className={cn(
+                                            'ml-auto size-4 transition-transform',
+                                            showDateFilters && 'rotate-180',
+                                        )}
+                                        aria-hidden="true"
+                                    />
+                                </Button>
+                            </div>
                         </div>
                         {showDateFilters && (
                             <div
@@ -1071,18 +1140,18 @@ export default function Reports({
                             >
                                 {(
                                     [
-                                        ["generated_from", "Generated from"],
-                                        ["generated_to", "Generated to"],
-                                        ["period_from", "Period from"],
-                                        ["period_to", "Period to"],
+                                        ['generated_from', 'Generated from'],
+                                        ['generated_to', 'Generated to'],
+                                        ['period_from', 'Period from'],
+                                        ['period_to', 'Period to'],
                                     ] as [keyof HistoryFilters, string][]
                                 ).map(([key, label]) => (
                                     <div key={key} className="space-y-1.5">
-                                        <Label htmlFor={"history-" + key}>
+                                        <Label htmlFor={'history-' + key}>
                                             {label}
                                         </Label>
                                         <DatePicker
-                                            id={"history-" + key}
+                                            id={'history-' + key}
                                             label={label}
                                             value={history[key]}
                                             onChange={(value) =>
@@ -1100,7 +1169,7 @@ export default function Reports({
                             <div className="flex flex-wrap items-center gap-2">
                                 <Button type="submit" disabled={filtering}>
                                     <SlidersHorizontal data-icon="inline-start" />
-                                    {filtering ? "Applying…" : "Apply filters"}
+                                    {filtering ? 'Applying…' : 'Apply filters'}
                                 </Button>
                                 <Button
                                     type="button"
@@ -1121,10 +1190,10 @@ export default function Reports({
                             </div>
                             {activeFilterCount > 0 && (
                                 <span className="text-xs text-muted-foreground">
-                                    {activeFilterCount} active{" "}
+                                    {activeFilterCount} active{' '}
                                     {activeFilterCount === 1
-                                        ? "filter"
-                                        : "filters"}
+                                        ? 'filter'
+                                        : 'filters'}
                                 </span>
                             )}
                         </div>
@@ -1155,9 +1224,9 @@ export default function Reports({
                                             }
                                             className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
                                             aria-label={
-                                                "Remove " +
+                                                'Remove ' +
                                                 chip.label +
-                                                " filter"
+                                                ' filter'
                                             }
                                         >
                                             {chip.label}
@@ -1190,13 +1259,13 @@ export default function Reports({
                             </span>
                             <h3 className="mt-4 font-semibold">
                                 {activeFilterCount > 0
-                                    ? "No matching reports"
-                                    : "No reports yet"}
+                                    ? 'No matching reports'
+                                    : 'No reports yet'}
                             </h3>
                             <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
                                 {activeFilterCount > 0
-                                    ? "Try a wider date range or remove a filter."
-                                    : "Choose a client and reporting period above to create your first PDF."}
+                                    ? 'Try a wider date range or remove a filter.'
+                                    : 'Choose a client and reporting period above to create your first PDF.'}
                             </p>
                             {activeFilterCount > 0 && (
                                 <Button
@@ -1212,12 +1281,16 @@ export default function Reports({
                     ) : (
                         <>
                             <div className="hidden md:block">
+                                <div className="mb-2 text-xs text-muted-foreground">
+                                    {records.total} total record
+                                    {records.total === 1 ? '' : 's'}
+                                </div>
                                 <Table
                                     className="min-w-[880px]"
                                     containerProps={{
-                                        className: "custom-scrollbar",
-                                        role: "region",
-                                        "aria-label": "Saved reports table",
+                                        className: 'custom-scrollbar',
+                                        role: 'region',
+                                        'aria-label': 'Saved reports table',
                                         tabIndex: 0,
                                     }}
                                 >
@@ -1255,7 +1328,7 @@ export default function Reports({
                                                     </p>
                                                     <p className="mt-1 text-xs break-words text-muted-foreground">
                                                         {report.site_name ||
-                                                            "All sites"}
+                                                            'All sites'}
                                                     </p>
                                                 </TableCell>
                                                 <TableCell className="py-4 align-top">
@@ -1265,7 +1338,7 @@ export default function Reports({
                                                         )}
                                                     </p>
                                                     <p className="mt-1 text-xs text-muted-foreground">
-                                                        to{" "}
+                                                        to{' '}
                                                         {dateLabel(
                                                             report.date_to,
                                                         )}
@@ -1278,7 +1351,7 @@ export default function Reports({
                                                         )}
                                                     </p>
                                                     <p className="mt-1 text-xs text-muted-foreground">
-                                                        by{" "}
+                                                        by{' '}
                                                         {
                                                             report.generated_by_name
                                                         }
@@ -1309,7 +1382,7 @@ export default function Reports({
                                                 </p>
                                                 <p className="mt-0.5 break-words text-muted-foreground">
                                                     {report.site_name ||
-                                                        "All sites"}
+                                                        'All sites'}
                                                 </p>
                                             </div>
                                             <div>
@@ -1319,41 +1392,43 @@ export default function Reports({
                                                 <p className="mt-1 font-medium">
                                                     {dateLabel(
                                                         report.date_from,
-                                                    )}{" "}
-                                                    –{" "}
+                                                    )}{' '}
+                                                    –{' '}
                                                     {dateLabel(report.date_to)}
                                                 </p>
                                             </div>
                                         </div>
                                         <p className="text-xs text-muted-foreground">
-                                            Generated{" "}
+                                            Generated{' '}
                                             {generatedLabel(
                                                 report.generated_at,
-                                            )}{" "}
+                                            )}{' '}
                                             by {report.generated_by_name}
                                         </p>
                                         {actions(report)}
                                     </article>
                                 ))}
                             </div>
-                            <div className="border-t px-4 py-2 sm:px-6">
-                                <Pagination
-                                    currentPage={records.current_page}
-                                    totalItems={records.total}
-                                    pageSize={records.per_page}
-                                    loading={filtering}
-                                    onPageChange={(page) =>
-                                        applyHistory(
-                                            filtersToHistory(filters),
-                                            page,
-                                        )
-                                    }
-                                />
-                            </div>
+                            {records.total > records.per_page && (
+                                <div className="border-t px-4 py-2 sm:px-6">
+                                    <Pagination
+                                        currentPage={records.current_page}
+                                        totalItems={records.total}
+                                        pageSize={records.per_page}
+                                        loading={filtering}
+                                        onPageChange={(page) =>
+                                            applyHistory(
+                                                filtersToHistory(filters),
+                                                page,
+                                            )
+                                        }
+                                    />
+                                </div>
+                            )}
                         </>
                     )}
                 </section>
             </div>
-        </div>
+        </>
     );
 }
