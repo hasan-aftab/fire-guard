@@ -5,6 +5,7 @@ import {
     Flame,
     LayoutDashboard,
     FileText,
+    Mail,
     ShieldCheck,
     Users,
 } from 'lucide-react';
@@ -15,6 +16,7 @@ import { index as clients } from '@/actions/App/Http/Controllers/ClientControlle
 import { index as inspections } from '@/actions/App/Http/Controllers/InspectionController';
 import { index as technicians } from '@/actions/App/Http/Controllers/TechnicianController';
 import { index as reports } from '@/actions/App/Http/Controllers/ReportController';
+import { index as reminders } from '@/actions/App/Http/Controllers/ReminderHistoryController';
 import AppLogo from '@/components/app-logo';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -31,6 +33,7 @@ import {
     useSidebar,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { Counts } from '@/types/fire-tracker';
 import type { NavItem } from '@/types';
@@ -67,7 +70,8 @@ const platformNavItems: PlatformNavItem[] = [
         icon: Users,
         count: 'technicians',
     },
-    { title: 'Reports', href: reports(), icon: FileText },
+    { title: 'Reports', href: reports(), icon: FileText, count: 'reports' },
+    { title: 'Reminders', href: reminders(), icon: Mail, count: 'reminders' },
 ];
 
 export function AppSidebar() {
@@ -80,6 +84,9 @@ export function AppSidebar() {
             setOpenMobile(false);
         }
     };
+
+    const activeItemClass =
+        'relative border border-sidebar-border bg-sidebar-accent font-semibold text-sidebar-accent-foreground shadow-xs before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-brand group-data-[collapsible=icon]:before:hidden';
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -108,6 +115,10 @@ export function AppSidebar() {
                                     asChild
                                     tooltip={item.title}
                                     isActive={isCurrentUrl(item.href)}
+                                    className={cn(
+                                        isCurrentUrl(item.href) &&
+                                            activeItemClass,
+                                    )}
                                 >
                                     <Link
                                         href={item.href}
