@@ -84,6 +84,7 @@ export type Technician = {
     email: string | null;
     license_number: string | null;
     license_expiry: string | null;
+    license_status: 'expired' | 'expiring_soon' | 'valid' | 'unknown';
     is_active: boolean;
     entered_in_error_at: string | null;
     inspections_count?: number;
@@ -142,6 +143,10 @@ export type Certificate = {
     status: DateStatus;
     entered_in_error_at: string | null;
     site: CertificateSite;
+    asset: Pick<
+        Asset,
+        'id' | 'site_id' | 'serial_number' | 'location_desc'
+    > | null;
 };
 
 export type ManagedFile = {
@@ -209,6 +214,8 @@ export type TrackerFilters = Partial<
         | 'asset_type_id'
         | 'certificate_type_id'
         | 'equipment_status'
+        | 'license_status'
+        | 'inspection_activity'
         | 'record_state'
         | 'sort',
         string
