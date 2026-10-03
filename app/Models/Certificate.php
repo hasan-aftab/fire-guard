@@ -16,7 +16,8 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $site_id
  * @property int|null $asset_id
- * @property string $certificate_type
+ * @property int $certificate_type_id
+ * @property string|null $legacy_certificate_type
  * @property CarbonImmutable $issue_date
  * @property CarbonImmutable $expiry_date
  * @property string|null $issued_by
@@ -26,8 +27,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Site $site
  * @property-read Asset|null $asset
+ * @property-read CertificateType $certificateType
  */
-#[Fillable(['site_id', 'asset_id', 'certificate_type', 'issue_date', 'expiry_date', 'issued_by'])]
+#[Fillable(['site_id', 'asset_id', 'certificate_type_id', 'issue_date', 'expiry_date', 'issued_by'])]
 class Certificate extends Model
 {
     public const EXPIRING_SOON_DAYS = 30;
@@ -69,6 +71,12 @@ class Certificate extends Model
     public function asset(): BelongsTo
     {
         return $this->belongsTo(Asset::class);
+    }
+
+    /** @return BelongsTo<CertificateType, $this> */
+    public function certificateType(): BelongsTo
+    {
+        return $this->belongsTo(CertificateType::class);
     }
 
     /** @return HasOne<CertificateDocument, $this> */
