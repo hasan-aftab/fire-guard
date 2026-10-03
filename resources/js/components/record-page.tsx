@@ -99,6 +99,7 @@ export function RecordPage<T extends { id: number }>({
             | 'sort'
             | 'site_id'
             | 'asset_type_id'
+            | 'certificate_type_id'
             | 'equipment_status'
             | 'record_state';
         label: string;
@@ -113,8 +114,9 @@ export function RecordPage<T extends { id: number }>({
     archive?: {
         isArchived: (record: T) => boolean;
         action: string;
-        description: string;
+        description: string | ((record: T) => string);
         restoreDescription: string;
+        restoreAction?: string;
     };
     mistake?: {
         isEnteredInError: (record: T) => boolean;
@@ -282,7 +284,7 @@ export function RecordPage<T extends { id: number }>({
                             variant="ghost"
                             size="icon"
                             className="size-7"
-                            aria-label={`${archive.isArchived(record) ? 'Reactivate' : archive.action} ${noun} #${record.id}`}
+                            aria-label={`${archive.isArchived(record) ? (archive.restoreAction ?? 'Reactivate') : archive.action} ${noun} #${record.id}`}
                             onClick={(event) => {
                                 deleteTrigger.current = event.currentTarget;
                                 setDeleting(record);
@@ -636,15 +638,19 @@ export function RecordPage<T extends { id: number }>({
                     onOpenChange={(open) => {
                         if (!open) setDeleting(null);
                     }}
-                    title={`${deleting && archive.isArchived(deleting) ? 'Reactivate' : archive.action} ${noun}?`}
+                    title={`${deleting && archive.isArchived(deleting) ? (archive.restoreAction ?? 'Reactivate') : archive.action} ${noun}?`}
                     description={
-                        deleting && archive.isArchived(deleting)
-                            ? archive.restoreDescription
-                            : archive.description
+                        deleting
+                            ? archive.isArchived(deleting)
+                                ? archive.restoreDescription
+                                : typeof archive.description === 'function'
+                                  ? archive.description(deleting)
+                                  : archive.description
+                            : ''
                     }
                     confirmLabel={
                         deleting && archive.isArchived(deleting)
-                            ? 'Reactivate'
+                            ? (archive.restoreAction ?? 'Reactivate')
                             : archive.action
                     }
                     onConfirm={confirmDelete}
