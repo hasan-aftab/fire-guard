@@ -31,6 +31,7 @@ export type FormField = {
         | 'email'
         | 'tel'
         | 'date'
+        | 'number'
         | 'textarea'
         | 'select'
         | 'checkbox';
@@ -39,6 +40,8 @@ export type FormField = {
     placeholder?: string;
     description?: string | ((values: Record<string, string>) => string);
     maxLength?: number;
+    min?: number;
+    max?: number;
     autoComplete?: string;
     afterOrEqual?: string | string[];
 };
@@ -327,6 +330,8 @@ export function RecordForm({
                                 <Input
                                     id={id}
                                     type={field.type || 'text'}
+                                    min={field.min}
+                                    max={field.max}
                                     value={form.data[field.name] ?? ''}
                                     disabled={locked}
                                     onChange={(event) =>
