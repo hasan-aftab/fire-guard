@@ -6,7 +6,9 @@ use App\Models\Asset;
 use App\Models\Certificate;
 use App\Models\Client;
 use App\Models\FireNotification;
+use App\Models\GeneratedReport;
 use App\Models\Inspection;
+use App\Models\ReminderDelivery;
 use App\Models\Site;
 use App\Models\Technician;
 use Illuminate\Http\Request;
@@ -61,6 +63,8 @@ class HandleInertiaRequests extends Middleware
                 'inspections' => Inspection::whereNull('entered_in_error_at')->count(),
                 'certificates' => Certificate::whereNull('entered_in_error_at')->count(),
                 'technicians' => Technician::whereNull('entered_in_error_at')->count(),
+                'reports' => GeneratedReport::query()->count(),
+                'reminders' => ReminderDelivery::query()->count(),
             ] : null,
             'fireNotifications' => fn (): ?array => $request->user() ? [
                 'items' => FireNotification::where('user_id', $request->user()->id)
