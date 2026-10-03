@@ -3,6 +3,7 @@
 use App\Models\Asset;
 use App\Models\AssetType;
 use App\Models\Certificate;
+use App\Models\CertificateType;
 use App\Models\Client;
 use App\Models\Inspection;
 use App\Models\Site;
@@ -45,7 +46,7 @@ test('staff can create and update tracker records', function (string $model, str
     'site' => [Site::class, 'sites', 'site_name', 'Updated Warehouse', 'clients.index'],
     'asset' => [Asset::class, 'assets', 'serial_number', 'UPDATED-675', 'assets.index'],
     'inspection' => [Inspection::class, 'inspections', 'notes', 'Follow-up inspection', 'inspections.index'],
-    'certificate' => [Certificate::class, 'certificates', 'certificate_type', 'Updated Fire Safety Certificate', 'certificates.index'],
+    'certificate' => [Certificate::class, 'certificates', 'issued_by', 'Updated Fire Safety Authority', 'certificates.index'],
     'technician' => [Technician::class, 'technicians', 'full_name', 'Updated Technician', 'technicians.index'],
 ]);
 
@@ -59,7 +60,7 @@ test('tracker forms report required fields without creating records', function (
     'site' => ['sites', 'sites', ['client_id', 'site_name', 'address']],
     'asset' => ['assets', 'assets', ['site_id', 'asset_type_id']],
     'inspection' => ['inspections', 'inspections', ['asset_id', 'technician_id', 'inspection_date', 'result']],
-    'certificate' => ['certificates', 'certificates', ['site_id', 'certificate_type', 'issue_date', 'expiry_date']],
+    'certificate' => ['certificates', 'certificates', ['site_id', 'certificate_type_id', 'issue_date', 'expiry_date']],
     'technician' => ['technicians', 'technicians', ['full_name']],
 ]);
 
@@ -89,7 +90,7 @@ test('certificate expiry cannot precede its issue date or refer to another sites
     $asset = Asset::factory()->create();
 
     $this->actingAs($user)->post(route('certificates.store'), [
-        'site_id' => $site->id, 'asset_id' => $asset->id, 'certificate_type' => 'Fire Safety',
+        'site_id' => $site->id, 'asset_id' => $asset->id, 'certificate_type_id' => CertificateType::factory()->create()->id,
         'issue_date' => '2026-10-01', 'expiry_date' => '2026-09-01',
     ])->assertSessionHasErrors(['asset_id', 'expiry_date']);
     $this->assertDatabaseCount('certificates', 0);
