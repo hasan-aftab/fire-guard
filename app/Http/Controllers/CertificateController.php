@@ -6,6 +6,7 @@ use App\Concerns\FiltersFireTrackerRecords;
 use App\Concerns\MarksEnteredInError;
 use App\Http\Requests\CertificateRequest;
 use App\Http\Requests\TrackerFilterRequest;
+use App\Models\Asset;
 use App\Models\Certificate;
 use App\Models\CertificateType;
 use App\Models\Site;
@@ -20,7 +21,8 @@ class CertificateController extends Controller
 
     public function index(TrackerFilterRequest $request): Response|RedirectResponse
     {
-        $query = Certificate::query()->with(['site:id,client_id,site_name', 'site.client:id,company_name', 'certificateType:id,name,is_active', 'document' => fn ($query) => $query->select(['certificate_documents.id', 'certificate_documents.certificate_id', 'original_name', 'mime_type', 'file_size'])]);
+        $query = Certificate::query()->select(['id', 'site_id', 'asset_id', 'certificate_type_id', 'issue_date', 'expiry_date', 'issued_by', 'status', 'entered_in_error_at'])
+            ->with(['site:id,client_id,site_name', 'site.client:id,company_name', 'asset:id,site_id,serial_number,location_desc', 'certificateType:id,name,is_active', 'document' => fn ($query) => $query->select(['certificate_documents.id', 'certificate_documents.certificate_id', 'original_name', 'mime_type', 'file_size'])]);
         $this->filterRecordState($query, $request);
         if ($request->filled('search')) {
             $pattern = $this->searchPattern($request);
@@ -29,6 +31,11 @@ class CertificateController extends Controller
                 $query->orWhereHas('site', function ($query) use ($pattern): void {
                     $this->whereSearchLike($query, 'site_name', $pattern);
                     $query->orWhereHas('client', fn ($query) => $this->whereSearchLike($query, 'company_name', $pattern));
+                });
+                $this->whereSearchLike($query, 'issued_by', $pattern, 'or');
+                $query->orWhereHas('asset', function ($asset) use ($pattern): void {
+                    $this->whereSearchLike($asset, 'serial_number', $pattern);
+                    $this->whereSearchLike($asset, 'location_desc', $pattern, 'or');
                 });
             });
         }
@@ -42,7 +49,12 @@ class CertificateController extends Controller
         $this->filterDates($query, $request, 'expiry_date');
         $this->filterDates($query, $request, 'issue_date', 'issue_');
 
-        $records = $query->orderBy('expiry_date')->orderBy('id')->paginate(10)->withQueryString();
+        if ($request->string('sort')->toString() === 'due_latest') {
+            $query->orderByDesc('expiry_date')->orderByDesc('id');
+        } else {
+            $query->orderBy('expiry_date')->orderBy('id');
+        }
+        $records = $query->paginate(10)->withQueryString();
         $filters = $request->validated();
         unset($filters['page']);
 
@@ -55,6 +67,8 @@ class CertificateController extends Controller
             'sites' => Site::query()->select(['id', 'client_id', 'site_name', 'is_active', 'entered_in_error_at'])
                 ->with('client:id,company_name,is_active,entered_in_error_at')->orderBy('site_name')->get(),
             'certificateTypes' => CertificateType::query()->select(['id', 'name', 'is_active'])->orderBy('name')->orderBy('id')->get(),
+            'assets' => Asset::query()->select(['id', 'site_id', 'serial_number', 'location_desc', 'status', 'entered_in_error_at'])
+                ->orderBy('id')->get(),
             'filters' => $filters,
         ]);
     }
