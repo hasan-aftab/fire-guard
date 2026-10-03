@@ -2,6 +2,7 @@
 
 use App\Models\Asset;
 use App\Models\Certificate;
+use App\Models\CertificateType;
 use App\Models\Client;
 use App\Models\Inspection;
 use App\Models\Site;
@@ -62,7 +63,7 @@ test('inactive relationships cannot be used for new operational records but exis
     ])->assertSessionHasErrors(['asset_id', 'technician_id']);
     $this->post(route('certificates.store'), [
         'site_id' => $site->id,
-        'certificate_type' => 'Historical certificate',
+        'certificate_type_id' => CertificateType::factory()->create()->id,
         'issue_date' => '2026-01-01',
         'expiry_date' => '2026-09-30',
     ])->assertSessionHasErrors(['site_id']);
