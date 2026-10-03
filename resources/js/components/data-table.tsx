@@ -14,6 +14,7 @@ export interface Column<T> {
     className?: string;
     showInView?: boolean;
     render: (item: T, index: number) => ReactNode;
+    viewRender?: (item: T) => ReactNode;
 }
 
 interface DataTableProps<T> {
