@@ -47,35 +47,81 @@ type PlatformNavItem = Omit<NavItem, 'icon'> & {
     count?: keyof Counts;
 };
 
-const platformNavItems: PlatformNavItem[] = [
-    { title: 'Dashboard', href: dashboard(), icon: LayoutDashboard },
+type NavGroup = {
+    label?: string;
+    adminOnly?: boolean;
+    items: PlatformNavItem[];
+};
+
+const navGroups: NavGroup[] = [
     {
-        title: 'Clients & Sites',
-        href: clients(),
-        icon: Building2,
-        count: 'clients',
-    },
-    { title: 'Assets', href: assets(), icon: Flame, count: 'assets' },
-    {
-        title: 'Inspections',
-        href: inspections(),
-        icon: ClipboardCheck,
-        count: 'inspections',
+        items: [
+            { title: 'Dashboard', href: dashboard(), icon: LayoutDashboard },
+        ],
     },
     {
-        title: 'Compliance',
-        href: certificates(),
-        icon: ShieldCheck,
-        count: 'certificates',
+        label: 'Records',
+        items: [
+            {
+                title: 'Clients & Sites',
+                href: clients(),
+                icon: Building2,
+                count: 'clients',
+            },
+            { title: 'Assets', href: assets(), icon: Flame, count: 'assets' },
+            {
+                title: 'Inspections',
+                href: inspections(),
+                icon: ClipboardCheck,
+                count: 'inspections',
+            },
+            {
+                title: 'Compliance',
+                href: certificates(),
+                icon: ShieldCheck,
+                count: 'certificates',
+            },
+            {
+                title: 'Technicians',
+                href: technicians(),
+                icon: Users,
+                count: 'technicians',
+            },
+        ],
     },
     {
-        title: 'Technicians',
-        href: technicians(),
-        icon: Users,
-        count: 'technicians',
+        label: 'Outputs',
+        items: [
+            {
+                title: 'Reports',
+                href: reports(),
+                icon: FileText,
+                count: 'reports',
+            },
+            {
+                title: 'Reminders',
+                href: reminders(),
+                icon: Mail,
+                count: 'reminders',
+            },
+        ],
     },
-    { title: 'Reports', href: reports(), icon: FileText, count: 'reports' },
-    { title: 'Reminders', href: reminders(), icon: Mail, count: 'reminders' },
+    {
+        label: 'Configuration',
+        adminOnly: true,
+        items: [
+            {
+                title: 'Asset Types',
+                href: assetTypes(),
+                icon: Shapes,
+            },
+            {
+                title: 'Certificate Types',
+                href: certificateTypes(),
+                icon: Files,
+            },
+        ],
+    },
 ];
 
 export function AppSidebar() {
@@ -110,78 +156,54 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
-                <SidebarGroup className="px-2 py-0">
-                    <SidebarGroupLabel>Platform</SidebarGroupLabel>
-                    <SidebarMenu>
-                        {platformNavItems.map((item) => (
-                            <SidebarMenuItem key={item.title}>
-                                <SidebarMenuButton
-                                    asChild
-                                    tooltip={item.title}
-                                    isActive={isCurrentUrl(item.href)}
-                                    className={cn(
-                                        isCurrentUrl(item.href) &&
-                                            activeItemClass,
-                                    )}
-                                >
-                                    <Link
-                                        href={item.href}
-                                        prefetch
-                                        onClick={closeMobileSidebar}
-                                    >
-                                        <item.icon />
-                                        <span>{item.title}</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                                {!!item.count && !!counts?.[item.count] && (
-                                    <SidebarMenuBadge className="bg-sidebar-accent text-sidebar-accent-foreground">
-                                        {counts[item.count]}
-                                    </SidebarMenuBadge>
-                                )}
-                            </SidebarMenuItem>
-                        ))}
-                    </SidebarMenu>
-                </SidebarGroup>
-                {auth.user.role === 'admin' && (
-                    <SidebarGroup className="px-2 py-0">
-                        <SidebarGroupLabel>Reference data</SidebarGroupLabel>
-                        <SidebarMenu>
-                            {[
-                                {
-                                    title: 'Asset Types',
-                                    href: assetTypes(),
-                                    icon: Shapes,
-                                },
-                                {
-                                    title: 'Certificate Types',
-                                    href: certificateTypes(),
-                                    icon: Files,
-                                },
-                            ].map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton
-                                        asChild
-                                        tooltip={item.title}
-                                        isActive={isCurrentUrl(item.href)}
-                                        className={cn(
-                                            isCurrentUrl(item.href) &&
-                                                activeItemClass,
-                                        )}
-                                    >
-                                        <Link
-                                            href={item.href}
-                                            prefetch
-                                            onClick={closeMobileSidebar}
+                {navGroups.map((group) => {
+                    if (group.adminOnly && auth.user.role !== 'admin') {
+                        return null;
+                    }
+
+                    return (
+                        <SidebarGroup
+                            key={group.label ?? group.items[0].title}
+                            className="px-2 py-0"
+                        >
+                            {group.label && (
+                                <SidebarGroupLabel>
+                                    {group.label}
+                                </SidebarGroupLabel>
+                            )}
+                            <SidebarMenu>
+                                {group.items.map((item) => (
+                                    <SidebarMenuItem key={item.title}>
+                                        <SidebarMenuButton
+                                            asChild
+                                            tooltip={item.title}
+                                            isActive={isCurrentUrl(item.href)}
+                                            className={cn(
+                                                isCurrentUrl(item.href) &&
+                                                    activeItemClass,
+                                            )}
                                         >
-                                            <item.icon />
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroup>
-                )}
+                                            <Link
+                                                href={item.href}
+                                                prefetch
+                                                onClick={closeMobileSidebar}
+                                            >
+                                                <item.icon />
+                                                <span>{item.title}</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                        {!!item.count &&
+                                            !!counts?.[item.count] && (
+                                                <SidebarMenuBadge className="bg-sidebar-accent text-sidebar-accent-foreground">
+                                                    {counts[item.count]}
+                                                </SidebarMenuBadge>
+                                            )}
+                                    </SidebarMenuItem>
+                                ))}
+                            </SidebarMenu>
+                        </SidebarGroup>
+                    );
+                })}
             </SidebarContent>
             <SidebarFooter>
                 <NavUser />
