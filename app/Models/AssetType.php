@@ -13,13 +13,13 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property string $type_name
- * @property string|null $category
  * @property int|null $default_interval_months
+ * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Asset> $assets
  */
-#[Fillable(['type_name', 'category', 'default_interval_months'])]
+#[Fillable(['type_name', 'default_interval_months', 'is_active'])]
 class AssetType extends Model
 {
     /** @use HasFactory<AssetTypeFactory> */
@@ -30,6 +30,7 @@ class AssetType extends Model
     {
         return [
             'default_interval_months' => 'integer',
+            'is_active' => 'boolean',
         ];
     }
 
