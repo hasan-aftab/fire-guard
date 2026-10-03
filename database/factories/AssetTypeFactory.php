@@ -11,6 +11,6 @@ class AssetTypeFactory extends Factory
     /** @return array<string, mixed> */
     public function definition(): array
     {
-        return ['type_name' => fake()->unique()->bothify('Equipment ###???'), 'category' => 'Fire Safety', 'default_interval_months' => 12];
+        return ['type_name' => fake()->unique()->bothify('Equipment ###???'), 'default_interval_months' => 12];
     }
 }
