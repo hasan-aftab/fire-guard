@@ -113,24 +113,26 @@ db:*` touch. `phpunit.xml` hard-sets `DB_CONNECTION=sqlite` and
 
 ## Domain model
 
-The fire-tracker schema is split across **seven** per-table migrations dated
+The core fire-tracker schema is split across **eight** per-table migrations dated
 `2026_09_29_161315_create_clients_table` through
-`2026_09_30_185805_create_fire_notifications_table`. There is no single
-`create_fire_tracker_tables` file — an older one was replaced by the split, and the
-`migrations` row it left behind makes `migrate:status` report every per-table migration
-as `Pending` against tables that already exist. **If the per-table migrations look
-Pending but the tables exist, run `migrate:fresh --seed`, not `migrate`.**
+`2026_09_30_185805_create_fire_notifications_table`, plus a separate
+`create_certificate_types_table` migration ordered before `create_certificates_table`.
+There is no single `create_fire_tracker_tables` file — an older one was replaced by
+the split, and the `migrations` row it left behind can make `migrate:status` report
+per-table migrations as `Pending` against tables that already exist. Inspect the
+schema and migration history before reconciling this; use `migrate:fresh --seed`
+only for a disposable demo database whose data and report history may be lost.
 
 ```
-Client ─┬─> Site ─┬─> Asset ──> Inspection ──> Technician
-        │         │     ▲           │
-        │         └─> Certificate  └──> AssetType
-        └────────────┴──────────────────┘
+Client ──> Site ─┬─> Asset ──> AssetType
+                │      └──> Inspection ──> Technician
+                └─> Certificate ──> CertificateType
 ```
 
 - **Every fire-tracker FK is `restrictOnDelete`** — `sites.client_id`,
   `assets.site_id`, `assets.asset_type_id`, `inspections.asset_id`,
-  `inspections.technician_id`, `certificates.site_id`, `certificates.asset_id`. Nothing
+  `inspections.technician_id`, `certificates.site_id`, `certificates.asset_id`,
+  `certificates.certificate_type_id`. Nothing
   cascades, including the two nullable FKs (`inspections.technician_id`,
   `certificates.asset_id`) which used to be `nullOnDelete`. Deleting a parent that is
   referenced throws `QueryException`; that is the retention guarantee, not a bug.
@@ -145,9 +147,17 @@ Client ─┬─> Site ─┬─> Asset ──> Inspection ──> Technician
 
 **Never create a new migration file to add, modify, or remove a column.** The create
 migrations in `database/migrations` are the single source of truth for the schema while
-nothing is deployed. Change the create migration directly, then run
-`php artisan migrate:fresh --seed`. A new migration file is warranted only when the
-change **creates a new table** (or an index/constraint that has no home in a `create`).
+nothing is deployed. Change the create migration directly and verify it through a
+fresh test database; run `php artisan migrate:fresh --seed` only for a disposable demo
+database. A new migration file is warranted only when the change **creates a new
+table**.
+Keep a new-table migration limited to that table's `Schema::create()` in `up()` and
+`Schema::dropIfExists()` in `down()`: do not combine it with `Schema::table()` changes,
+column renames, or backfills for existing tables. Put each existing table's columns,
+indexes, and foreign keys in its original create migration. Order a new referenced
+table migration before the existing create migration that declares its foreign key.
+Inspect migration status and data before changing an already populated local database;
+do not reset it merely to reconcile migration filenames.
 
 Why: every extra migration permanently encodes a schema state that the create
 migrations no longer produce. `migrate:fresh` becomes the path that runs, while any
@@ -185,7 +195,8 @@ columns carry the lifecycle, and **they are not interchangeable**:
 | `is_active` / `status` | Operational state — can this record be _used_ for new work?      |
 | `entered_in_error_at`  | Was this record created in error? Retained, but struck from view |
 
-- `is_active` (`clients`, `sites`, `technicians`) or `status`
+- `is_active` (`clients`, `sites`, `technicians`, `asset_types`,
+  `certificate_types`) or `status`
   (`active`/`decommissioned`, `assets`) is **deactivation**. `destroy` flips it; a
   sibling `restore` route flips it back.
 - `entered_in_error_at` is a **nullable timestamp** on all six tables, not a boolean.
