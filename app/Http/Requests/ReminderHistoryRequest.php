@@ -18,7 +18,7 @@ class ReminderHistoryRequest extends FormRequest
         return [
             'status' => ['nullable', Rule::in(['pending', 'processing', 'sent', 'failed', 'skipped', 'uncertain'])],
             'type' => ['nullable', Rule::in(['asset', 'certificate'])],
-            'audience' => ['nullable', Rule::in(['configured', 'configured_client', 'staff', 'client'])],
+            'audience' => ['nullable', Rule::in(['configured', 'staff'])],
             'client_id' => ['nullable', 'integer', Rule::exists('clients', 'id')],
             'due_from' => ['nullable', 'date_format:Y-m-d'],
             'due_to' => ['nullable', 'date_format:Y-m-d', Rule::when($this->filled('due_from'), 'after_or_equal:due_from')],
