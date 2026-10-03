@@ -2,25 +2,15 @@ import { Head, router } from '@inertiajs/react';
 import {
     AlertTriangle,
     CheckCheck,
-    Eye,
     FileBadge2,
     Flame,
-    Inbox,
     Mail,
     Plus,
-    Send,
-    ShieldCheck,
     Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import {
-    index,
-    preview,
-    samplePreview,
-    sampleTestEmail,
-    testEmail,
-} from '@/actions/App/Http/Controllers/ReminderHistoryController';
+import { index } from '@/actions/App/Http/Controllers/ReminderHistoryController';
 import {
     destroy as destroyRecipient,
     store as storeRecipient,
@@ -33,14 +23,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import {
     Select,
     SelectContent,
@@ -97,10 +79,6 @@ type Filters = {
 type Client = { id: number; company_name: string };
 type Recipient = { id: number; email: string };
 type FallbackAdmin = { id: number; name: string; email: string };
-type Selection =
-    | { kind: 'template'; type: ReminderType }
-    | { kind: 'record'; record: Reminder };
-
 function formatDate(value: string): string {
     return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
         new Date(`${value}T12:00:00`),
@@ -124,7 +102,7 @@ function windowLabel(offset: number): string {
 function audienceLabel(audience: ReminderAudience): string {
     return {
         configured: 'Selected email',
-        configured_client: 'Selected client',
+        configured_client: 'Past client copy',
         staff: 'Admin',
         client: 'Past client copy',
     }[audience];
@@ -230,9 +208,7 @@ export default function Reminders({
         due_from: filters.due_from ?? '',
         due_to: filters.due_to ?? '',
     });
-    const [selection, setSelection] = useState<Selection | null>(null);
     const [filtering, setFiltering] = useState(false);
-    const [sending, setSending] = useState(false);
     const [recipientEmail, setRecipientEmail] = useState('');
     const [recipientError, setRecipientError] = useState('');
     const [savingRecipient, setSavingRecipient] = useState(false);
@@ -265,26 +241,6 @@ export default function Reminders({
         setWorking(next);
         apply(next);
     };
-    const sendTest = () => {
-        if (!selection) return;
-        const url =
-            selection.kind === 'template'
-                ? sampleTestEmail(selection.type).url
-                : testEmail(selection.record.id).url;
-        router.post(
-            url,
-            {},
-            {
-                preserveScroll: true,
-                onStart: () => setSending(true),
-                onError: (errors) =>
-                    toast.error(
-                        errors.test_email ?? 'Could not send the test copy.',
-                    ),
-                onFinish: () => setSending(false),
-            },
-        );
-    };
     const addRecipient = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setRecipientError('');
@@ -311,28 +267,12 @@ export default function Reminders({
             onFinish: () => setRemovingRecipientId(null),
         });
     };
-    const selectedType =
-        selection?.kind === 'template'
-            ? selection.type
-            : selection?.record.type;
-    const selectedTitle =
-        selection?.kind === 'template'
-            ? selection.type === 'asset'
-                ? 'Equipment inspection'
-                : 'Certificate expiry'
-            : selection?.record.subject_name;
-    const previewUrl = selection
-        ? selection.kind === 'template'
-            ? samplePreview(selection.type).url
-            : preview(selection.record.id).url
-        : '';
-
     return (
         <div className="space-y-6">
             <Head title="Reminder activity" />
             <PageHeader
                 title="Reminder activity"
-                description="Inspection and certificate emails for your selected recipients."
+                description="Internal inspection and certificate email activity."
             />
 
             <div className="grid gap-3 sm:grid-cols-3">
@@ -367,8 +307,9 @@ export default function Reminders({
                                 Who receives reminders
                             </CardTitle>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Add email addresses here to control scheduled
-                                inspection and certificate reminders.
+                                Add internal email addresses for scheduled
+                                inspection and certificate reminders. Client
+                                contact addresses cannot receive them.
                             </p>
                         </div>
                         <Badge variant="secondary">
@@ -488,84 +429,6 @@ export default function Reminders({
                 </CardContent>
             </Card>
 
-            <section aria-labelledby="template-heading" className="space-y-3">
-                <div className="flex flex-wrap items-end justify-between gap-2">
-                    <div>
-                        <h2
-                            id="template-heading"
-                            className="text-lg font-semibold text-foreground"
-                        >
-                            Email designs
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Preview a sample or send a labeled test copy to your
-                            own inbox.
-                        </p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                        Samples use fictional client details.
-                    </p>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                    {[
-                        {
-                            type: 'asset' as const,
-                            title: 'Equipment inspection',
-                            description:
-                                'A clear service-date notice with the asset, site, and client contact in one place.',
-                            icon: Flame,
-                        },
-                        {
-                            type: 'certificate' as const,
-                            title: 'Certificate expiry',
-                            description:
-                                'A renewal notice focused on the expiry date and the certificate that needs attention.',
-                            icon: ShieldCheck,
-                        },
-                    ].map((template) => {
-                        const Icon = template.icon;
-                        return (
-                            <Card
-                                key={template.type}
-                                className="overflow-hidden border-brand/20 bg-gradient-to-br from-brand/10 via-card to-card"
-                            >
-                                <CardContent className="flex h-full flex-col gap-5 p-5 sm:p-6">
-                                    <div className="flex items-start gap-3">
-                                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-foreground text-background">
-                                            <Icon
-                                                className="size-5"
-                                                aria-hidden="true"
-                                            />
-                                        </span>
-                                        <div className="min-w-0">
-                                            <h3 className="font-semibold text-foreground">
-                                                {template.title}
-                                            </h3>
-                                            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                                                {template.description}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        className="mt-auto w-fit bg-card"
-                                        onClick={() =>
-                                            setSelection({
-                                                kind: 'template',
-                                                type: template.type,
-                                            })
-                                        }
-                                    >
-                                        <Eye data-icon="inline-start" />
-                                        Preview and send test
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-                </div>
-            </section>
-
             <Card className="gap-0 overflow-hidden py-0">
                 <CardHeader className="border-b px-5 py-5 sm:px-6">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -628,7 +491,7 @@ export default function Reminders({
                                 },
                                 {
                                     value: 'configured_client',
-                                    label: 'Selected client',
+                                    label: 'Past client copy',
                                 },
                                 { value: 'staff', label: 'Team' },
                                 { value: 'client', label: 'Past client copy' },
@@ -704,16 +567,13 @@ export default function Reminders({
                                         <TableHead>Due / expiry</TableHead>
                                         <TableHead>Recipient</TableHead>
                                         <TableHead>Delivery</TableHead>
-                                        <TableHead className="pr-4 text-right">
-                                            Email
-                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {records.data.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={5}
+                                                colSpan={4}
                                                 className="h-28 text-center text-muted-foreground"
                                             >
                                                 No deliveries match these
@@ -791,21 +651,6 @@ export default function Reminders({
                                                             : `${record.attempt_count} attempts`}
                                                     </p>
                                                 </TableCell>
-                                                <TableCell className="pr-4 text-right">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            setSelection({
-                                                                kind: 'record',
-                                                                record,
-                                                            })
-                                                        }
-                                                    >
-                                                        <Eye data-icon="inline-start" />
-                                                        Preview
-                                                    </Button>
-                                                </TableCell>
                                             </TableRow>
                                         ))
                                     )}
@@ -867,20 +712,6 @@ export default function Reminders({
                                                 </p>
                                             </div>
                                         </div>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="w-full"
-                                            onClick={() =>
-                                                setSelection({
-                                                    kind: 'record',
-                                                    record,
-                                                })
-                                            }
-                                        >
-                                            <Eye data-icon="inline-start" />
-                                            Preview email
-                                        </Button>
                                     </div>
                                 ))
                             )}
@@ -895,114 +726,6 @@ export default function Reminders({
                     </div>
                 </CardContent>
             </Card>
-
-            <Dialog
-                open={selection !== null}
-                onOpenChange={(open) => {
-                    if (!open) setSelection(null);
-                }}
-            >
-                <DialogContent className="max-h-[92dvh] gap-0 overflow-hidden p-0 sm:max-w-5xl">
-                    <DialogHeader className="border-b px-5 py-4 text-left sm:px-6">
-                        <DialogTitle className="pr-8 text-lg">
-                            {selectedTitle ?? 'Email preview'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {selection?.kind === 'template'
-                                ? 'Sample design with fictional details.'
-                                : 'Current email design using this delivery’s saved details.'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid min-h-0 md:grid-cols-[220px_minmax(0,1fr)]">
-                        <aside className="space-y-4 border-b bg-muted/30 p-5 text-sm md:border-r md:border-b-0">
-                            <div className="flex items-center gap-2 font-medium">
-                                {selectedType === 'asset' ? (
-                                    <Flame
-                                        className="size-4 text-warning"
-                                        aria-hidden="true"
-                                    />
-                                ) : (
-                                    <FileBadge2
-                                        className="size-4 text-info"
-                                        aria-hidden="true"
-                                    />
-                                )}
-                                {selectedType === 'asset'
-                                    ? 'Equipment inspection'
-                                    : 'Certificate expiry'}
-                            </div>
-                            {selection?.kind === 'record' && (
-                                <>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Recipient
-                                        </p>
-                                        <p className="font-medium break-all">
-                                            {selection.record.recipient ||
-                                                'No address'}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {audienceLabel(
-                                                selection.record.audience,
-                                            )}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Delivery
-                                        </p>
-                                        <DeliveryBadge
-                                            status={selection.record.status}
-                                        />
-                                        <p className="mt-1 text-xs text-muted-foreground">
-                                            {selection.record.attempt_count}{' '}
-                                            attempts ·{' '}
-                                            {formatTimestamp(
-                                                selection.record.sent_at,
-                                            )}
-                                        </p>
-                                    </div>
-                                    {selection.record.last_error && (
-                                        <p className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-foreground">
-                                            {selection.record.last_error}
-                                        </p>
-                                    )}
-                                </>
-                            )}
-                            <p className="text-xs leading-relaxed text-muted-foreground">
-                                Test copies go only to your signed-in email.
-                                Local delivery is captured by Mailpit.
-                            </p>
-                        </aside>
-                        <div className="min-h-0 overflow-auto bg-muted/40 p-3 sm:p-5">
-                            {selection && (
-                                <iframe
-                                    key={previewUrl}
-                                    src={previewUrl}
-                                    title={`${selectedTitle ?? 'Reminder'} email design`}
-                                    sandbox=""
-                                    className="h-[48dvh] w-full rounded-md border bg-white shadow-sm md:h-[62dvh]"
-                                />
-                            )}
-                        </div>
-                    </div>
-                    <DialogFooter className="border-t px-5 py-4 sm:px-6">
-                        <Button
-                            onClick={sendTest}
-                            disabled={sending || !selection}
-                        >
-                            {sending ? (
-                                <Inbox data-icon="inline-start" />
-                            ) : (
-                                <Send data-icon="inline-start" />
-                            )}
-                            {sending
-                                ? 'Sending test copy…'
-                                : 'Send test copy to my inbox'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }
