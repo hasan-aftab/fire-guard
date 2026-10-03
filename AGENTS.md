@@ -243,8 +243,12 @@ tracker list page is a thin ~100–200 line _config_ of it, not bespoke scaffold
   `viewContent` prop is how you add detail-only fields.
 - `resources/js/pages/clients.tsx` uses `RecordPage` for client rows but hand-rolls the
   nested "Manage sites" sheet with `RecordForm` — the one place that pattern is broken.
-- New pages must be registered in the `management` array in
-  `resources/js/components/app-sidebar.tsx` to appear in the sidebar.
+- New pages must be registered in the `navGroups` array in
+  `resources/js/components/app-sidebar.tsx` to appear in the sidebar. Pick the group
+  that matches what the page is: a tracked record (or other `Counts` counter) goes in
+  **Records**; anything derived from records — PDFs, emails — goes in **Outputs**;
+  lookup tables that shape other records go in **Configuration**, which sets
+  `adminOnly: true`. Omit `label` only for the unlabelled Dashboard group.
 
 Adding a resource is therefore: migration + model + factory + request + controller +
 a ~150 line page config. Not a new page scaffold.
