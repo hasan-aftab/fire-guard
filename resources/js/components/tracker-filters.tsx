@@ -43,6 +43,8 @@ export function TrackerFilters({
             | 'asset_type_id'
             | 'certificate_type_id'
             | 'equipment_status'
+            | 'license_status'
+            | 'inspection_activity'
             | 'record_state';
         label: string;
         options: { value: string; label: string }[];
@@ -61,19 +63,20 @@ export function TrackerFilters({
     useEffect(() => setSearch(filters.search ?? ''), [filters.search]);
     const apply = (changes: FilterValues) => {
         clearTimeout(searchTimer.current);
-        router.get(
-            route.url,
-            { ...filters, search, ...changes, page: 1 },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-                onStart: () => setFiltering(true),
-                onError: () =>
-                    toast.error('Could not apply filters. Please try again.'),
-                onFinish: () => setFiltering(false),
-            },
+        const nextFilters = Object.fromEntries(
+            Object.entries({ ...filters, search, ...changes }).filter(
+                ([key, value]) => key !== 'page' && value !== '',
+            ),
         );
+        router.get(route.url, nextFilters, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onStart: () => setFiltering(true),
+            onError: () =>
+                toast.error('Could not apply filters. Please try again.'),
+            onFinish: () => setFiltering(false),
+        });
     };
     return (
         <div
