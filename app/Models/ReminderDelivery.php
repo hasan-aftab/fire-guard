@@ -41,11 +41,6 @@ class ReminderDelivery extends Model
     /** @use HasFactory<ReminderDeliveryFactory> */
     use HasFactory;
 
-    public function isClientAudience(): bool
-    {
-        return in_array($this->audience, ['client', 'configured_client'], true);
-    }
-
     /** @return array<string, string> */
     protected function casts(): array
     {
