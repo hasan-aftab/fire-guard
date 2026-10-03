@@ -1,8 +1,10 @@
 <?php
 
 use App\Models\Asset;
+use App\Models\Client;
 use App\Models\FireNotification;
 use App\Models\Inspection;
+use App\Models\Site;
 use App\Models\Technician;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -21,10 +23,12 @@ test('inspections page exposes the required setup choices and only the data it d
             ->where('assets.0.suggested_next_due_date', '2027-10-01')
             ->where('assets.0.site.client.is_active', true)
             ->has('technicians', 1)->where('technicians.0.full_name', 'Mara Kila')
+            ->where('assets.0.site.client.company_name', $asset->site->client->company_name)
             ->missing('technicians.0.email')
             ->has('records.data', 1)->where('records.data.0.id', $inspection->id)
             ->where('records.data.0.asset.serial_number', 'EX-101')
-            ->missing('records.data.0.asset.site')
+            ->where('records.data.0.asset.site.site_name', $asset->site->site_name)
+            ->where('records.data.0.asset.site.client.company_name', $asset->site->client->company_name)
             ->where('records.data.0.technician.full_name', 'Mara Kila'));
 });
 
@@ -39,12 +43,14 @@ test('inspections page has no creation choices until assets and technicians exis
 
 test('inspection search matches asset location technician and notes while treating wildcards literally', function () {
     $user = User::factory()->create();
-    $asset = Asset::factory()->create(['serial_number' => 'EX-101', 'location_desc' => 'North stair']);
+    $client = Client::factory()->create(['company_name' => 'A!_% Fire Services']);
+    $site = Site::factory()->for($client)->create(['site_name' => 'Harbour depot']);
+    $asset = Asset::factory()->for($site)->create(['serial_number' => 'EX-101', 'location_desc' => 'North stair']);
     $technician = Technician::factory()->create(['full_name' => 'Mara Kila']);
     $target = Inspection::factory()->for($asset)->for($technician)->create(['notes' => 'Pressure 80%']);
     Inspection::factory()->create(['notes' => 'Pressure 800']);
 
-    foreach (['North stair', 'Mara Kila', '80%'] as $search) {
+    foreach (['North stair', 'Mara Kila', '80%', 'Harbour depot', 'A!_% Fire'] as $search) {
         $this->actingAs($user)->get(route('inspections.index', ['search' => $search]))
             ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
                 ->where('records.data.0.id', $target->id)->where('records.total', 1));
@@ -64,6 +70,58 @@ test('inspection date filters accept a single endpoint and exclude other dates',
     $this->get(route('inspections.index', ['to' => '2026-09-19']))
         ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
             ->where('records.data.0.inspection_date', '2026-09-19'));
+});
+
+test('inspections can be narrowed by site and technician and ordered by date with stable ties', function () {
+    $user = User::factory()->create();
+    $site = Site::factory()->create(['site_name' => 'Harbour depot']);
+    $asset = Asset::factory()->for($site)->create();
+    $technician = Technician::factory()->create(['full_name' => 'Mara Kila']);
+    $first = Inspection::factory()->for($asset)->for($technician)->create(['inspection_date' => '2026-09-01']);
+    $second = Inspection::factory()->for($asset)->for($technician)->create(['inspection_date' => '2026-09-01']);
+    Inspection::factory()->for($asset)->create(['inspection_date' => '2026-09-02']);
+    Inspection::factory()->for($technician)->create(['inspection_date' => '2026-09-03']);
+
+    $filters = ['site_id' => $site->id, 'technician_id' => $technician->id, 'sort' => 'oldest'];
+    $this->actingAs($user)->get(route('inspections.index', $filters))
+        ->assertInertia(fn (Assert $page) => $page->component('inspections')
+            ->has('records.data', 2)->where('records.data.0.id', $first->id)
+            ->where('records.data.1.id', $second->id)->where('records.total', 2)
+            ->where('filters.site_id', (string) $site->id)->where('filters.technician_id', (string) $technician->id)
+            ->where('filters.sort', 'oldest')->missing('filters.page'));
+    $this->get(route('inspections.index', ['site_id' => $site->id, 'technician_id' => $technician->id]))
+        ->assertInertia(fn (Assert $page) => $page->where('records.data.0.id', $second->id)
+            ->where('records.data.1.id', $first->id));
+});
+
+test('inspection relation filters and sorting reject invalid values', function () {
+    $this->actingAs(User::factory()->create())->get(route('inspections.index', [
+        'site_id' => 999999,
+        'technician_id' => 999999,
+        'sort' => 'due_soonest',
+    ]))->assertSessionHasErrors(['site_id', 'technician_id', 'sort']);
+});
+
+test('inspection filtering preserves the last populated page after results shrink', function () {
+    $user = User::factory()->create();
+    $site = Site::factory()->create();
+    $asset = Asset::factory()->for($site)->create();
+    $technician = Technician::factory()->create();
+    Inspection::factory()->count(11)->for($asset)->for($technician)->create(['inspection_date' => '2026-09-20']);
+    $filters = ['site_id' => $site->id, 'technician_id' => $technician->id, 'sort' => 'oldest'];
+
+    $response = $this->actingAs($user)->get(route('inspections.index', $filters + ['page' => 3]))
+        ->assertRedirect();
+    parse_str((string) parse_url((string) $response->headers->get('Location'), PHP_URL_QUERY), $redirectFilters);
+    expect($redirectFilters)->toEqual([
+        'site_id' => (string) $site->id,
+        'technician_id' => (string) $technician->id,
+        'sort' => 'oldest',
+        'page' => '2',
+    ]);
+    $this->get(route('inspections.index', $filters + ['page' => 2]))
+        ->assertInertia(fn (Assert $page) => $page->has('records.data', 1)
+            ->where('records.current_page', 2)->where('records.total', 11));
 });
 
 test('completed inspections remain on their filtered page after a forbidden delete', function () {
