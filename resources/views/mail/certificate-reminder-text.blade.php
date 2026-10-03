@@ -1,13 +1,11 @@
-@if ($preview)TEST COPY - Sent only to your signed-in inbox
+@if ($preview)TEST COPY - Sample internal reminder
 
 @endif
 {{ config('fire-tracker.report.company_name') }} - Certificate expiry reminder
 
-Hello {{ ! $delivery->isClientAudience() ? ($delivery->recipient_name ?: 'team') : ($delivery->client_contact_name ?: $delivery->client_name) }},
+Hello {{ $delivery->recipient_name ?: 'team' }},
 
-@if (! $delivery->isClientAudience())The certificate below needs a renewal follow-up.
-@else The certificate below is approaching its expiry date.
-@endif
+The certificate below needs a renewal follow-up.
 
 Certificate: {{ $delivery->subject_name }}
 Client: {{ $delivery->client_name }}
@@ -20,15 +18,13 @@ Expiry date: {{ $delivery->due_date->format('j F Y') }}
 @else Status: Expires in {{ $delivery->reminder_offset }} {{ $delivery->reminder_offset === 1 ? 'day' : 'days' }}
 @endif
 
-@if (! $delivery->isClientAudience())Client contact: {{ $delivery->client_contact_name ?: 'No contact name on file' }}
+Client contact: {{ $delivery->client_contact_name ?: 'No contact name on file' }}
 @if ($delivery->client_email)Client email: {{ $delivery->client_email }}
 @endif
 @if ($delivery->client_phone)Client phone: {{ $delivery->client_phone }}
 @endif
 
 Check the certificate record and contact the client about renewal before the expiry date.
-@else Contact our team if you need help arranging renewal or if the certificate details have changed.
-@endif
 
 @if (config('fire-tracker.report.company_phone'))Phone: {{ config('fire-tracker.report.company_phone') }}
 @endif
