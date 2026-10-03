@@ -1,4 +1,6 @@
+import { Link, usePage } from '@inertiajs/react';
 import { Flame } from 'lucide-react';
+import { index as assetTypesIndex } from '@/actions/App/Http/Controllers/AssetTypeController';
 import {
     index,
     store,
@@ -32,6 +34,7 @@ export default function Assets({
     assetTypes: AssetType[];
     filters: TrackerFilters;
 }) {
+    const isAdmin = usePage().props.auth.user.role === 'admin';
     const activeSites = sites.filter(
         (site) =>
             site.is_active &&
@@ -52,11 +55,26 @@ export default function Assets({
             description="Track and manage fire safety assets across all sites"
             noun="asset"
             icon={Flame}
-            addDisabled={activeSites.length === 0 || assetTypes.length === 0}
+            addDisabled={
+                activeSites.length === 0 ||
+                !assetTypes.some((type) => type.is_active)
+            }
             addHint={
-                activeSites.length === 0
-                    ? 'Add a client and site before creating an asset.'
-                    : 'Set up an asset type before creating an asset.'
+                activeSites.length === 0 ? (
+                    'Add a client and site before creating an asset.'
+                ) : isAdmin ? (
+                    <>
+                        <Link
+                            href={assetTypesIndex()}
+                            className="font-medium text-primary underline underline-offset-2"
+                        >
+                            Set up an asset type
+                        </Link>{' '}
+                        before creating an asset.
+                    </>
+                ) : (
+                    'Ask an administrator to activate an asset type before creating an asset.'
+                )
             }
             emptyDescription="Add your first fire safety asset to start tracking inspections and compliance."
             records={records}
@@ -251,10 +269,6 @@ export default function Assets({
                         />
                     </div>
                     <ViewField
-                        label="Type category"
-                        value={asset.asset_type.category}
-                    />
-                    <ViewField
                         label="Install date"
                         value={asset.install_date}
                     />
@@ -266,7 +280,9 @@ export default function Assets({
             )}
             defaults={{
                 site_id: String(activeSites[0]?.id ?? ''),
-                asset_type_id: String(assetTypes[0]?.id ?? ''),
+                asset_type_id: String(
+                    assetTypes.find((type) => type.is_active)?.id ?? '',
+                ),
                 serial_number: '',
                 location_desc: '',
                 next_service_due: '',
@@ -299,10 +315,16 @@ export default function Assets({
                     label: 'Asset type',
                     type: 'select',
                     required: true,
-                    options: assetTypes.map((type) => ({
-                        value: String(type.id),
-                        label: type.type_name,
-                    })),
+                    options: assetTypes
+                        .filter(
+                            (type) =>
+                                type.is_active ||
+                                type.id === editing?.asset_type_id,
+                        )
+                        .map((type) => ({
+                            value: String(type.id),
+                            label: `${type.type_name}${type.is_active ? '' : ' (Inactive)'}`,
+                        })),
                 },
                 {
                     name: 'serial_number',
