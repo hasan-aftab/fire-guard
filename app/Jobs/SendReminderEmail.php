@@ -72,7 +72,8 @@ class SendReminderEmail implements ShouldQueue
 
     private function stillEligible(ReminderDelivery $delivery): bool
     {
-        if (filter_var($delivery->recipient, FILTER_VALIDATE_EMAIL) === false) {
+        if (filter_var($delivery->recipient, FILTER_VALIDATE_EMAIL) === false
+            || ReminderRecipient::isClientContactEmail($delivery->recipient)) {
             return false;
         }
 
@@ -90,8 +91,9 @@ class SendReminderEmail implements ShouldQueue
         if ($client->id !== $delivery->client_id || $site->id !== $delivery->site_id) {
             return false;
         }
-        if (in_array($delivery->audience, ['configured', 'configured_client'], true)) {
-            if (! ReminderRecipient::query()->where('email', $delivery->recipient)->exists()) {
+        if ($delivery->audience === 'configured') {
+            if (! ReminderRecipient::query()->where('email', $delivery->recipient)->exists()
+                || ReminderRecipient::isClientContactEmail($delivery->recipient)) {
                 return false;
             }
         } elseif ($delivery->audience === 'staff') {
