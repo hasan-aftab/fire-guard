@@ -5,6 +5,13 @@ return [
     'photo_max_kilobytes' => 20480,
     'document_max_kilobytes' => 25600,
     'upload_chunk_bytes' => 1048576,
+    'reminders' => [
+        'asset_offsets' => [14, 7, 1, 0],
+        'certificate_offsets' => [30, 14, 7, 1, 0],
+        'overdue_once' => true,
+        'send_at' => '08:00',
+        'processing_review_after_minutes' => 120,
+    ],
     'report' => [
         'disk' => env('REPORT_DISK'),
         'company_name' => env('REPORT_COMPANY_NAME', 'Fire Tracker'),
