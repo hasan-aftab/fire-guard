@@ -174,6 +174,8 @@ export type Counts = Record<
     | 'inspections'
     | 'certificates'
     | 'technicians'
+    | 'assetTypes'
+    | 'certificateTypes'
     | 'reports'
     | 'reminders',
     number
