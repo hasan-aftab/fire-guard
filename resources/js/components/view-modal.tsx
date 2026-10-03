@@ -77,7 +77,11 @@ function ViewField({
             <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 {label}
             </p>
-            <p className="text-sm text-foreground">{value || '—'}</p>
+            <p className="text-sm text-foreground">
+                {value === null || value === undefined || value === ''
+                    ? '—'
+                    : value}
+            </p>
         </div>
     );
 }
