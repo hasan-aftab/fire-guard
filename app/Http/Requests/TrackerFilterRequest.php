@@ -29,6 +29,7 @@ class TrackerFilterRequest extends FormRequest
             'site_id' => ['nullable', 'integer', Rule::exists('sites', 'id')],
             'certificate_type_id' => ['nullable', 'integer', Rule::exists('certificate_types', 'id')],
             'asset_id' => ['nullable', 'integer', Rule::exists('assets', 'id')],
+            'sort' => ['nullable', Rule::in(['all', 'newest', 'oldest', 'due_soonest', 'due_latest'])],
         ];
     }
 }
