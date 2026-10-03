@@ -3,7 +3,9 @@
 namespace App\Http\Middleware;
 
 use App\Models\Asset;
+use App\Models\AssetType;
 use App\Models\Certificate;
+use App\Models\CertificateType;
 use App\Models\Client;
 use App\Models\FireNotification;
 use App\Models\GeneratedReport;
@@ -63,6 +65,8 @@ class HandleInertiaRequests extends Middleware
                 'inspections' => Inspection::whereNull('entered_in_error_at')->count(),
                 'certificates' => Certificate::whereNull('entered_in_error_at')->count(),
                 'technicians' => Technician::whereNull('entered_in_error_at')->count(),
+                'assetTypes' => AssetType::query()->count(),
+                'certificateTypes' => CertificateType::query()->count(),
                 'reports' => GeneratedReport::query()->count(),
                 'reminders' => ReminderDelivery::query()->count(),
             ] : null,
