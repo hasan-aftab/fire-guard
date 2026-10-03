@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { ShieldCheck } from 'lucide-react';
 import {
     index,
@@ -7,6 +7,7 @@ import {
     markError,
     restoreError,
 } from '@/actions/App/Http/Controllers/CertificateController';
+import { index as certificateTypesIndex } from '@/actions/App/Http/Controllers/CertificateTypeController';
 import { RecordPage } from '@/components/record-page';
 import { CertificateDocument } from '@/components/managed-file-panel';
 import { StatusBadge } from '@/components/status-badge';
@@ -14,6 +15,7 @@ import { ViewField } from '@/components/view-modal';
 import { index as clientsIndex } from '@/routes/clients';
 import type {
     Certificate,
+    CertificateType,
     CertificateSite,
     Paginated,
     TrackerFilters,
@@ -22,12 +24,15 @@ import type {
 export default function Compliance({
     records,
     sites,
+    certificateTypes,
     filters,
 }: {
     records: Paginated<Certificate>;
     sites: CertificateSite[];
+    certificateTypes: CertificateType[];
     filters: TrackerFilters;
 }) {
+    const isAdmin = usePage().props.auth.user.role === 'admin';
     const activeSites = sites.filter(
         (site) =>
             site.is_active &&
@@ -48,17 +53,34 @@ export default function Compliance({
                     certificate.document ? [certificate.document] : [],
             }}
             icon={ShieldCheck}
-            addDisabled={activeSites.length === 0}
+            addDisabled={
+                activeSites.length === 0 ||
+                !certificateTypes.some((type) => type.is_active)
+            }
             addHint={
-                <>
-                    <Link
-                        href={clientsIndex()}
-                        className="font-medium text-primary underline underline-offset-2"
-                    >
-                        Add a site in Clients &amp; Sites
-                    </Link>{' '}
-                    before creating a certificate.
-                </>
+                activeSites.length === 0 ? (
+                    <>
+                        <Link
+                            href={clientsIndex()}
+                            className="font-medium text-primary underline underline-offset-2"
+                        >
+                            Add a site in Clients &amp; Sites
+                        </Link>{' '}
+                        before creating a certificate.
+                    </>
+                ) : isAdmin ? (
+                    <>
+                        <Link
+                            href={certificateTypesIndex()}
+                            className="font-medium text-primary underline underline-offset-2"
+                        >
+                            Set up a certificate type
+                        </Link>{' '}
+                        before creating a certificate.
+                    </>
+                ) : (
+                    'Ask an administrator to activate a certificate type before creating a certificate.'
+                )
             }
             emptyDescription="Add compliance certificates to track expiry dates and stay compliant."
             records={records}
@@ -69,6 +91,19 @@ export default function Compliance({
                     certificate.entered_in_error_at !== null,
             }}
             searchPlaceholder="Search by type or site..."
+            extraFilters={[
+                {
+                    key: 'certificate_type_id',
+                    label: 'Certificate type',
+                    options: [
+                        { value: 'all', label: 'All types' },
+                        ...certificateTypes.map((type) => ({
+                            value: String(type.id),
+                            label: type.name,
+                        })),
+                    ],
+                },
+            ]}
             dateLabel="Expiry date range"
             issueDates
             statusOptions={[
@@ -82,7 +117,7 @@ export default function Compliance({
                     header: 'Certificate',
                     render: (certificate) => (
                         <span className="text-sm font-medium">
-                            {certificate.certificate_type}
+                            {certificate.certificate_type.name}
                         </span>
                     ),
                 },
@@ -136,7 +171,9 @@ export default function Compliance({
             )}
             defaults={{
                 site_id: String(activeSites[0]?.id ?? ''),
-                certificate_type: '',
+                certificate_type_id: String(
+                    certificateTypes.find((type) => type.is_active)?.id ?? '',
+                ),
                 issue_date: '',
                 expiry_date: '',
                 issued_by: '',
@@ -162,11 +199,20 @@ export default function Compliance({
                         })),
                 },
                 {
-                    name: 'certificate_type',
+                    name: 'certificate_type_id',
                     label: 'Certificate type',
+                    type: 'select',
                     required: true,
-                    maxLength: 255,
-                    placeholder: 'e.g. Annual Fire Safety Statement',
+                    options: certificateTypes
+                        .filter(
+                            (type) =>
+                                type.is_active ||
+                                type.id === editing?.certificate_type_id,
+                        )
+                        .map((type) => ({
+                            value: String(type.id),
+                            label: `${type.name}${type.is_active ? '' : ' (Inactive)'}`,
+                        })),
                 },
                 {
                     name: 'issue_date',
