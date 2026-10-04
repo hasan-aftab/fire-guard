@@ -315,10 +315,11 @@ a ~150 line page config. Not a new page scaffold.
   `User::factory()->unverified()`. Prefer them over hand-built records.
 - Auth gating is explicitly tested (guests → `login`, unverified →
   `verification.notice`); mirror those cases for any new route.
-- `DatabaseSeeder` creates two hardcoded users and `FireTrackerDemoSeeder` early-returns
-  if `Client::exists() || Asset::exists()` — so seeding is a no-op on a non-empty DB.
-  Re-run with `migrate:fresh --seed` to reset. Everything in local MySQL is
-  regenerable demo data, so never hand-edit it as if it were real.
+- `DatabaseSeeder` creates two hardcoded users. `FireTrackerDemoSeeder` updates its
+  recognized Harbourside demo dataset when rerun, but skips unrelated populated
+  tracker databases. Use `migrate:fresh --seed` only to reset a disposable demo DB.
+  Everything in local MySQL is regenerable demo data, so never hand-edit it as if it
+  were real.
 
 ## Gotchas
 
