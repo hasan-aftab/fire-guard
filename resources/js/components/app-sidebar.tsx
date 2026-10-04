@@ -194,8 +194,9 @@ export function AppSidebar() {
                                                 <span>{item.title}</span>
                                             </Link>
                                         </SidebarMenuButton>
-                                        {!!item.count &&
-                                            !!counts?.[item.count] && (
+                                        {item.count &&
+                                            counts?.[item.count] !==
+                                                undefined && (
                                                 <SidebarMenuBadge className="bg-sidebar-accent text-sidebar-accent-foreground">
                                                     {counts[item.count]}
                                                 </SidebarMenuBadge>
