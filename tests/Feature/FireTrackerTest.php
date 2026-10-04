@@ -3,14 +3,22 @@
 use App\Models\Asset;
 use App\Models\AssetType;
 use App\Models\Certificate;
+use App\Models\CertificateDocument;
 use App\Models\CertificateType;
 use App\Models\Client;
+use App\Models\FireNotification;
+use App\Models\GeneratedReport;
 use App\Models\Inspection;
+use App\Models\ReminderDelivery;
 use App\Models\Site;
 use App\Models\Technician;
 use App\Models\User;
 use Database\Seeders\AssetTypeSeeder;
+use Database\Seeders\CertificateTypeSeeder;
 use Database\Seeders\FireTrackerDemoSeeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('guests cannot open tracker pages', function (string $route) {
@@ -227,15 +235,201 @@ test('dashboard uses fourteen day asset alerts thirty day certificate alerts and
         ->where('summary.complianceRate', ['pass' => 1, 'fail' => 1, 'needs_repair' => 1, 'total' => 3]));
 });
 
-test('equipment types and demo data can be seeded repeatedly without duplicating records', function () {
+test('demo data and private artifacts are seeded repeatedly without duplicates or email delivery', function () {
+    Storage::fake('local');
+    Mail::fake();
+    config()->set('fire-tracker.disk', 'local');
+    config()->set('fire-tracker.report.disk', null);
+
     $this->seed(AssetTypeSeeder::class);
     $this->seed(FireTrackerDemoSeeder::class);
     $this->seed(FireTrackerDemoSeeder::class);
 
     $this->assertDatabaseCount('asset_types', 9);
+    $this->assertDatabaseCount('certificate_types', 5);
     $this->assertDatabaseCount('clients', 3);
     $this->assertDatabaseCount('sites', 4);
-    $this->assertDatabaseCount('assets', 12);
-    $this->assertDatabaseCount('inspections', 6);
+    $this->assertDatabaseCount('assets', 13);
+    $this->assertDatabaseCount('technicians', 3);
+    $this->assertDatabaseCount('inspections', 8);
     $this->assertDatabaseCount('certificates', 6);
+    $this->assertDatabaseCount('users', 1);
+    $this->assertDatabaseCount('inspection_photos', 4);
+    $this->assertDatabaseCount('certificate_documents', 7);
+    $this->assertDatabaseCount('managed_uploads', 1);
+    $this->assertDatabaseCount('generated_reports', 5);
+    $this->assertDatabaseCount('reminder_recipients', 2);
+    $this->assertDatabaseCount('reminder_deliveries', 4);
+
+    $this->assertDatabaseHas('clients', [
+        'company_name' => 'Moresby Central Bank Tower',
+        'email' => 'simon.aitsi@example.test',
+        'is_active' => false,
+    ]);
+    $this->assertDatabaseHas('asset_types', [
+        'type_name' => 'Fire Blanket',
+        'is_active' => false,
+    ]);
+    $this->assertDatabaseHas('certificate_types', [
+        'name' => 'Emergency Evacuation Plan',
+        'is_active' => false,
+    ]);
+    $this->assertDatabaseHas('technicians', [
+        'full_name' => 'Michael Doa',
+        'license_number' => null,
+        'license_expiry' => null,
+        'is_active' => false,
+    ]);
+    $this->assertDatabaseHas('assets', [
+        'serial_number' => null,
+        'next_service_due' => null,
+    ]);
+    $this->assertDatabaseHas('inspections', [
+        'technician_id' => null,
+        'notes' => null,
+        'next_due_date' => null,
+    ]);
+    $this->assertDatabaseHas('certificates', [
+        'asset_id' => null,
+        'issued_by' => null,
+        'legacy_certificate_type' => 'Annual Fire Safety Statement (legacy)',
+    ]);
+    $this->assertDatabaseHas('managed_uploads', [
+        'status' => 'pending',
+        'total_chunks' => 1,
+        'next_chunk' => 0,
+    ]);
+    $this->assertDatabaseHas('fire_notifications', ['is_read' => true]);
+    $this->assertDatabaseHas('fire_notifications', ['is_read' => false]);
+
+    $repairAsset = Asset::query()->where('serial_number', 'HR-0093')->firstOrFail();
+    $repairInspection = $repairAsset->inspections()
+        ->firstOrFail();
+    $repairPhotos = $repairInspection->photos;
+    expect($repairPhotos)->toHaveCount(3);
+
+    foreach ($repairPhotos as $photo) {
+        $bytes = Storage::disk($photo->storage_disk)->get($photo->storage_path);
+        $dimensions = getimagesizefromstring($bytes);
+        expect($photo->mime_type)->toBe('image/jpeg')
+            ->and($photo->file_size)->toBeGreaterThan(100_000)
+            ->and($dimensions[0])->toBe(1800)
+            ->and($dimensions[1])->toBe(1200);
+
+        $decodedImage = imagecreatefromstring($bytes);
+        expect($decodedImage)->not->toBeFalse();
+        $pixel = imagecolorsforindex($decodedImage, imagecolorat($decodedImage, 10, 10));
+        expect($pixel['red'])->toBeGreaterThan($pixel['green'])
+            ->and($pixel['red'])->toBeGreaterThan($pixel['blue']);
+        imagedestroy($decodedImage);
+    }
+
+    foreach (['inspection_photos', 'certificate_documents'] as $table) {
+        foreach (DB::table($table)->get(['storage_disk', 'storage_path', 'mime_type']) as $file) {
+            Storage::disk($file->storage_disk)->assertExists($file->storage_path);
+            if (str_starts_with($file->mime_type, 'image/')) {
+                $bytes = Storage::disk($file->storage_disk)->get($file->storage_path);
+                expect(getimagesizefromstring($bytes))->not->toBeFalse();
+            }
+
+            if ($file->mime_type === 'application/pdf') {
+                $bytes = Storage::disk($file->storage_disk)->get($file->storage_path);
+                preg_match_all('/\/Type \/Page\b/', $bytes, $pages);
+                expect(count($pages[0]))->toBeGreaterThanOrEqual(3);
+            }
+        }
+    }
+    $activeComplianceDocuments = CertificateDocument::query()
+        ->whereNull('pending_deletion_at')
+        ->get(['certificate_id', 'mime_type']);
+    expect($activeComplianceDocuments)->toHaveCount(6);
+    expect($activeComplianceDocuments->where('mime_type', 'image/jpeg'))->toHaveCount(1);
+    expect($activeComplianceDocuments->where('mime_type', 'application/pdf'))->toHaveCount(5);
+
+    $documentsByCertificate = $activeComplianceDocuments->groupBy('certificate_id');
+    expect($documentsByCertificate)->toHaveCount(6);
+    foreach ($documentsByCertificate as $documents) {
+        expect($documents)->toHaveCount(1);
+    }
+
+    $reports = GeneratedReport::query()->get();
+    expect($reports->map(fn (GeneratedReport $report): string => $report->report_type->value)->all())
+        ->toEqualCanonicalizing([
+            'inspection',
+            'inspection',
+            'service',
+            'maintenance',
+            'audit',
+        ]);
+
+    foreach ($reports as $report) {
+        Storage::disk($report->storage_disk)->assertExists($report->storage_path);
+        $bytes = Storage::disk($report->storage_disk)->get($report->storage_path);
+        expect($bytes)->toStartWith('%PDF-1.4')
+            ->and($report->file_size)->toBe(strlen($bytes))
+            ->and($report->sha256)->toBe(hash('sha256', $bytes));
+    }
+
+    $originalReport = GeneratedReport::query()
+        ->where('storage_path', 'fire-tracker/demo/reports/inspection-original.pdf')
+        ->firstOrFail();
+    $regeneratedReport = GeneratedReport::query()
+        ->where('storage_path', 'fire-tracker/demo/reports/inspection-regenerated.pdf')
+        ->firstOrFail();
+    expect($regeneratedReport->regenerated_from_id)->toBe($originalReport->id)
+        ->and($regeneratedReport->include_entered_in_error)->toBeFalse();
+    expect(GeneratedReport::query()->whereNull('site_id')->exists())->toBeTrue();
+
+    expect(ReminderDelivery::query()->pluck('status')->all())
+        ->toEqualCanonicalizing(['pending', 'failed', 'sent', 'uncertain']);
+    expect(FireNotification::query()->exists())->toBeTrue();
+    Mail::assertNothingOutgoing();
+});
+
+test('the seeder completes a recognized demo dataset already in the database', function () {
+    Storage::fake('local');
+    config()->set('fire-tracker.disk', 'local');
+    config()->set('fire-tracker.report.disk', null);
+    $this->seed(AssetTypeSeeder::class);
+    $this->seed(CertificateTypeSeeder::class);
+    $client = Client::factory()->create([
+        'company_name' => 'Harbourside Logistics Ltd',
+        'email' => null,
+    ]);
+    $site = Site::factory()->for($client)->create([
+        'site_name' => 'Port Moresby Warehouse',
+    ]);
+    $type = AssetType::query()
+        ->where('type_name', 'Fire Extinguisher - Dry Chemical')
+        ->firstOrFail();
+    $asset = Asset::factory()->for($site)->for($type)->create([
+        'serial_number' => 'EX-2201',
+    ]);
+    $inspection = Inspection::factory()->for($asset)->create([
+        'inspection_date' => '2026-06-20',
+        'result' => 'pass',
+    ]);
+
+    $this->seed(FireTrackerDemoSeeder::class);
+
+    expect($client->fresh()->email)->toBe('peter.kaupa@example.test');
+    $this->assertModelExists($asset);
+    $this->assertModelExists($inspection);
+    $this->assertDatabaseCount('clients', 3);
+    $this->assertDatabaseCount('assets', 13);
+    $this->assertDatabaseCount('inspections', 8);
+    $this->assertDatabaseCount('generated_reports', 5);
+});
+
+test('the seeder leaves unrelated populated tracker data alone', function () {
+    Storage::fake('local');
+    config()->set('fire-tracker.disk', 'local');
+    $client = Client::factory()->create();
+
+    $this->seed(FireTrackerDemoSeeder::class);
+
+    $this->assertModelExists($client);
+    $this->assertDatabaseCount('clients', 1);
+    $this->assertDatabaseCount('assets', 0);
+    $this->assertDatabaseCount('generated_reports', 0);
 });
