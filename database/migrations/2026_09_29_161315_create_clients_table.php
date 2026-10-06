@@ -13,6 +13,8 @@ return new class extends Migration
             $table->string('company_name');
             $table->string('contact_name')->nullable();
             $table->string('phone')->nullable();
+            $table->string('whatsapp_phone', 24)->nullable();
+            $table->boolean('whatsapp_reminders_enabled')->default(false);
             $table->string('email')->nullable();
             $table->text('billing_address')->nullable();
             $table->text('notes')->nullable();
