@@ -129,7 +129,15 @@ only for a disposable demo database whose data and report history may be lost.
 Client ──> Site ─┬─> Asset ──> AssetType
                 │      └──> Inspection ──> Technician
                 └─> Certificate ──> CertificateType
+
+WhatsAppAccount ──> WhatsAppMessage ──> ReminderDelivery (optional)
+WhatsAppTemplate ──> WhatsAppMessage
 ```
+
+WhatsApp sending accounts and template mappings are separate create-only tables.
+Mappings are keyed by WABA and reminder purpose, so several sending numbers may
+share a WABA. A WhatsApp message retains its account and optional reminder
+delivery through restrictive foreign keys; test messages have no delivery.
 
 - **Every fire-tracker FK is `restrictOnDelete`** — `sites.client_id`,
   `assets.site_id`, `assets.asset_type_id`, `inspections.asset_id`,
