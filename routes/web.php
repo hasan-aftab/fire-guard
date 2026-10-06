@@ -45,6 +45,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reminders', [ReminderHistoryController::class, 'index'])->name('reminders.index');
+    Route::post('reminders/test-email', [ReminderHistoryController::class, 'sendTestEmail'])->middleware('throttle:3,1')->name('reminders.test-email');
     Route::post('reminders/recipients', [ReminderRecipientController::class, 'store'])->name('reminders.recipients.store');
     Route::delete('reminders/recipients/{reminderRecipient}', [ReminderRecipientController::class, 'destroy'])->name('reminders.recipients.destroy');
     Route::post('reports', [ReportController::class, 'store'])->name('reports.store');
