@@ -112,7 +112,12 @@ const navGroups: NavGroup[] = [
         label: 'Configuration',
         adminOnly: true,
         items: [
-            { title: 'WhatsApp', href: whatsapp(), icon: MessageCircle },
+            {
+                title: 'WhatsApp',
+                href: whatsapp(),
+                icon: MessageCircle,
+                count: 'whatsapp',
+            },
             {
                 title: 'Asset Types',
                 href: assetTypes(),
