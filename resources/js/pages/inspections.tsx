@@ -58,7 +58,11 @@ export default function Inspections({
     return (
         <RecordPage
             title="Inspections"
-            description="Log and review fire safety inspections"
+            description={
+                filters.dashboard_scope === 'actionable'
+                    ? 'Current inspection results included in dashboard compliance'
+                    : 'Log and review fire safety inspections'
+            }
             noun="inspection"
             icon={ClipboardCheck}
             addDisabled={addDisabled}

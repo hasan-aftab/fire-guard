@@ -25,7 +25,7 @@ const AS_OF = '2026-10-04';
 function kpis(): DashboardKpis {
     return {
         overdue: { total: 5, byKind: { asset: 3, certificate: 2 } },
-        dueSoon: { total: 2, horizonPreset: '7d', horizonDays: 8 },
+        dueSoon: { total: 2, horizonPreset: '14d', horizonDays: 15 },
         certificates: {
             expired: 1,
             expiringSoon: 2,
@@ -56,7 +56,7 @@ function schedule(
         overdueMode: 'include',
         day: null,
         windowHidden: false,
-        groupBoundaryDays: 7,
+        groupBoundaryDays: 14,
         groups: [
             {
                 id: 'overdue',
@@ -68,7 +68,7 @@ function schedule(
             },
             {
                 id: 'next',
-                label: 'Next 7 days',
+                label: 'Next 14 days',
                 itemCount: 0,
                 byKind: { asset: 0, certificate: 0 },
                 firstDate: null,
@@ -91,6 +91,8 @@ function schedule(
         overdueCount: 0,
         windowItemCount: 0,
         totalCount: 0,
+        page: 1,
+        lastPage: 1,
         returnedCount: 0,
         truncated: false,
         maxItems: 60,
@@ -121,11 +123,13 @@ describe('reading state out of a URL', () => {
             ),
         ).toEqual({
             type: 'certificate',
+            dateMode: null,
             horizon: '30d',
             from: null,
             to: null,
             overdue: 'exclude',
             day: '2026-10-07',
+            page: 1,
         });
     });
 
@@ -164,6 +168,33 @@ describe('reading state out of a URL', () => {
         expect(onlyStart.from).toBeNull();
         expect(onlyEnd.to).toBeNull();
         expect(both).toMatchObject({ from: '2026-10-01', to: '2026-10-20' });
+    });
+
+    it('round-trips inclusive open-ended and bounded date filters', () => {
+        for (const custom of [
+            scheduleState({ dateMode: 'through', to: '2026-10-03' }),
+            scheduleState({ dateMode: 'from', from: '2026-10-10' }),
+            scheduleState({
+                dateMode: 'between',
+                from: '2026-10-03',
+                to: '2026-10-10',
+            }),
+        ]) {
+            expect(
+                stateFromQuery(new URLSearchParams(stateToQuery(custom))),
+            ).toEqual(custom);
+        }
+    });
+
+    it('keeps the selected agenda page in a shareable URL', () => {
+        const state = scheduleState({ page: 3, type: 'asset' });
+        expect(stateToQuery(state)).toEqual({
+            schedule_type: 'asset',
+            schedule_page: '3',
+        });
+        expect(
+            stateFromQuery(new URLSearchParams(stateToQuery(state))),
+        ).toEqual(state);
     });
 });
 
@@ -211,9 +242,9 @@ describe('tile scopes', () => {
         );
     });
 
-    it('counts the due-in-seven-days tile over the window without the backlog', () => {
+    it('counts the due-in-fourteen-days tile over the window without the backlog', () => {
         expect(tileState('dueSoon', kpis())).toEqual(
-            scheduleState({ horizon: '7d', overdue: 'exclude' }),
+            scheduleState({ horizon: '14d', overdue: 'exclude' }),
         );
     });
 

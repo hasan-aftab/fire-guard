@@ -513,6 +513,7 @@ export function RecordPage<T extends { id: number }>({
                             emptyMessage={`No ${noun}s match your filters.`}
                         />
                         {(archive || mistake) &&
+                            !filters.dashboard_scope &&
                             filters.record_state !== 'entered_in_error' && (
                                 <p className="border-t px-4 py-2 text-xs text-muted-foreground">
                                     This list keeps every record, including

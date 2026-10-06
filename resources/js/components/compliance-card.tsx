@@ -74,40 +74,34 @@ export function ComplianceCard({
 
     const card = (
         <Card className="h-full gap-0 py-0" data-status={band}>
-            <CardHeader className="border-b py-3">
-                <CardTitle className="flex flex-wrap items-center gap-2 text-base leading-7">
+            <CardHeader className="py-3 pb-0">
+                <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground sm:text-sm">
                     <span className="flex size-7 items-center justify-center rounded-md bg-muted">
                         <ShieldCheck
-                            className="size-4 text-muted-foreground"
+                            className="size-3.5 text-muted-foreground"
                             aria-hidden="true"
                         />
                     </span>
-                    Inspection compliance
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                        Last {scope}
-                    </span>
+                    Compliance · {scope}
                 </CardTitle>
             </CardHeader>
 
-            <CardContent className="flex flex-1 flex-col py-4">
+            <CardContent className="flex flex-1 flex-col py-1.5 pb-3">
                 {hasData ? (
                     <>
                         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                             <p
-                                className={`text-3xl font-bold tracking-tight ${HEADLINE_STYLES[band]}`}
+                                className={`text-2xl font-bold tracking-tight sm:text-3xl ${HEADLINE_STYLES[band]}`}
                             >
                                 {percent}%
-                                <span className="ml-1.5 text-sm font-medium text-muted-foreground">
-                                    pass rate
-                                </span>
                             </p>
                             <p className="text-xs text-muted-foreground tabular-nums">
-                                {pass} of {total} inspections
+                                {total} inspections
                             </p>
                         </div>
 
                         <div
-                            className="mt-3 flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-muted"
+                            className="mt-2 flex h-2 w-full gap-0.5 overflow-hidden rounded-full bg-muted"
                             role="img"
                             aria-label={summary}
                         >
@@ -132,25 +126,32 @@ export function ComplianceCard({
                             })}
                         </div>
 
-                        <dl className="mt-4 grid grid-cols-3 gap-3">
+                        <dl className="mt-2 flex flex-wrap gap-x-2 gap-y-0.5">
                             {SEGMENTS.map((segment) => (
-                                <div key={segment.key}>
-                                    <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <div
+                                    key={segment.key}
+                                    className="flex items-center gap-1 text-[11px]"
+                                >
+                                    <dt className="flex items-center gap-1 text-muted-foreground">
                                         <span
                                             className={`size-2 shrink-0 rounded-full ${DOT_STYLES[segment.key]}`}
                                             aria-hidden="true"
                                         />
-                                        {segment.label}
+                                        {segment.key === 'needsRepair' ? (
+                                            <>
+                                                <span className="sm:hidden">
+                                                    Repair
+                                                </span>
+                                                <span className="hidden sm:inline">
+                                                    Needs repair
+                                                </span>
+                                            </>
+                                        ) : (
+                                            segment.label
+                                        )}
                                     </dt>
-                                    <dd className="mt-0.5 text-sm font-semibold tabular-nums">
+                                    <dd className="font-semibold tabular-nums">
                                         {counts[segment.key]}
-                                        <span className="ml-1 text-xs font-normal text-muted-foreground">
-                                            {Math.round(
-                                                (counts[segment.key] / total) *
-                                                    100,
-                                            )}
-                                            %
-                                        </span>
                                     </dd>
                                 </div>
                             ))}
@@ -158,21 +159,14 @@ export function ComplianceCard({
                     </>
                 ) : (
                     <div
-                        className="flex flex-1 flex-col items-center justify-center py-8 text-center"
+                        className="flex flex-1 flex-col justify-center py-3"
                         role="status"
                     >
-                        <span className="mb-3 flex size-12 items-center justify-center rounded-full bg-muted">
-                            <ShieldCheck
-                                className="size-6 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                        </span>
                         <p className="text-sm font-medium">
                             No inspections yet
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                            Compliance appears here once inspections are
-                            recorded
+                            Pass rate appears after the first inspection.
                         </p>
                     </div>
                 )}

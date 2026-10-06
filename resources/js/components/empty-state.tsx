@@ -14,14 +14,16 @@ export function EmptyState({
     title,
     description,
     action,
+    className,
 }: {
     icon: LucideIcon;
     title: string;
     description: string;
     action?: ReactNode;
+    className?: string;
 }) {
     return (
-        <Empty data-empty>
+        <Empty data-empty className={className}>
             <EmptyHeader>
                 <EmptyMedia>
                     <Icon />

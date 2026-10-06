@@ -1,21 +1,16 @@
-import { Head, router } from '@inertiajs/react';
-import {
-    AlertTriangle,
-    Building2,
-    Clock,
-    Flame,
-    ShieldCheck,
-} from 'lucide-react';
-import { useState } from 'react';
+import { Head, Link, router, usePoll } from '@inertiajs/react';
+import { AlertTriangle, Clock, ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { dashboard } from '@/routes';
 import { AttentionTile } from '@/components/attention-tile';
 import { ComplianceCard } from '@/components/compliance-card';
 import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
-import { StatCard } from '@/components/stat-card';
 import { SchedulePanel } from '@/components/schedule-panel';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatLongDate } from '@/lib/dates';
 import {
     DEFAULT_STATE,
     activeTile,
@@ -43,15 +38,33 @@ export default function Dashboard({
     filters: DashboardFilters;
 }) {
     const [loadingSchedule, setLoadingSchedule] = useState(false);
-    const [error, setError] = useState('');
+    const [scheduleError, setScheduleError] = useState('');
+    const [retryState, setRetryState] = useState<ScheduleState | null>(null);
 
-    if (!summary || !schedule) {
+    usePoll(60_000, { only: ['summary', 'kpis', 'schedule'] });
+
+    // Inertia throttles polling in background tabs. Refresh as soon as the
+    // dashboard is visible again, including after Port Moresby midnight.
+    useEffect(() => {
+        const refreshOnReturn = () => {
+            if (!document.hidden) {
+                router.reload({ only: ['summary', 'kpis', 'schedule'] });
+            }
+        };
+
+        document.addEventListener('visibilitychange', refreshOnReturn);
+
+        return () =>
+            document.removeEventListener('visibilitychange', refreshOnReturn);
+    }, []);
+
+    if (!summary) {
         return (
             <div>
                 <Head title="Dashboard" />
                 <PageHeader
                     title="Dashboard"
-                    description="Overview of your fire safety operations"
+                    description="Fire safety at a glance"
                 />
                 <EmptyState
                     icon={AlertTriangle}
@@ -59,6 +72,30 @@ export default function Dashboard({
                     description="There was an error loading the dashboard data. Please try refreshing the page."
                     action={
                         <Button onClick={() => router.reload()}>Retry</Button>
+                    }
+                />
+            </div>
+        );
+    }
+
+    if (summary.isFirstRun) {
+        return (
+            <div>
+                <Head title="Dashboard" />
+                <PageHeader
+                    title="Dashboard"
+                    description={`As of ${formatLongDate(summary.asOfDate)} · Port Moresby time`}
+                />
+                <EmptyState
+                    icon={ShieldCheck}
+                    title="Set up your first site"
+                    description="Add a client and site, then record equipment to start tracking due dates."
+                    action={
+                        <Button asChild>
+                            <Link href={summary.links.activeClients}>
+                                Add a client
+                            </Link>
+                        </Button>
                     }
                 />
             </div>
@@ -82,11 +119,13 @@ export default function Dashboard({
             preserveState: true,
             preserveScroll: true,
             onStart: () => {
-                setError('');
+                setScheduleError('');
+                setRetryState(next);
                 setLoadingSchedule(true);
             },
+            onSuccess: () => setRetryState(null),
             onError: () =>
-                setError('The schedule could not load. Please try again.'),
+                setScheduleError('Work could not refresh. Try again.'),
             onFinish: () => setLoadingSchedule(false),
         });
     };
@@ -112,92 +151,64 @@ export default function Dashboard({
             <Head title="Dashboard" />
             <PageHeader
                 title="Dashboard"
-                description="Overview of your fire safety operations"
+                description={`As of ${formatLongDate(summary.asOfDate)} · Port Moresby time`}
             />
 
-            {error && (
-                <Alert variant="destructive" className="mb-6">
-                    <AlertTriangle />
-                    <AlertDescription>{error}</AlertDescription>
-                </Alert>
-            )}
-
-            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard
-                    label="Active clients"
-                    value={summary.stats.activeClients}
-                    icon={Building2}
-                    description="Registered companies"
-                    href={summary.links.activeClients}
-                />
-                <StatCard
-                    label="Total assets"
-                    value={summary.stats.totalAssets}
-                    icon={Flame}
-                    description="Fire safety equipment"
-                    href={summary.links.totalAssets}
-                />
-
-                {kpis && (
+            <div className="mb-4 grid grid-cols-2 gap-2.5 xl:grid-cols-4 xl:gap-4">
+                {kpis ? (
                     <>
                         <AttentionTile
                             label="Overdue"
                             value={kpis.overdue.total}
                             icon={AlertTriangle}
                             tone="destructive"
-                            detail={`${kpis.overdue.byKind.asset} inspections · ${kpis.overdue.byKind.certificate} certificates`}
-                            action="Show in schedule"
+                            detail={`${kpis.overdue.byKind.asset} equipment · ${kpis.overdue.byKind.certificate} certificates`}
                             active={selectedTile === 'overdue'}
                             onClick={() => focusTile('overdue')}
                         />
                         <AttentionTile
-                            label={`Due in ${horizonDaysLabel(kpis, 'dueSoon')}`}
+                            label="Due next 14 days"
                             value={kpis.dueSoon.total}
                             icon={Clock}
-                            detail="Excludes anything already overdue"
-                            action="Show in schedule"
+                            detail="From today"
                             active={selectedTile === 'dueSoon'}
                             onClick={() => focusTile('dueSoon')}
                         />
-                    </>
-                )}
-            </div>
-
-            <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-                {kpis ? (
-                    <>
                         <AttentionTile
-                            label="Certificates needing attention"
+                            label="Certificate alerts"
                             value={kpis.certificates.total}
                             icon={ShieldCheck}
                             detail={`${kpis.certificates.expired} expired · ${kpis.certificates.expiringSoon} expiring`}
-                            action="Show in schedule"
                             active={selectedTile === 'certificates'}
                             onClick={() => focusTile('certificates')}
                         />
-
-                        <div className="lg:col-span-2">
-                            <ComplianceCard
-                                passRate={kpis.passRate}
-                                months={summary.complianceMonths}
-                                href={summary.links.passRateInspections}
-                            />
-                        </div>
-                    </>
-                ) : (
-                    <div className="lg:col-span-3">
                         <ComplianceCard
-                            passRate={{
-                                percent: 0,
-                                band: 'warning',
-                                pass: 0,
-                                fail: 0,
-                                needsRepair: 0,
-                                total: 0,
-                            }}
+                            passRate={kpis.passRate}
                             months={summary.complianceMonths}
+                            href={summary.links.passRateInspections}
                         />
-                    </div>
+                    </>
+                ) : loadingSchedule ? (
+                    Array.from({ length: 4 }, (_, index) => (
+                        <Card key={index} className="min-h-32 gap-2 py-3">
+                            <CardContent className="space-y-3">
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-9 w-14" />
+                                <Skeleton className="h-3 w-32 max-w-full" />
+                            </CardContent>
+                        </Card>
+                    ))
+                ) : (
+                    <Card className="col-span-2 min-h-32 xl:col-span-4">
+                        <CardContent className="flex h-full items-center justify-center">
+                            <div className="flex items-center gap-3 text-sm">
+                                <span>Dashboard numbers could not load.</span>
+                                <Button onClick={() => router.reload()}>
+                                    Retry
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
             </div>
 
@@ -205,20 +216,18 @@ export default function Dashboard({
                 schedule={schedule}
                 kpis={kpis}
                 filters={filters}
+                today={summary.asOfDate}
                 loading={loadingSchedule}
+                error={scheduleError}
                 onChange={applySchedule}
+                onRetry={() =>
+                    retryState
+                        ? applySchedule(retryState)
+                        : router.reload({ only: ['schedule'] })
+                }
             />
         </div>
     );
-}
-
-/**
- * The tile's own label states the range it counts over, using the span the KPI
- * measured rather than a number typed here. A tile that said "Due in 7 days"
- * while counting 14 would be a lie the reader cannot check.
- */
-function horizonDaysLabel(kpis: DashboardKpis, card: 'dueSoon'): string {
-    return `${kpis[card].horizonDays - 1} days`;
 }
 
 Dashboard.layout = {

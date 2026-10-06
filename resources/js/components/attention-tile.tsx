@@ -53,13 +53,13 @@ export function AttentionTile({
         >
             <Card
                 className={cn(
-                    'h-full gap-2 py-4 transition-colors',
+                    'h-full gap-1 py-3 transition-colors',
                     active && 'bg-accent/60 ring-1 ring-foreground/20',
                     interactive && !active && 'hover:bg-accent/40',
                 )}
             >
                 <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-0">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                    <CardTitle className="text-xs font-medium text-muted-foreground sm:text-sm">
                         {label}
                     </CardTitle>
 
@@ -78,7 +78,7 @@ export function AttentionTile({
 
                         <span
                             className={cn(
-                                'flex size-8 shrink-0 items-center justify-center rounded-lg',
+                                'flex size-7 shrink-0 items-center justify-center rounded-lg',
                                 tone === 'destructive' && 'bg-destructive/10',
                                 tone === 'warning' && 'bg-warning/10',
                                 tone === 'success' && 'bg-success/10',
@@ -87,7 +87,7 @@ export function AttentionTile({
                         >
                             <Icon
                                 className={cn(
-                                    'size-4',
+                                    'size-3.5',
                                     tone === 'destructive' &&
                                         'text-destructive',
                                     tone === 'warning' && 'text-warning',
@@ -104,7 +104,7 @@ export function AttentionTile({
                 <CardContent>
                     <div
                         className={cn(
-                            'text-3xl font-bold tracking-tight tabular-nums',
+                            'text-2xl font-bold tracking-tight tabular-nums sm:text-3xl',
                             tone === 'destructive' && 'text-destructive',
                             tone === 'default' && 'text-foreground',
                         )}
@@ -113,15 +113,17 @@ export function AttentionTile({
                     </div>
 
                     {detail && (
-                        <p className="mt-1 text-xs text-muted-foreground">
+                        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground sm:text-xs">
                             {detail}
                         </p>
                     )}
 
                     {interactive && (
-                        <p className="mt-2 text-xs font-medium text-muted-foreground">
-                            {active ? 'Clear to show everything' : action}
-                        </p>
+                        <span className="sr-only">
+                            {active
+                                ? 'Clear schedule filter'
+                                : (action ?? 'Show matching work')}
+                        </span>
                     )}
                 </CardContent>
             </Card>

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SchedulePanel } from './schedule-panel';
+import { ScheduleDayStrip } from './schedule-day-strip';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type { ScheduleState } from '@/lib/schedule';
 import { stateToQuery } from '@/lib/schedule';
@@ -73,9 +74,10 @@ const NEXT_ITEMS = [
         '2026-10-05',
         'certificate',
     ),
+    item('asset:5', 'Sprinkler Head', '2026-10-14'),
 ];
 
-const LATER_ITEMS = [item('asset:5', 'Sprinkler Head', '2026-10-14')];
+const LATER_ITEMS: ScheduleItem[] = [];
 
 /**
  * Builds a payload, then re-derives the scope totals from whatever groups it
@@ -99,10 +101,10 @@ function schedule(
         overdueMode: 'include',
         day: null,
         windowHidden: false,
-        groupBoundaryDays: 7,
+        groupBoundaryDays: 14,
         groups: [
             group('overdue', 'Overdue', OVERDUE_ITEMS),
-            group('next', 'Next 7 days', NEXT_ITEMS),
+            group('next', 'Next 14 days', NEXT_ITEMS),
             group('later', 'Later', LATER_ITEMS),
         ],
         counts: { all: 7, asset: 5, certificate: 2 },
@@ -121,6 +123,8 @@ function schedule(
         overdueCount: 3,
         windowItemCount: 4,
         totalCount: 7,
+        page: 1,
+        lastPage: 1,
         returnedCount: 7,
         truncated: false,
         maxItems: 60,
@@ -151,7 +155,7 @@ function schedule(
 
 const KPIS: DashboardKpis = {
     overdue: { total: 3, byKind: { asset: 2, certificate: 1 } },
-    dueSoon: { total: 3, horizonPreset: '7d', horizonDays: 8 },
+    dueSoon: { total: 3, horizonPreset: '14d', horizonDays: 15 },
     certificates: {
         expired: 2,
         expiringSoon: 1,
@@ -173,11 +177,15 @@ function renderPanel({
     filters = {},
     onChange = vi.fn(),
     loading = false,
+    error,
+    onRetry,
 }: {
     scheduleOverrides?: Partial<DashboardSchedule>;
     filters?: DashboardFilters;
     onChange?: (next: ScheduleState) => void;
     loading?: boolean;
+    error?: string;
+    onRetry?: () => void;
 } = {}) {
     // The app shell supplies this in `app.tsx`.
     render(
@@ -186,8 +194,11 @@ function renderPanel({
                 schedule={schedule(scheduleOverrides)}
                 kpis={KPIS}
                 filters={filters}
+                today={AS_OF}
                 loading={loading}
+                error={error}
                 onChange={onChange}
+                onRetry={onRetry}
             />
         </TooltipProvider>,
     );
@@ -231,22 +242,21 @@ describe('the three sections', () => {
 
         expect(screen.getByRole('heading', { name: /^Overdue/ })).toBeTruthy();
         expect(
-            screen.getByRole('heading', { name: /^Next 7 days/ }),
+            screen.getByRole('heading', { name: /^Next 14 days/ }),
         ).toBeTruthy();
-        expect(screen.getByRole('heading', { name: /^Later/ })).toBeTruthy();
+        expect(screen.queryByRole('heading', { name: /^Later/ })).toBeNull();
 
-        // Three late records, one heading.
-        expect(screen.getAllByRole('heading')).toHaveLength(3);
+        // Three late records, one heading; the default window ends at day 14.
+        expect(screen.getAllByRole('heading')).toHaveLength(2);
     });
 
-    it('breaks the overdue count down and says how old it is', () => {
+    it('shows the overdue group count without repeating tile detail', () => {
         renderPanel();
 
         const heading = screen.getByRole('heading', { name: /^Overdue/ });
 
-        expect(heading.textContent).toContain('3 records');
-        expect(heading.textContent).toContain('2 inspections · 1 certificate');
-        expect(heading.textContent).toContain('since Sat, 1 Aug 2026');
+        expect(heading.textContent).toContain('3');
+        expect(heading.textContent).not.toContain('since');
     });
 
     it('drops an empty section instead of rendering a hollow heading', () => {
@@ -254,7 +264,7 @@ describe('the three sections', () => {
             scheduleOverrides: {
                 groups: [
                     group('overdue', 'Overdue', []),
-                    group('next', 'Next 7 days', NEXT_ITEMS),
+                    group('next', 'Next 14 days', NEXT_ITEMS),
                     group('later', 'Later', []),
                 ],
             },
@@ -262,6 +272,26 @@ describe('the three sections', () => {
 
         expect(screen.queryByRole('heading', { name: /^Overdue/ })).toBeNull();
         expect(screen.queryByRole('heading', { name: /^Later/ })).toBeNull();
+    });
+
+    it('shows a later section when a wider date filter includes work after day 14', () => {
+        renderPanel({
+            filters: { schedule_horizon: '30d' },
+            scheduleOverrides: {
+                to: '2026-11-03',
+                horizonPreset: '30d',
+                groups: [
+                    group('overdue', 'Overdue', OVERDUE_ITEMS),
+                    group('next', 'Next 14 days', NEXT_ITEMS),
+                    group('later', 'Later', [
+                        item('asset:6', 'Exit light', '2026-10-25'),
+                    ]),
+                ],
+            },
+        });
+
+        expect(screen.getByRole('heading', { name: /^Later/ })).toBeTruthy();
+        expect(screen.getByText('Exit light')).toBeTruthy();
     });
 
     it('folds a long group and can unfold it again', async () => {
@@ -287,13 +317,47 @@ describe('the three sections', () => {
                 .getByRole('button', { name: 'Show fewer' })
                 .getAttribute('aria-expanded'),
         ).toBe('true');
-        // Scoped to the group's own list: the day strip contributes 15 more.
+        // Scoped to the group's own list.
         const lists = screen.getAllByRole('list');
         expect(
             lists.filter(
                 (list) => within(list).queryAllByRole('listitem').length === 12,
             ),
         ).toHaveLength(1);
+    });
+});
+
+describe('loading and failure states', () => {
+    it('keeps the current work visible with a retry after refresh fails', async () => {
+        const onRetry = vi.fn();
+        renderPanel({ error: 'Work could not refresh.', onRetry });
+
+        expect(screen.getByRole('alert').textContent).toContain(
+            'Work could not refresh.',
+        );
+        expect(screen.getByText('Extinguisher')).toBeTruthy();
+        await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(onRetry).toHaveBeenCalledOnce();
+    });
+
+    it('shows a skeleton while the schedule is loading for the first time', () => {
+        render(
+            <TooltipProvider delayDuration={0}>
+                <SchedulePanel
+                    schedule={null}
+                    kpis={null}
+                    filters={{}}
+                    today={AS_OF}
+                    loading
+                    onChange={vi.fn()}
+                />
+            </TooltipProvider>,
+        );
+
+        expect(
+            screen.getByRole('status', { name: 'Loading work by due date' }),
+        ).toBeTruthy();
+        expect(screen.queryByText('Work could not load.')).toBeNull();
     });
 });
 
@@ -304,7 +368,7 @@ describe('empty states', () => {
             scheduleOverrides: {
                 groups: [
                     group('overdue', 'Overdue', []),
-                    group('next', 'Next 7 days', []),
+                    group('next', 'Next 14 days', []),
                     group('later', 'Later', []),
                 ],
                 totalCount: 0,
@@ -316,10 +380,11 @@ describe('empty states', () => {
 
     it('offers a way out when the chosen range is simply empty', () => {
         renderPanel({
+            filters: { schedule_horizon: '7d' },
             scheduleOverrides: {
                 groups: [
                     group('overdue', 'Overdue', []),
-                    group('next', 'Next 7 days', []),
+                    group('next', 'Next 14 days', []),
                     group('later', 'Later', []),
                 ],
                 totalCount: 0,
@@ -327,6 +392,47 @@ describe('empty states', () => {
         });
 
         expect(screen.getByText('Nothing due in this range')).toBeTruthy();
+    });
+
+    it('names an empty default view as all clear for the current window', () => {
+        renderPanel({
+            scheduleOverrides: {
+                groups: [
+                    group('overdue', 'Overdue', []),
+                    group('next', 'Next 14 days', []),
+                    group('later', 'Later', []),
+                ],
+                totalCount: 0,
+            },
+        });
+
+        expect(screen.getByText('All clear for now')).toBeTruthy();
+        expect(
+            screen.getByText(
+                'No overdue work or due dates in the next 14 days.',
+            ),
+        ).toBeTruthy();
+    });
+
+    it('explains that due dates need recording when no work exists yet', () => {
+        renderPanel({
+            scheduleOverrides: {
+                groups: [
+                    group('overdue', 'Overdue', []),
+                    group('next', 'Next 14 days', []),
+                    group('later', 'Later', []),
+                ],
+                nextAfter: null,
+                totalCount: 0,
+            },
+        });
+
+        expect(screen.getByText('No due dates yet')).toBeTruthy();
+        expect(
+            screen.getByText(
+                'Add equipment or certificates to start tracking work.',
+            ),
+        ).toBeTruthy();
     });
 
     it('offers the scope the overdue mode hid', () => {
@@ -370,11 +476,13 @@ describe('empty states', () => {
         // is not what "show everything due in this range" asks for.
         expect(onChange).toHaveBeenCalledWith({
             type: 'certificate',
+            dateMode: null,
             horizon: '30d',
             from: null,
             to: null,
             overdue: 'include',
             day: null,
+            page: 1,
         });
     });
 
@@ -392,11 +500,13 @@ describe('empty states', () => {
 
         expect(onChange).toHaveBeenCalledWith({
             type: 'all',
+            dateMode: null,
             horizon: null,
             from: null,
             to: null,
             overdue: 'only',
             day: null,
+            page: 1,
         });
     });
 
@@ -406,7 +516,7 @@ describe('empty states', () => {
             scheduleOverrides: {
                 groups: [
                     group('overdue', 'Overdue', []),
-                    group('next', 'Next 7 days', NEXT_ITEMS),
+                    group('next', 'Next 14 days', NEXT_ITEMS),
                     group('later', 'Later', []),
                 ],
             },
@@ -419,93 +529,124 @@ describe('empty states', () => {
 });
 
 describe('the row cap', () => {
-    it('says how much is hidden and why', () => {
-        renderPanel({
+    it('reports the visible range and opens the next page', async () => {
+        const { onChange } = renderPanel({
             scheduleOverrides: {
                 truncated: true,
                 returnedCount: 60,
                 totalCount: 91,
+                lastPage: 2,
             },
         });
 
-        expect(screen.getByRole('status').textContent).toContain(
-            'Showing 60 of 91 records. The view is capped at 60',
+        expect(screen.getByRole('status').textContent).toContain('1–60 of 91');
+        await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+        expect(onChange).toHaveBeenCalledWith(
+            expect.objectContaining({ page: 2 }),
         );
     });
 });
 
 describe('controls write the query string', () => {
-    it('names each range by its own size', () => {
+    it('names the current due-date scope in one control', () => {
         renderPanel();
-
-        const range = screen.getByRole('group', { name: 'Range' });
-
         expect(
-            within(range).getByRole('button', { name: '7 days' }),
-        ).toBeTruthy();
-        expect(
-            within(range).getByRole('button', { name: '14 days' }),
-        ).toBeTruthy();
-        expect(
-            within(range).getByRole('button', { name: '30 days' }),
+            screen.getByRole('button', {
+                name: 'Due date: Overdue + next 14 days',
+            }),
         ).toBeTruthy();
     });
 
-    it('marks the server default range as active without it being in the URL', () => {
+    it('offers presets for the available due-date questions', async () => {
         renderPanel();
-
+        await userEvent.click(
+            screen.getByRole('button', { name: /Due date:/ }),
+        );
         expect(
-            within(screen.getByRole('group', { name: 'Range' }))
-                .getByRole('button', { name: '14 days' })
-                .getAttribute('aria-pressed'),
-        ).toBe('true');
+            screen.getByRole('button', { name: 'Next 7 days' }),
+        ).toBeTruthy();
+        expect(
+            screen.getByRole('button', { name: 'Next 14 days' }),
+        ).toBeTruthy();
+        expect(
+            screen.getByRole('button', { name: 'Next 30 days' }),
+        ).toBeTruthy();
     });
 
-    it('writes the whole state, not a patch, when a range is chosen', async () => {
+    it('writes the whole state when a preset is chosen', async () => {
         const { onChange } = renderPanel({
             filters: { schedule_overdue: 'exclude' },
         });
 
         await userEvent.click(
-            within(screen.getByRole('group', { name: 'Range' })).getByRole(
-                'button',
-                { name: '30 days' },
-            ),
+            screen.getByRole('button', { name: /Due date:/ }),
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Next 30 days' }),
         );
 
         expect(onChange).toHaveBeenCalledWith({
             type: 'all',
+            dateMode: null,
             horizon: '30d',
             from: null,
             to: null,
             overdue: 'exclude',
             day: null,
+            page: 1,
         });
     });
 
-    it('labels the overdue control by what it does', () => {
+    it('labels inclusive custom date modes', async () => {
         renderPanel();
-
-        const group = screen.getByRole('group', { name: 'Overdue records' });
-
-        expect(
-            within(group).getByRole('button', { name: 'Include overdue' }),
-        ).toBeTruthy();
-        expect(
-            within(group).getByRole('button', { name: 'Overdue only' }),
-        ).toBeTruthy();
-        expect(
-            within(group).getByRole('button', { name: 'Hide overdue' }),
-        ).toBeTruthy();
+        await userEvent.click(
+            screen.getByRole('button', { name: /Due date:/ }),
+        );
+        expect(screen.getByText('Choose dates · inclusive')).toBeTruthy();
+        expect(screen.getByText('Through')).toBeTruthy();
+        expect(screen.getByText('From')).toBeTruthy();
+        expect(screen.getByText('Between')).toBeTruthy();
     });
 
-    it('clears a chosen day when the same day is chosen again', async () => {
+    it('waits for both range dates before applying a custom filter', async () => {
+        const { onChange } = renderPanel();
+        await userEvent.click(
+            screen.getByRole('button', { name: /Due date:/ }),
+        );
+        const apply = screen.getByRole('button', {
+            name: 'Apply',
+        }) as HTMLButtonElement;
+        expect(apply.disabled).toBe(true);
+
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: /Today, Sunday, October 4th, 2026/,
+            }),
+        );
+        expect(apply.disabled).toBe(true);
+        expect(onChange).not.toHaveBeenCalled();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: /Monday, October 5th, 2026/ }),
+        );
+        expect(apply.disabled).toBe(false);
+        await userEvent.click(apply);
+        expect(onChange).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dateMode: 'between',
+                from: '2026-10-04',
+                to: '2026-10-05',
+            }),
+        );
+    });
+
+    it('clears a selected day from a shared link', async () => {
         const { onChange } = renderPanel({
             filters: { schedule_day: '2026-10-05' },
         });
 
         await userEvent.click(
-            screen.getByRole('button', { name: /Mon 5 Oct/ }),
+            screen.getByRole('button', { name: /2026-10-05/ }),
         );
 
         expect(onChange).toHaveBeenCalledWith(
@@ -513,18 +654,22 @@ describe('controls write the query string', () => {
         );
     });
 
-    it('narrowing a day keeps the rest of the state', async () => {
+    it('clearing a selected day keeps the rest of the state', async () => {
         const { onChange } = renderPanel({
-            filters: { schedule_horizon: '7d', schedule_type: 'certificate' },
+            filters: {
+                schedule_horizon: '7d',
+                schedule_type: 'certificate',
+                schedule_day: '2026-10-05',
+            },
         });
 
         await userEvent.click(
-            screen.getByRole('button', { name: /Sun 4 Oct/ }),
+            screen.getByRole('button', { name: /2026-10-05/ }),
         );
 
         expect(onChange).toHaveBeenCalledWith(
             expect.objectContaining({
-                day: AS_OF,
+                day: null,
                 horizon: '7d',
                 type: 'certificate',
             }),
@@ -553,11 +698,13 @@ describe('controls write the query string', () => {
         // a reset that left one field behind would be a reset to the wrong view.
         expect(onChange).toHaveBeenCalledWith({
             type: 'all',
+            dateMode: null,
             horizon: null,
             from: null,
             to: null,
             overdue: 'include',
             day: null,
+            page: 1,
         });
     });
 
@@ -566,11 +713,13 @@ describe('controls write the query string', () => {
         expect(
             stateToQuery({
                 type: 'all',
+                dateMode: null,
                 horizon: null,
                 from: null,
                 to: null,
                 overdue: 'include',
                 day: null,
+                page: 1,
             }),
         ).toEqual({});
     });
@@ -578,7 +727,13 @@ describe('controls write the query string', () => {
 
 describe('the day strip', () => {
     it('offers one cell per day of the window and nothing else', () => {
-        renderPanel();
+        render(
+            <ScheduleDayStrip
+                days={schedule().days}
+                selected={null}
+                onSelect={vi.fn()}
+            />,
+        );
 
         const strip = screen.getByRole('group', { name: 'Day in range' });
 
@@ -586,7 +741,13 @@ describe('the day strip', () => {
     });
 
     it('spells the date out in the accessible name', () => {
-        renderPanel();
+        render(
+            <ScheduleDayStrip
+                days={schedule().days}
+                selected={null}
+                onSelect={vi.fn()}
+            />,
+        );
 
         expect(
             screen.getByRole('button', { name: 'Mon 5 Oct, 2 records' }),
@@ -594,7 +755,13 @@ describe('the day strip', () => {
     });
 
     it('keeps a day with no work visible rather than shortening the week', () => {
-        renderPanel();
+        render(
+            <ScheduleDayStrip
+                days={schedule().days}
+                selected={null}
+                onSelect={vi.fn()}
+            />,
+        );
 
         const strip = screen.getByRole('group', { name: 'Day in range' });
 
@@ -604,7 +771,13 @@ describe('the day strip', () => {
     });
 
     it('marks the selected day as pressed', () => {
-        renderPanel({ filters: { schedule_day: '2026-10-05' } });
+        render(
+            <ScheduleDayStrip
+                days={schedule().days}
+                selected="2026-10-05"
+                onSelect={vi.fn()}
+            />,
+        );
 
         expect(
             screen
@@ -613,7 +786,7 @@ describe('the day strip', () => {
         ).toBe('true');
     });
 
-    it('is not shown at all in overdue-only, where days cannot filter', () => {
+    it('is not shown in the compact agenda', () => {
         renderPanel({
             filters: { schedule_overdue: 'only' },
             scheduleOverrides: { windowHidden: true, overdueMode: 'only' },
@@ -622,11 +795,9 @@ describe('the day strip', () => {
         expect(
             screen.queryByRole('group', { name: 'Day in range' }),
         ).toBeNull();
-        const range = within(
-            screen.getByRole('group', { name: 'Range' }),
-        ).getByRole('button', { name: '14 days' }) as HTMLButtonElement;
-
-        expect(range.disabled).toBe(true);
+        expect(
+            screen.getByRole('button', { name: 'Due date: Overdue' }),
+        ).toBeTruthy();
     });
 });
 
@@ -634,17 +805,17 @@ describe('the kind tabs', () => {
     it('labels each tab with the count the server measured', () => {
         renderPanel();
 
-        const tabs = screen.getByRole('group', { name: 'Record kind' });
+        const tabs = screen.getByRole('group', { name: 'Record type' });
 
         expect(
-            within(tabs).getByRole('button', { name: 'All, 7 records' }),
+            within(tabs).getByRole('button', { name: 'All 7' }),
         ).toBeTruthy();
         expect(
-            within(tabs).getByRole('button', { name: 'Inspection, 5 records' }),
+            within(tabs).getByRole('button', { name: 'Inspection 5' }),
         ).toBeTruthy();
         expect(
             within(tabs).getByRole('button', {
-                name: 'Certificate, 2 records',
+                name: 'Certificate 2',
             }),
         ).toBeTruthy();
     });
@@ -656,7 +827,7 @@ describe('the kind tabs', () => {
 
         await userEvent.click(
             within(
-                screen.getByRole('group', { name: 'Record kind' }),
+                screen.getByRole('group', { name: 'Record type' }),
             ).getByRole('button', { name: /Certificate/ }),
         );
 
@@ -672,16 +843,16 @@ describe('loading', () => {
 
         expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
         expect(
-            screen.getByText('Loading schedule').closest('[aria-busy]'),
+            screen.getByText('Updating work').closest('[aria-busy]'),
         ).not.toBeNull();
     });
 
     it('disables the controls that would queue up further visits', () => {
         renderPanel({ loading: true });
 
-        const control = within(
-            screen.getByRole('group', { name: 'Overdue records' }),
-        ).getByRole('button', { name: 'Overdue only' }) as HTMLButtonElement;
+        const control = screen.getByRole('button', {
+            name: /Due date:/,
+        }) as HTMLButtonElement;
 
         expect(control.disabled).toBe(true);
     });
@@ -721,6 +892,7 @@ describe('the hooks the QA harness measures', () => {
                     schedule={schedule()}
                     kpis={KPIS}
                     filters={{}}
+                    today={AS_OF}
                     loading={false}
                     onChange={vi.fn()}
                 />
@@ -733,13 +905,14 @@ describe('the hooks the QA harness measures', () => {
         expect(kindsOf(rows)).toEqual(['asset', 'certificate']);
     });
 
-    it('names each group, so the three bands can be counted separately', () => {
+    it('names each visible group for the layout audit', () => {
         const { container } = render(
             <TooltipProvider delayDuration={0}>
                 <SchedulePanel
                     schedule={schedule()}
                     kpis={KPIS}
                     filters={{}}
+                    today={AS_OF}
                     loading={false}
                     onChange={vi.fn()}
                 />
@@ -750,16 +923,17 @@ describe('the hooks the QA harness measures', () => {
             [...container.querySelectorAll('[data-group]')].map(
                 (section) => (section as HTMLElement).dataset.group,
             ),
-        ).toEqual(['overdue', 'next', 'later']);
+        ).toEqual(['overdue', 'next']);
     });
 
-    it('dates every day cell and marks the agenda and strip as a whole', () => {
+    it('marks the agenda without an extra day strip', () => {
         const { container } = render(
             <TooltipProvider delayDuration={0}>
                 <SchedulePanel
                     schedule={schedule()}
                     kpis={KPIS}
                     filters={{}}
+                    today={AS_OF}
                     loading={false}
                     onChange={vi.fn()}
                 />
@@ -767,8 +941,6 @@ describe('the hooks the QA harness measures', () => {
         );
 
         expect(container.querySelector('[data-agenda]')).not.toBeNull();
-        expect(container.querySelector('[data-day-strip]')).not.toBeNull();
-        // An inclusive `14d` offset is 15 cells, not 14.
-        expect(container.querySelectorAll('[data-day]')).toHaveLength(15);
+        expect(container.querySelector('[data-day-strip]')).toBeNull();
     });
 });

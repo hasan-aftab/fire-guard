@@ -50,6 +50,7 @@ export const OVERDUE_MODES: ScheduleOverdueMode[] = [
 
 export type ScheduleState = {
     type: ScheduleType;
+    dateMode: 'through' | 'from' | 'between' | null;
     /** A preset key such as `7d`, or null to let the server choose. */
     horizon: string | null;
     /** A custom inclusive range; set together or not at all. */
@@ -57,16 +58,19 @@ export type ScheduleState = {
     to: IsoDate | null;
     overdue: ScheduleOverdueMode;
     day: IsoDate | null;
+    page: number;
 };
 
 /** What the page shows before anyone touches it. */
 export const DEFAULT_STATE: ScheduleState = {
     type: 'all',
+    dateMode: null,
     horizon: null,
     from: null,
     to: null,
     overdue: 'include',
     day: null,
+    page: 1,
 };
 
 export function scheduleState(
@@ -96,21 +100,39 @@ export function stateFromQuery(
     const to = read('schedule_to');
     const day = read('schedule_day');
 
-    // A half-specified custom range is not a range. Falling back to the
-    // default window keeps the two ends consistent instead of showing one.
-    const hasRange = isIsoDate(from) && isIsoDate(to);
+    const requestedMode = read('schedule_date_mode');
+    const dateMode =
+        requestedMode === 'through' && isIsoDate(to)
+            ? 'through'
+            : requestedMode === 'from' && isIsoDate(from)
+              ? 'from'
+              : requestedMode === 'between' && isIsoDate(from) && isIsoDate(to)
+                ? 'between'
+                : null;
+    const hasLegacyRange = isIsoDate(from) && isIsoDate(to);
 
     return {
         type: SCHEDULE_TYPES.includes(type as ScheduleType)
             ? (type as ScheduleType)
             : 'all',
+        dateMode,
         horizon: read('schedule_horizon') || null,
-        from: hasRange ? from : null,
-        to: hasRange ? to : null,
+        from:
+            dateMode === 'from' || dateMode === 'between' || hasLegacyRange
+                ? (from ?? null)
+                : null,
+        to:
+            dateMode === 'through' || dateMode === 'between' || hasLegacyRange
+                ? (to ?? null)
+                : null,
         overdue: OVERDUE_MODES.includes(overdue as ScheduleOverdueMode)
             ? (overdue as ScheduleOverdueMode)
             : 'include',
         day: isIsoDate(day) ? day : null,
+        page: Math.max(
+            1,
+            Number.parseInt(read('schedule_page') ?? '1', 10) || 1,
+        ),
     };
 }
 
@@ -134,13 +156,24 @@ export function stateToQuery(state: ScheduleState): Record<string, string> {
         query.schedule_horizon = state.horizon;
     }
 
-    if (state.from !== null && state.to !== null) {
+    if (state.dateMode !== null) {
+        query.schedule_date_mode = state.dateMode;
+    }
+
+    if (state.from !== null && (state.dateMode !== null || state.to !== null)) {
         query.schedule_from = state.from;
+    }
+
+    if (state.to !== null && (state.dateMode !== null || state.from !== null)) {
         query.schedule_to = state.to;
     }
 
     if (state.day !== null) {
         query.schedule_day = state.day;
+    }
+
+    if (state.page > 1) {
+        query.schedule_page = String(state.page);
     }
 
     return query;
@@ -149,11 +182,13 @@ export function stateToQuery(state: ScheduleState): Record<string, string> {
 export function statesMatch(a: ScheduleState, b: ScheduleState): boolean {
     return (
         a.type === b.type &&
+        a.dateMode === b.dateMode &&
         a.overdue === b.overdue &&
         a.horizon === b.horizon &&
         a.from === b.from &&
         a.to === b.to &&
-        a.day === b.day
+        a.day === b.day &&
+        a.page === b.page
     );
 }
 
@@ -174,7 +209,7 @@ export const TILE_IDS: TileId[] = ['overdue', 'dueSoon', 'certificates'];
  * number was counted over. The horizon keys come from the KPI payload rather
  * than from a table here, so a tile cannot drift from its own count.
  *
- * A tile also clears any selected day, because "the next 7 days" is a question
+ * A tile also clears any selected day, because "the next 14 days" is a question
  * about the whole window, not about whichever day happened to be lit.
  */
 export function tileState(tile: TileId, kpis: DashboardKpis): ScheduleState {
@@ -234,6 +269,15 @@ export function scopeSentence(
     schedule: DashboardSchedule,
     state: ScheduleState,
 ): string {
+    if (state.dateMode === 'through' && state.to) {
+        return `Due through ${shortDate(state.to)} · ${schedule.totalCount} records`;
+    }
+    if (state.dateMode === 'from' && state.from) {
+        return `Due from ${shortDate(state.from)} · ${schedule.totalCount} records`;
+    }
+    if (state.dateMode === 'between' && state.from && state.to) {
+        return `Due ${rangeLabel(state.from, state.to)} · ${schedule.totalCount} records`;
+    }
     if (state.overdue === 'only') {
         const parts = [`Overdue only · ${schedule.totalCount}`];
 

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { ScheduleRow } from './schedule-row';
@@ -61,6 +61,21 @@ describe('a schedule row', () => {
         ).not.toBeNull();
     });
 
+    it('keeps the equipment reference and location available in the mobile subtitle', () => {
+        render(
+            <ul>
+                <ScheduleRow
+                    item={item({ locationDesc: 'Level 2 lobby' })}
+                    asOfDate={AS_OF}
+                />
+            </ul>,
+        );
+
+        expect(
+            screen.getByText('FE-0042 · Level 2 lobby · Harbourside Plaza'),
+        ).not.toBeNull();
+    });
+
     it('drops the year and weekday on a date that is only days away', () => {
         render(
             <ul>
@@ -108,6 +123,8 @@ describe('a schedule row', () => {
 
         const row = screen.getByRole('link');
 
-        expect(within(row).getByText('Due soon')).not.toBeNull();
+        expect(
+            row.querySelector('svg')?.classList.contains('text-warning'),
+        ).toBe(true);
     });
 });

@@ -73,7 +73,7 @@ describe('a tile that narrows the page', () => {
 
         // The lit tile offers the way out rather than repeating itself.
         expect(screen.getByText('Showing')).not.toBeNull();
-        expect(screen.getByText('Clear to show everything')).not.toBeNull();
+        expect(screen.getByText('Clear schedule filter')).not.toBeNull();
     });
 
     it('deselects nothing when it is the wrong tile for the current scope', () => {

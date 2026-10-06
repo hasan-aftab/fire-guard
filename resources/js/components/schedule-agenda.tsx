@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
+import { Button } from '@/components/ui/button';
 import { ScheduleRow } from '@/components/schedule-row';
-import { kindBreakdown, sinceSentence } from '@/lib/schedule';
 import { cn } from '@/lib/utils';
 import type {
     ScheduleGroup,
@@ -36,8 +36,12 @@ export function ScheduleAgenda({
     groups,
     returnedCount,
     totalCount,
-    truncated,
     maxItems,
+    page,
+    lastPage,
+    onPage,
+    defaultScope,
+    hasFutureWork,
     overdueMode,
     overdueCount,
     windowItemCount,
@@ -50,6 +54,11 @@ export function ScheduleAgenda({
     totalCount: number;
     truncated: boolean;
     maxItems: number;
+    page: number;
+    lastPage: number;
+    onPage: (page: number) => void;
+    defaultScope: boolean;
+    hasFutureWork: boolean;
     overdueMode: ScheduleOverdueMode;
     /** Total late records in scope, whether or not the mode is hiding them. */
     overdueCount: number;
@@ -66,15 +75,24 @@ export function ScheduleAgenda({
         return (
             <EmptyState
                 icon={CheckCircle2}
+                className="py-8"
                 title={
                     overdueMode === 'only'
                         ? 'Nothing overdue'
-                        : 'Nothing due in this range'
+                        : defaultScope && hasFutureWork
+                          ? 'All clear for now'
+                          : defaultScope
+                            ? 'No due dates yet'
+                            : 'Nothing due in this range'
                 }
                 description={
                     overdueMode === 'only'
                         ? 'Everything is in date.'
-                        : 'Try a wider range, or include the overdue backlog.'
+                        : defaultScope && hasFutureWork
+                          ? 'No overdue work or due dates in the next 14 days.'
+                          : defaultScope
+                            ? 'Add equipment or certificates to start tracking work.'
+                            : 'Try another due date or record type.'
                 }
             />
         );
@@ -92,14 +110,38 @@ export function ScheduleAgenda({
                 />
             ))}
 
-            {truncated && (
+            {lastPage > 1 && (
                 <div
-                    className="border-t px-4 py-3 text-xs text-muted-foreground"
+                    className="flex items-center justify-between gap-2 border-t px-4 py-3 text-xs text-muted-foreground"
                     role="status"
                 >
-                    Showing {returnedCount} of {totalCount} records. The view is
-                    capped at {maxItems} — widen the range or filter by type to
-                    see the rest.
+                    <span>
+                        {(page - 1) * maxItems + 1}–
+                        {(page - 1) * maxItems + returnedCount} of {totalCount}
+                    </span>
+                    <span className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={page <= 1}
+                            onClick={() => onPage(page - 1)}
+                        >
+                            Previous
+                        </Button>
+                        <span className="tabular-nums">
+                            {page} / {lastPage}
+                        </span>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={page >= lastPage}
+                            onClick={() => onPage(page + 1)}
+                        >
+                            Next
+                        </Button>
+                    </span>
                 </div>
             )}
 
@@ -169,37 +211,18 @@ function GroupSection({
     const isOverdue = group.id === 'overdue';
 
     return (
-        <section className="border-t first:border-t-0" data-group={group.id}>
+        <section className="first:border-t-0" data-group={group.id}>
             <h3
                 className={cn(
-                    'flex flex-wrap items-baseline gap-x-2 gap-y-0.5 bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground',
-                    isOverdue && 'font-semibold text-destructive',
+                    'flex items-baseline justify-between gap-3 px-4 pt-4 pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase',
+                    isOverdue && 'text-destructive',
                 )}
             >
                 <span>{group.label}</span>
-
-                <span className="tabular-nums">
-                    {group.itemCount} record{group.itemCount === 1 ? '' : 's'}
-                </span>
-
-                {/*
-                    The breakdown and the oldest date are what make the count
-                    believable: "5 overdue" alone cannot be checked against
-                    anything, and "3 inspections · 2 certificates, oldest 20 Aug"
-                    can.
-                */}
-                <span className="font-normal">
-                    {kindBreakdown(group.byKind, isOverdue ? 'overdue' : 'due')}
-                </span>
-
-                {isOverdue && group.firstDate && (
-                    <span className="font-normal">
-                        {sinceSentence(group.firstDate)}
-                    </span>
-                )}
+                <span className="tabular-nums">{group.itemCount}</span>
             </h3>
 
-            <ul className="divide-y">
+            <ul>
                 {group.items.slice(0, visible).map((item: ScheduleItem) => (
                     <ScheduleRow
                         key={item.key}

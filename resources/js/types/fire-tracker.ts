@@ -5,6 +5,8 @@ export type Client = {
     company_name: string;
     contact_name: string | null;
     phone: string | null;
+    whatsapp_phone: string | null;
+    whatsapp_reminders_enabled: boolean;
     email: string | null;
     billing_address: string | null;
     notes: string | null;
@@ -217,26 +219,23 @@ export type TrackerFilters = Partial<
         | 'license_status'
         | 'inspection_activity'
         | 'record_state'
+        | 'dashboard_scope'
         | 'sort',
         string
     >
 >;
 export type DashboardSummary = {
     asOfDate: string;
+    isFirstRun: boolean;
     /** Rolling window the compliance gauge counts, in months. */
     complianceMonths: number;
     /** Inclusive lower bound of the gauge window (YYYY-MM-DD). */
     complianceSince: string;
-    /** Deep links to the list view each standing count summarises. */
+    /** Links used by setup and the compliance card. */
     links: {
         activeClients: string;
-        totalAssets: string;
         /** Inspections inside the gauge's own window, for the pass-rate card. */
         passRateInspections: string;
-    };
-    stats: {
-        activeClients: number;
-        totalAssets: number;
     };
 };
 
@@ -244,10 +243,12 @@ export type DashboardFilters = Partial<
     Record<
         | 'schedule_from'
         | 'schedule_to'
+        | 'schedule_date_mode'
         | 'schedule_type'
         | 'schedule_horizon'
         | 'schedule_overdue'
-        | 'schedule_day',
+        | 'schedule_day'
+        | 'schedule_page',
         string
     >
 >;
@@ -374,6 +375,8 @@ export type DashboardSchedule = {
     /** In-window rows only, counted before the row cap is applied. */
     windowItemCount: number;
     totalCount: number;
+    page: number;
+    lastPage: number;
     returnedCount: number;
     truncated: boolean;
     maxItems: number;

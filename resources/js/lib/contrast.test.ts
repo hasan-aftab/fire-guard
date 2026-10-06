@@ -31,6 +31,16 @@ const TEXT_PAIRS = [
             textOn(token(t, 'muted-foreground'), token(t, 'card')),
     },
     {
+        name: 'warning text on compliance card',
+        ratio: (t: typeof light) =>
+            textOn(token(t, 'warning'), token(t, 'card')),
+    },
+    {
+        name: 'overdue text on schedule card',
+        ratio: (t: typeof light) =>
+            textOn(token(t, 'destructive'), token(t, 'card')),
+    },
+    {
         name: 'success on success/10 over card',
         ratio: (t: typeof light) =>
             tintOver(token(t, 'success'), token(t, 'card'), 0.1),
