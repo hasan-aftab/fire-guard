@@ -480,6 +480,13 @@ test('the agenda next group shares the two-week KPI boundary', function () {
         ->and($schedule['groups'][1]['label'])->toBe('Next 14 days');
 });
 
+test('a shorter preset names only the days its rows can include', function () {
+    $schedule = ($this->agenda)(null, null, 'all', '7d');
+
+    expect($schedule['groupBoundaryDays'])->toBe(7)
+        ->and($schedule['groups'][1]['label'])->toBe('Next 7 days');
+});
+
 test('rows are split into overdue, next and later by their distance from today', function (int $offset, string $group, int $index) {
     scheduleAsset(today()->addDays($offset)->toDateString());
 

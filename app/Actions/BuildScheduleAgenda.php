@@ -120,8 +120,10 @@ final class BuildScheduleAgenda
     public const MAX_HORIZON_DAYS = 90;
 
     /**
-     * Preset whose offset also decides where the "Next N days" group ends and
-     * the "Later" group begins. Tying the boundary to the same preset the
+     * Preset whose offset normally decides where the "Next N days" group ends
+     * and the "Later" group begins. A shorter selected window uses its own
+     * end so a seven-day filter never claims to show fourteen days. Tying the
+     * default boundary to the same preset the
      * "Due next 14 days" tile counts against is what makes that tile's number and
      * the group's row count the same measurement rather than two that agree.
      */
@@ -243,7 +245,10 @@ final class BuildScheduleAgenda
         $lastPage = max(1, (int) ceil($totalCount / self::MAX_ITEMS));
         $currentPage = min(max(1, $page), $lastPage);
         $capped = array_slice($items, ($currentPage - 1) * self::MAX_ITEMS, self::MAX_ITEMS);
-        $groups = $this->buildGroups($capped);
+        $groupBoundary = $customBounds === null
+            ? min($this->nextGroupDays(), max(0, (int) $asOf->diffInDays($windowEnd)))
+            : $this->nextGroupDays();
+        $groups = $this->buildGroups($capped, $groupBoundary);
 
         // Overdue-only mode hides the forward window and exclude mode hides the
         // backlog, so each of these is counted from the intact list while still
@@ -267,7 +272,7 @@ final class BuildScheduleAgenda
             // "Overdue only" answers a question that has no window, so the strip
             // and the range control are suppressed rather than shown as inert.
             'windowHidden' => $mode === 'only' || $customBounds !== null,
-            'groupBoundaryDays' => $this->nextGroupDays(),
+            'groupBoundaryDays' => $groupBoundary,
             'groups' => $groups,
             'counts' => $counts,
             'days' => $mode === 'only' || $customBounds !== null
@@ -312,10 +317,8 @@ final class BuildScheduleAgenda
      * @param  list<ScheduleItem>  $items
      * @return list<ScheduleGroup>
      */
-    private function buildGroups(array $items): array
+    private function buildGroups(array $items, int $boundary): array
     {
-        $boundary = $this->nextGroupDays();
-
         $overdue = [];
         $next = [];
         $later = [];
