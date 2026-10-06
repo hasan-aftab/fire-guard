@@ -224,15 +224,27 @@ test('dashboard uses fourteen day asset alerts thirty day certificate alerts and
 
     $this->actingAs($user)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->component('dashboard')
         ->where('today', '2026-09-29')->where('summary.asOfDate', '2026-09-29')
-        ->where('summary.stats.activeClients', 1)->where('summary.stats.totalAssets', 5)
-        ->where('summary.stats.overdueInspections', 1)->where('summary.stats.expiringCerts', 2)
-        ->where('attention.total', 1)->where('certificates.total', 2)
-        ->has('summary.upcomingDates', 2)
-        ->where('summary.upcomingDates.0', '2026-10-29')
-        ->where('summary.upcomingDates.1', '2026-12-28')
-        ->where('calendar.month', '2026-10')
-        ->where('calendar.events.total', 1)
-        ->where('summary.complianceRate', ['pass' => 1, 'fail' => 1, 'needs_repair' => 1, 'total' => 3]));
+        ->where('summary.stats.activeClients', 1)->where('summary.stats.totalAssets', 4)
+        // One certificate has already expired; one more expires on day thirty.
+        ->where('kpis.overdue.total', 2)
+        ->where('kpis.certificates.expired', 1)
+        ->where('kpis.certificates.expiringSoon', 1)
+        ->where('kpis.certificates.total', 2)
+        ->where('schedule.from', '2026-09-29')
+        ->where('schedule.to', '2026-10-13')
+        ->where('schedule.overdueCount', 2)
+        ->where('schedule.totalCount', 2)
+        ->where('schedule.returnedCount', 2)
+        ->where('schedule.days.0.date', '2026-09-29')
+        ->where('schedule.days.0.itemCount', 0)
+        ->has('schedule.groups.0.items', 2)
+        ->where('schedule.groups.0.items.0.kind', 'asset')
+        ->where('schedule.groups.0.items.0.entityId', $overdue->id)
+        ->where('schedule.groups.0.items.1.kind', 'certificate')
+        ->where('kpis.passRate.pass', 1)
+        ->where('kpis.passRate.fail', 1)
+        ->where('kpis.passRate.needsRepair', 1)
+        ->where('kpis.passRate.total', 3));
 });
 
 test('demo data and private artifacts are seeded repeatedly without duplicates or email delivery', function () {

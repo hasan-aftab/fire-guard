@@ -54,17 +54,24 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'today' => today()->toDateString(),
+            // Shipped because "today" only means anything next to the zone it was
+            // resolved in. A browser in another zone must not re-derive the
+            // calendar date or it will disagree with every count on the page.
+            'timezone' => config('app.timezone'),
             'fileUploadLimits' => [
                 'photoBytes' => (int) config('fire-tracker.photo_max_kilobytes') * 1024,
                 'documentBytes' => (int) config('fire-tracker.document_max_kilobytes') * 1024,
             ],
+            // Live-work counts use each model's actionable() scope so they agree
+            // with the dashboard by construction. Lookup tables below stay
+            // inventory counts on purpose — see ReferenceTypeManagementTest.
             'counts' => fn (): ?array => $request->user() ? [
-                'clients' => Client::whereNull('entered_in_error_at')->count(),
-                'sites' => Site::whereNull('entered_in_error_at')->count(),
-                'assets' => Asset::whereNull('entered_in_error_at')->count(),
-                'inspections' => Inspection::whereNull('entered_in_error_at')->count(),
-                'certificates' => Certificate::whereNull('entered_in_error_at')->count(),
-                'technicians' => Technician::whereNull('entered_in_error_at')->count(),
+                'clients' => Client::actionable()->count(),
+                'sites' => Site::actionable()->count(),
+                'assets' => Asset::actionable()->count(),
+                'inspections' => Inspection::actionable()->count(),
+                'certificates' => Certificate::actionable()->count(),
+                'technicians' => Technician::actionable()->count(),
                 'assetTypes' => AssetType::query()->count(),
                 'certificateTypes' => CertificateType::query()->count(),
                 'reports' => GeneratedReport::query()->count(),

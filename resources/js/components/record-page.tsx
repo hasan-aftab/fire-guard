@@ -512,6 +512,16 @@ export function RecordPage<T extends { id: number }>({
                             rowKey={(record) => record.id}
                             emptyMessage={`No ${noun}s match your filters.`}
                         />
+                        {(archive || mistake) &&
+                            filters.record_state !== 'entered_in_error' && (
+                                <p className="border-t px-4 py-2 text-xs text-muted-foreground">
+                                    This list keeps every record, including
+                                    inactive and entered-in-error ones.
+                                    Dashboard and sidebar counts exclude
+                                    anything that is inactive or entered in
+                                    error.
+                                </p>
+                            )}
                     </CardContent>
                     {records.total > records.per_page && (
                         <>

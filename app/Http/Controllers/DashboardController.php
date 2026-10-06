@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\BuildDashboardKpis;
+use App\Actions\BuildScheduleAgenda;
 use App\Http\Requests\DashboardFilterRequest;
 use App\Models\Asset;
-use App\Models\Certificate;
 use App\Models\Client;
-use App\Models\Inspection;
-use Illuminate\Support\Facades\DB;
+use Carbon\CarbonImmutable;
 use Inertia\Inertia;
 use Inertia\Response;
-use stdClass;
 
 class DashboardController extends Controller
 {
@@ -18,142 +17,56 @@ class DashboardController extends Controller
     {
         $today = today();
         $asOfDate = $today->toDateString();
-        $assetAlertEnd = $today->copy()->addDays(Asset::DUE_SOON_DAYS)->toDateString();
-        $certificateAlertEnd = $today->copy()->addDays(Certificate::EXPIRING_SOON_DAYS)->toDateString();
-        $calendarEnd = $today->copy()->addDays(90)->toDateString();
-        $assetDueEvents = static fn (string $from, string $to) => DB::table('assets')
-            ->join('sites', 'sites.id', '=', 'assets.site_id')
-            ->join('clients', 'clients.id', '=', 'sites.client_id')
-            ->join('asset_types', 'asset_types.id', '=', 'assets.asset_type_id')
-            ->where('assets.status', 'active')
-            ->where('sites.is_active', true)->where('clients.is_active', true)
-            ->whereNull('assets.entered_in_error_at')->whereNull('sites.entered_in_error_at')->whereNull('clients.entered_in_error_at')
-            ->whereBetween('assets.next_service_due', [$from, $to])
-            ->selectRaw("'asset' as source, assets.id as event_id, assets.next_service_due as due_date, asset_types.type_name, sites.site_name");
-        $calendarMonth = $request->string('calendar_month')->toString();
-        if ($calendarMonth === '') {
-            $firstDueDate = $assetDueEvents($asOfDate, $calendarEnd)
-                ->select('assets.next_service_due as due_date')->orderBy('due_date')->value('due_date');
-            $calendarMonth = substr(is_string($firstDueDate) ? $firstDueDate : $asOfDate, 0, 7);
-        }
-        $calendarStart = max($asOfDate, $calendarMonth.'-01');
-        $calendarLastDay = $today->copy()->setDate((int) substr($calendarMonth, 0, 4), (int) substr($calendarMonth, 5, 2), 1)->endOfMonth()->toDateString();
-        $calendarLastDay = min($calendarEnd, $calendarLastDay);
-
-        $assetQuery = Asset::query()
-            ->select(['id', 'site_id', 'asset_type_id', 'serial_number', 'location_desc', 'next_service_due'])
-            ->with(['site:id,site_name', 'assetType:id,type_name'])
-            ->where('status', 'active')->whereNull('entered_in_error_at');
-        $assetQuery->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')
-            ->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')));
-        $mapAsset = fn (Asset $asset): array => [
-            'assetId' => $asset->id,
-            'serialNumber' => $asset->serial_number,
-            'locationDesc' => $asset->location_desc,
-            'nextServiceDue' => $asset->next_service_due?->toDateString(),
-            'serviceStatus' => $asset->service_status,
-            'typeName' => $asset->assetType->type_name,
-            'siteName' => $asset->site->site_name,
-        ];
-
-        $attentionQuery = (clone $assetQuery)->where('next_service_due', '<=', $assetAlertEnd);
-        if ($request->filled('attention_from')) {
-            $attentionQuery->where('next_service_due', '>=', $request->string('attention_from')->toString());
-        }
-        if ($request->filled('attention_to')) {
-            $attentionQuery->where('next_service_due', '<=', $request->string('attention_to')->toString());
-        }
-
-        $certificatesQuery = Certificate::query()
-            ->select(['id', 'site_id', 'certificate_type_id', 'expiry_date'])
-            ->with(['site:id,site_name', 'certificateType:id,name'])
-            ->where('expiry_date', '<=', $certificateAlertEnd)->whereNull('entered_in_error_at');
-        $certificatesQuery->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')
-            ->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))
-            ->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')));
-        if ($request->filled('cert_from')) {
-            $certificatesQuery->where('expiry_date', '>=', $request->string('cert_from')->toString());
-        }
-        if ($request->filled('cert_to')) {
-            $certificatesQuery->where('expiry_date', '<=', $request->string('cert_to')->toString());
-        }
 
         return Inertia::render('dashboard', [
-            'summary' => function () use ($asOfDate, $certificateAlertEnd, $calendarEnd, $assetDueEvents): array {
-                $results = Inspection::query()->whereNull('entered_in_error_at')
-                    ->whereHas('asset', fn ($asset) => $asset->whereNull('entered_in_error_at')
-                        ->whereHas('site', fn ($site) => $site->whereNull('entered_in_error_at')
-                            ->whereHas('client', fn ($client) => $client->whereNull('entered_in_error_at'))))
-                    ->select('result')->selectRaw('count(*) as aggregate')->groupBy('result')->pluck('aggregate', 'result');
-                $dueDates = DB::query()->fromSub(
-                    $assetDueEvents($asOfDate, $calendarEnd)->select('assets.next_service_due as due_date'),
-                    'due_dates',
-                )->distinct()->orderBy('due_date')->pluck('due_date')->all();
+            'summary' => fn (): array => $this->summary($today, $asOfDate),
+            'kpis' => fn (): array => app(BuildDashboardKpis::class)->handle($today),
+            'schedule' => function () use ($request, $today): array {
+                $type = $request->string('schedule_type')->toString();
+                $overdue = $request->string('schedule_overdue')->toString();
 
-                return [
-                    'asOfDate' => $asOfDate,
-                    'stats' => [
-                        'activeClients' => Client::where('is_active', true)->whereNull('entered_in_error_at')->count(),
-                        'totalAssets' => Asset::whereNull('entered_in_error_at')
-                            ->whereHas('site', fn ($site) => $site->whereNull('entered_in_error_at')
-                                ->whereHas('client', fn ($client) => $client->whereNull('entered_in_error_at')))
-                            ->count(),
-                        'overdueInspections' => Asset::where('status', 'active')->whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->where('next_service_due', '<', $asOfDate)->count(),
-                        'expiringCerts' => Certificate::whereNull('entered_in_error_at')->whereHas('site', fn ($site) => $site->where('is_active', true)->whereNull('entered_in_error_at')->whereHas('client', fn ($client) => $client->where('is_active', true)->whereNull('entered_in_error_at')))->where(fn ($query) => $query->whereNull('asset_id')->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')->whereNull('entered_in_error_at')))->where('expiry_date', '<=', $certificateAlertEnd)->count(),
-                    ],
-                    'complianceRate' => [
-                        'pass' => (int) $results->get('pass', 0),
-                        'fail' => (int) $results->get('fail', 0),
-                        'needs_repair' => (int) $results->get('needs_repair', 0),
-                        'total' => (int) $results->sum(),
-                    ],
-                    'upcomingDates' => $dueDates,
-                ];
-            },
-            'calendar' => function () use ($calendarMonth, $calendarStart, $calendarLastDay, $assetDueEvents) {
-                $events = DB::query()->fromSub($assetDueEvents($calendarStart, $calendarLastDay), 'due_events')
-                    ->orderBy('due_date')->orderBy('event_id');
-                $page = $events->paginate(10, ['*'], 'calendar_page');
-                if ($page->currentPage() > $page->lastPage()) {
-                    $page = $events->paginate(10, ['*'], 'calendar_page', $page->lastPage());
-                }
-
-                return [
-                    'month' => $calendarMonth,
-                    'events' => $page->through(fn (stdClass $event): array => [
-                        'id' => $event->source.'-'.$event->event_id,
-                        'source' => $event->source,
-                        'dueDate' => $event->due_date,
-                        'typeName' => $event->type_name,
-                        'siteName' => $event->site_name,
-                    ]),
-                ];
-            },
-            'attention' => function () use ($attentionQuery, $mapAsset) {
-                $attentionQuery->orderBy('next_service_due')->orderBy('id');
-                $page = $attentionQuery->paginate(10, ['*'], 'attention_page');
-                if ($page->currentPage() > $page->lastPage()) {
-                    $page = $attentionQuery->paginate(10, ['*'], 'attention_page', $page->lastPage());
-                }
-
-                return $page->through($mapAsset);
-            },
-            'certificates' => function () use ($certificatesQuery) {
-                $certificatesQuery->orderBy('expiry_date')->orderBy('id');
-                $page = $certificatesQuery->paginate(10, ['*'], 'cert_page');
-                if ($page->currentPage() > $page->lastPage()) {
-                    $page = $certificatesQuery->paginate(10, ['*'], 'cert_page', $page->lastPage());
-                }
-
-                return $page->through(fn (Certificate $certificate): array => [
-                    'certificateId' => $certificate->id,
-                    'certificateType' => $certificate->certificateType->name,
-                    'expiryDate' => $certificate->expiry_date->toDateString(),
-                    'status' => $certificate->status,
-                    'siteName' => $certificate->site->site_name,
-                ]);
+                return app(BuildScheduleAgenda::class)->handle(
+                    $today,
+                    $request->string('schedule_from')->toString() ?: null,
+                    $request->string('schedule_to')->toString() ?: null,
+                    $type === 'asset' || $type === 'certificate' ? $type : 'all',
+                    $request->string('schedule_horizon')->toString() ?: null,
+                    $overdue === 'only' || $overdue === 'exclude' ? $overdue : 'include',
+                    $request->string('schedule_day')->toString() ?: null,
+                );
             },
             'filters' => $request->validated(),
         ]);
+    }
+
+    /**
+     * The two standing counts that are not schedule-window work, plus the
+     * shortcuts that keep each card pointed at the view it summarises.
+     *
+     * @return array<string, mixed>
+     */
+    private function summary(CarbonImmutable $today, string $asOfDate): array
+    {
+        $complianceMonths = (int) config('fire-tracker.dashboard.compliance_months', 12);
+        $complianceSince = $today->subMonths($complianceMonths)->toDateString();
+
+        return [
+            'asOfDate' => $asOfDate,
+            'complianceMonths' => $complianceMonths,
+            'complianceSince' => $complianceSince,
+            'links' => [
+                'activeClients' => route('clients.index'),
+                'totalAssets' => route('assets.index'),
+                // Built here rather than in the browser so the pass rate keeps
+                // pointing at the exact window and result filter it measures.
+                'passRateInspections' => route('inspections.index', [
+                    'from' => $complianceSince,
+                ]),
+            ],
+            'stats' => [
+                'activeClients' => Client::actionable()->count(),
+                'totalAssets' => Asset::actionable()->count(),
+            ],
+        ];
     }
 }

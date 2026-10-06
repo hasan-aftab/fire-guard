@@ -21,7 +21,7 @@ export function EmptyState({
     action?: ReactNode;
 }) {
     return (
-        <Empty>
+        <Empty data-empty>
             <EmptyHeader>
                 <EmptyMedia>
                     <Icon />

@@ -14,6 +14,8 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             today: string;
+            /** The zone `today` and every dashboard date were resolved in. */
+            timezone: string;
             fileUploadLimits: { photoBytes: number; documentBytes: number };
             counts: Counts | null;
             fireNotifications: NotificationData | null;

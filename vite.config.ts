@@ -56,6 +56,12 @@ export default defineConfig({
             typeAware: true,
         },
     },
+    test: {
+        environment: 'jsdom',
+        include: ['resources/js/**/*.test.{ts,tsx}'],
+        setupFiles: ['resources/js/test/setup.ts'],
+        restoreMocks: true,
+    },
     fmt: {
         printWidth: 80,
         tabWidth: 4,

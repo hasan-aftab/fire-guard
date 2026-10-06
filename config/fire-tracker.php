@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Asset;
+use App\Models\Certificate;
+
 return [
     'disk' => env('FIRE_TRACKER_DISK', 'local'),
     'photo_max_kilobytes' => 20480,
@@ -11,6 +14,28 @@ return [
         'overdue_once' => true,
         'send_at' => '08:00',
         'processing_review_after_minutes' => 120,
+    ],
+    'dashboard' => [
+        /*
+         * Horizon presets are inclusive offsets from the as-of date: 7 means
+         * "today through today + 7", so the day strip gets 8 cells. The 14-day
+         * preset is the default and is tied to the model's own due-soon
+         * threshold so the default window always covers exactly the band that
+         * Asset::serviceStatus() calls due soon.
+         */
+        'horizon_presets' => [
+            '7d' => 7,
+            '14d' => Asset::DUE_SOON_DAYS,
+            '30d' => Certificate::EXPIRING_SOON_DAYS,
+        ],
+        'default_horizon' => '14d',
+        'due_soon_days' => Asset::DUE_SOON_DAYS,
+        'certificate_alert_days' => Certificate::EXPIRING_SOON_DAYS,
+        'compliance_months' => 12,
+        'pass_rate' => [
+            'success' => 80,
+            'warning' => 60,
+        ],
     ],
     'report' => [
         'disk' => env('REPORT_DISK'),

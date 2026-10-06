@@ -42,3 +42,8 @@ yarn-error.log
 /boost.json
 /opencode.json
 /opencode.jsonc
+
+# QA capture artefacts: screenshots are 4MB of regenerated images, and the
+# storage-state files hold live session cookies.
+qa/*.png
+qa/auth-*.json

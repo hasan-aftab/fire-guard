@@ -5,6 +5,8 @@ namespace App\Models;
 use Carbon\CarbonImmutable;
 use Database\Factories\SiteFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -34,6 +36,19 @@ class Site extends Model
 {
     /** @use HasFactory<SiteFactory> */
     use HasFactory;
+
+    /**
+     * The site is active, was not entered in error, and its client is actionable.
+     *
+     * @param  Builder<Site>  $query
+     */
+    #[Scope]
+    protected function actionable(Builder $query): void
+    {
+        $query->where('is_active', true)->whereNull('entered_in_error_at')
+            ->whereHas('client', fn ($client) => $client->where('is_active', true)
+                ->whereNull('entered_in_error_at'));
+    }
 
     /** @return array<string, string> */
     protected function casts(): array

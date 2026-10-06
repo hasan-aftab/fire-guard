@@ -5,6 +5,8 @@ namespace App\Models;
 use Carbon\CarbonImmutable;
 use Database\Factories\AssetFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,6 +41,27 @@ class Asset extends Model
 
     /** @use HasFactory<AssetFactory> */
     use HasFactory;
+
+    /**
+     * The asset is active, was not entered in error, and its site and client are
+     * both actionable.
+     *
+     * Assets with a null `next_service_due` are included here; the schedule
+     * filters on the date separately. Callers that need only dated work must
+     * constrain `next_service_due` themselves.
+     *
+     * @param  Builder<Asset>  $query
+     */
+    #[Scope]
+    protected function actionable(Builder $query): void
+    {
+        $query->where('status', 'active')
+            ->whereNull('entered_in_error_at')
+            ->whereHas('site', fn ($site) => $site->where('is_active', true)
+                ->whereNull('entered_in_error_at')
+                ->whereHas('client', fn ($client) => $client->where('is_active', true)
+                    ->whereNull('entered_in_error_at')));
+    }
 
     /** @return Attribute<string, never> */
     protected function serviceStatus(): Attribute

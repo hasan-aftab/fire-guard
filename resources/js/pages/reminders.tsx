@@ -1,4 +1,4 @@
-import { Head, router } from "@inertiajs/react";
+import { Head, router } from '@inertiajs/react';
 import {
     AlertTriangle,
     CheckCheck,
@@ -7,29 +7,29 @@ import {
     Mail,
     Plus,
     Trash2,
-} from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import { index } from "@/actions/App/Http/Controllers/ReminderHistoryController";
+} from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { index } from '@/actions/App/Http/Controllers/ReminderHistoryController';
 import {
     destroy as destroyRecipient,
     store as storeRecipient,
-} from "@/actions/App/Http/Controllers/ReminderRecipientController";
-import { DateRangePicker } from "@/components/date-range-picker";
-import { PageHeader } from "@/components/page-header";
-import { Pagination } from "@/components/pagination";
-import { StatCard } from "@/components/stat-card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+} from '@/actions/App/Http/Controllers/ReminderRecipientController';
+import { DateRangePicker } from '@/components/date-range-picker';
+import { PageHeader } from '@/components/page-header';
+import { Pagination } from '@/components/pagination';
+import { StatCard } from '@/components/stat-card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -37,24 +37,24 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
     Tooltip,
     TooltipContent,
     TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import type { Paginated } from "@/types/fire-tracker";
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import type { Paginated } from '@/types/fire-tracker';
 
-type ReminderType = "asset" | "certificate";
-type ReminderAudience = "configured" | "staff";
+type ReminderType = 'asset' | 'certificate';
+type ReminderAudience = 'configured' | 'staff';
 type ReminderStatus =
-    | "pending"
-    | "processing"
-    | "sent"
-    | "failed"
-    | "skipped"
-    | "uncertain";
+    | 'pending'
+    | 'processing'
+    | 'sent'
+    | 'failed'
+    | 'skipped'
+    | 'uncertain';
 type Reminder = {
     id: number;
     type: ReminderType;
@@ -85,54 +85,54 @@ type Client = { id: number; company_name: string };
 type Recipient = { id: number; email: string; excluded: boolean };
 type FallbackAdmin = { id: number; name: string; email: string };
 function formatDate(value: string): string {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
         new Date(`${value}T12:00:00`),
     );
 }
 
 function formatTimestamp(value: string | null): string {
-    if (!value) return "—";
+    if (!value) return '—';
     return new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
+        dateStyle: 'medium',
+        timeStyle: 'short',
     }).format(new Date(value));
 }
 
 function windowLabel(offset: number): string {
-    if (offset < 0) return "Overdue notice";
-    if (offset === 0) return "Due today";
-    return `${offset} ${offset === 1 ? "day" : "days"} ahead`;
+    if (offset < 0) return 'Overdue notice';
+    if (offset === 0) return 'Due today';
+    return `${offset} ${offset === 1 ? 'day' : 'days'} ahead`;
 }
 
-function audienceLabel(audience: ReminderAudience | string): string {
-    return (
-        {
-            configured: "Selected email",
-            staff: "Team",
-        }[audience as string] ?? "Internal"
-    );
+function audienceLabel(audience: string): string {
+    const labels: Record<string, string> = {
+        configured: 'Selected email',
+        staff: 'Team',
+    };
+
+    return labels[audience] ?? 'Internal';
 }
 
 function DeliveryBadge({ status }: { status: ReminderStatus }) {
     const tone = {
-        sent: "border-success/40 bg-success/10 text-success",
-        pending: "border-info/40 bg-info/10 text-info",
-        processing: "border-info/40 bg-info/10 text-info",
-        failed: "border-destructive/40 bg-destructive/10 text-destructive",
-        skipped: "border-border bg-muted text-muted-foreground",
-        uncertain: "border-warning/40 bg-warning/10 text-warning",
+        sent: 'border-success/40 bg-success/10 text-success',
+        pending: 'border-info/40 bg-info/10 text-info',
+        processing: 'border-info/40 bg-info/10 text-info',
+        failed: 'border-destructive/40 bg-destructive/10 text-destructive',
+        skipped: 'border-border bg-muted text-muted-foreground',
+        uncertain: 'border-warning/40 bg-warning/10 text-warning',
     }[status];
     const label = {
-        sent: "Delivered",
-        pending: "Queued",
-        processing: "Sending",
-        failed: "Failed",
-        skipped: "Skipped",
-        uncertain: "Needs review",
+        sent: 'Delivered',
+        pending: 'Queued',
+        processing: 'Sending',
+        failed: 'Failed',
+        skipped: 'Skipped',
+        uncertain: 'Needs review',
     }[status];
 
     return (
-        <Badge variant="outline" className={cn("gap-1.5", tone)}>
+        <Badge variant="outline" className={cn('gap-1.5', tone)}>
             <span className="size-1.5 rounded-full bg-current" />
             {label}
         </Badge>
@@ -155,7 +155,7 @@ function FilterChoice({
             <span className="block text-xs font-medium text-muted-foreground">
                 {label}
             </span>
-            <Select value={value || "all"} onValueChange={onChange}>
+            <Select value={value || 'all'} onValueChange={onChange}>
                 <SelectTrigger aria-label={label} className="w-full">
                     <SelectValue />
                 </SelectTrigger>
@@ -175,14 +175,14 @@ function FilterChoice({
 }
 
 function TypeMark({ type }: { type: ReminderType }) {
-    const Icon = type === "asset" ? Flame : FileBadge2;
+    const Icon = type === 'asset' ? Flame : FileBadge2;
     return (
         <div
             className={cn(
-                "flex size-10 shrink-0 items-center justify-center rounded-lg",
-                type === "asset"
-                    ? "bg-warning/10 text-warning"
-                    : "bg-info/10 text-info",
+                'flex size-10 shrink-0 items-center justify-center rounded-lg',
+                type === 'asset'
+                    ? 'bg-warning/10 text-warning'
+                    : 'bg-info/10 text-info',
             )}
         >
             <Icon className="size-5" aria-hidden="true" />
@@ -206,16 +206,16 @@ export default function Reminders({
     summary: { sent: number; in_progress: number; needs_review: number };
 }) {
     const [working, setWorking] = useState<Filters>({
-        status: filters.status ?? "",
-        type: filters.type ?? "",
-        audience: filters.audience ?? "",
-        client_id: String(filters.client_id ?? ""),
-        due_from: filters.due_from ?? "",
-        due_to: filters.due_to ?? "",
+        status: filters.status ?? '',
+        type: filters.type ?? '',
+        audience: filters.audience ?? '',
+        client_id: String(filters.client_id ?? ''),
+        due_from: filters.due_from ?? '',
+        due_to: filters.due_to ?? '',
     });
     const [filtering, setFiltering] = useState(false);
-    const [recipientEmail, setRecipientEmail] = useState("");
-    const [recipientError, setRecipientError] = useState("");
+    const [recipientEmail, setRecipientEmail] = useState('');
+    const [recipientError, setRecipientError] = useState('');
     const [savingRecipient, setSavingRecipient] = useState(false);
     const [removingRecipientId, setRemovingRecipientId] = useState<
         number | null
@@ -230,7 +230,7 @@ export default function Reminders({
             index().url,
             {
                 ...Object.fromEntries(
-                    Object.entries(next).filter(([, value]) => value !== ""),
+                    Object.entries(next).filter(([, value]) => value !== ''),
                 ),
                 page,
             },
@@ -239,7 +239,7 @@ export default function Reminders({
                 preserveScroll: true,
                 replace: true,
                 onStart: () => setFiltering(true),
-                onError: () => toast.error("Could not apply reminder filters."),
+                onError: () => toast.error('Could not apply reminder filters.'),
                 onFinish: () => setFiltering(false),
             },
         );
@@ -251,17 +251,17 @@ export default function Reminders({
     };
     const addRecipient = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        setRecipientError("");
+        setRecipientError('');
         router.post(
             storeRecipient().url,
             { email: recipientEmail.trim() },
             {
                 preserveScroll: true,
                 onStart: () => setSavingRecipient(true),
-                onSuccess: () => setRecipientEmail(""),
+                onSuccess: () => setRecipientEmail(''),
                 onError: (errors) =>
                     setRecipientError(
-                        errors.email ?? "Could not add this email address.",
+                        errors.email ?? 'Could not add this email address.',
                     ),
                 onFinish: () => setSavingRecipient(false),
             },
@@ -271,7 +271,7 @@ export default function Reminders({
         router.delete(destroyRecipient(recipient.id).url, {
             preserveScroll: true,
             onStart: () => setRemovingRecipientId(recipient.id),
-            onError: () => toast.error("Could not remove this email address."),
+            onError: () => toast.error('Could not remove this email address.'),
             onFinish: () => setRemovingRecipientId(null),
         });
     };
@@ -322,8 +322,8 @@ export default function Reminders({
                         </div>
                         <Badge variant="secondary">
                             {recipients.length > 0
-                                ? `${activeRecipientCount} active ${activeRecipientCount === 1 ? "email" : "emails"}`
-                                : "Admin fallback"}
+                                ? `${activeRecipientCount} active ${activeRecipientCount === 1 ? 'email' : 'emails'}`
+                                : 'Admin fallback'}
                         </Badge>
                     </div>
                 </CardHeader>
@@ -347,21 +347,21 @@ export default function Reminders({
                                 value={recipientEmail}
                                 onChange={(event) => {
                                     setRecipientEmail(event.target.value);
-                                    setRecipientError("");
+                                    setRecipientError('');
                                 }}
                                 required
                                 maxLength={254}
                                 aria-invalid={Boolean(recipientError)}
                                 aria-describedby={
                                     recipientError
-                                        ? "reminder-recipient-error"
+                                        ? 'reminder-recipient-error'
                                         : undefined
                                 }
                             />
                         </div>
                         <Button type="submit" disabled={savingRecipient}>
                             <Plus data-icon="inline-start" />
-                            {savingRecipient ? "Adding…" : "Add email"}
+                            {savingRecipient ? 'Adding…' : 'Add email'}
                         </Button>
                     </form>
                     {recipientError && (
@@ -441,7 +441,7 @@ export default function Reminders({
                                             (admin) =>
                                                 `${admin.name} (${admin.email})`,
                                         )
-                                        .join(" · ")}
+                                        .join(' · ')}
                                 </p>
                             ) : (
                                 <p className="mt-1 text-sm text-muted-foreground">
@@ -462,18 +462,18 @@ export default function Reminders({
                                 Delivery history
                             </CardTitle>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                {records.total} matching{" "}
+                                {records.total} matching{' '}
                                 {records.total === 1
-                                    ? "delivery"
-                                    : "deliveries"}
+                                    ? 'delivery'
+                                    : 'deliveries'}
                             </p>
                         </div>
                         {appliedFilterCount > 0 && (
                             <Badge variant="secondary">
-                                {appliedFilterCount} active{" "}
+                                {appliedFilterCount} active{' '}
                                 {appliedFilterCount === 1
-                                    ? "filter"
-                                    : "filters"}
+                                    ? 'filter'
+                                    : 'filters'}
                             </Badge>
                         )}
                     </div>
@@ -484,26 +484,26 @@ export default function Reminders({
                             label="Status"
                             value={working.status}
                             options={[
-                                { value: "sent", label: "Delivered" },
-                                { value: "pending", label: "Queued" },
-                                { value: "processing", label: "Sending" },
-                                { value: "failed", label: "Failed" },
-                                { value: "uncertain", label: "Needs review" },
-                                { value: "skipped", label: "Skipped" },
+                                { value: 'sent', label: 'Delivered' },
+                                { value: 'pending', label: 'Queued' },
+                                { value: 'processing', label: 'Sending' },
+                                { value: 'failed', label: 'Failed' },
+                                { value: 'uncertain', label: 'Needs review' },
+                                { value: 'skipped', label: 'Skipped' },
                             ]}
                             onChange={(value) =>
-                                update({ status: value === "all" ? "" : value })
+                                update({ status: value === 'all' ? '' : value })
                             }
                         />
                         <FilterChoice
                             label="Type"
                             value={working.type}
                             options={[
-                                { value: "asset", label: "Equipment" },
-                                { value: "certificate", label: "Certificate" },
+                                { value: 'asset', label: 'Equipment' },
+                                { value: 'certificate', label: 'Certificate' },
                             ]}
                             onChange={(value) =>
-                                update({ type: value === "all" ? "" : value })
+                                update({ type: value === 'all' ? '' : value })
                             }
                         />
                         <FilterChoice
@@ -511,14 +511,14 @@ export default function Reminders({
                             value={working.audience}
                             options={[
                                 {
-                                    value: "configured",
-                                    label: "Selected email",
+                                    value: 'configured',
+                                    label: 'Selected email',
                                 },
-                                { value: "staff", label: "Team" },
+                                { value: 'staff', label: 'Team' },
                             ]}
                             onChange={(value) =>
                                 update({
-                                    audience: value === "all" ? "" : value,
+                                    audience: value === 'all' ? '' : value,
                                 })
                             }
                         />
@@ -531,7 +531,7 @@ export default function Reminders({
                             }))}
                             onChange={(value) =>
                                 update({
-                                    client_id: value === "all" ? "" : value,
+                                    client_id: value === 'all' ? '' : value,
                                 })
                             }
                         />
@@ -542,8 +542,8 @@ export default function Reminders({
                             to={working.due_to}
                             onSelect={(range) =>
                                 update({
-                                    due_from: range.from ?? "",
-                                    due_to: range.to ?? "",
+                                    due_from: range.from ?? '',
+                                    due_to: range.to ?? '',
                                 })
                             }
                             placeholder="Due or expiry date"
@@ -554,12 +554,12 @@ export default function Reminders({
                                 size="sm"
                                 onClick={() =>
                                     update({
-                                        status: "",
-                                        type: "",
-                                        audience: "",
-                                        client_id: "",
-                                        due_from: "",
-                                        due_to: "",
+                                        status: '',
+                                        type: '',
+                                        audience: '',
+                                        client_id: '',
+                                        due_from: '',
+                                        due_to: '',
                                     })
                                 }
                             >
@@ -573,15 +573,15 @@ export default function Reminders({
                             <Table
                                 containerProps={{
                                     className:
-                                        "custom-scrollbar rounded-lg border",
-                                    role: "region",
-                                    "aria-label": "Reminder delivery history",
+                                        'custom-scrollbar rounded-lg border',
+                                    role: 'region',
+                                    'aria-label': 'Reminder delivery history',
                                     tabIndex: 0,
                                 }}
                             >
                                 <TableHeader className="bg-muted/40">
                                     <TableRow>
-                                        <TableHead className="pl-4 w-16">
+                                        <TableHead className="w-16 pl-4">
                                             #
                                         </TableHead>
                                         <TableHead className="pl-4">
@@ -627,8 +627,8 @@ export default function Reminders({
                                                             <p className="mt-0.5 text-xs text-muted-foreground">
                                                                 {
                                                                     record.client_name
-                                                                }{" "}
-                                                                ·{" "}
+                                                                }{' '}
+                                                                ·{' '}
                                                                 {
                                                                     record.site_name
                                                                 }
@@ -666,7 +666,7 @@ export default function Reminders({
                                                     </div>
                                                     <p className="mt-1 max-w-52 truncate text-sm text-foreground">
                                                         {record.recipient ||
-                                                            "No address"}
+                                                            'No address'}
                                                     </p>
                                                 </TableCell>
                                                 <TableCell className="min-w-36">
@@ -709,11 +709,11 @@ export default function Reminders({
                                                             index +
                                                             1}
                                                         .
-                                                    </span>{" "}
+                                                    </span>{' '}
                                                     {record.subject_name}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground">
-                                                    {record.client_name} ·{" "}
+                                                    {record.client_name} ·{' '}
                                                     {record.site_name}
                                                 </p>
                                             </div>
@@ -746,7 +746,7 @@ export default function Reminders({
                                                 </p>
                                                 <p className="truncate text-xs text-muted-foreground">
                                                     {record.recipient ||
-                                                        "No address"}
+                                                        'No address'}
                                                 </p>
                                             </div>
                                         </div>

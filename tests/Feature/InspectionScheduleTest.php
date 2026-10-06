@@ -187,10 +187,21 @@ test('a completed inspection updates dashboard due status without duplicate cale
     $this->assertDatabaseHas('fire_notifications', ['user_id' => $user->id, 'type' => 'due_soon_asset', 'entity_type' => 'asset', 'entity_id' => $asset->id]);
     expect(FireNotification::where('user_id', $user->id)->where('type', 'overdue_asset')->count())->toBe(0);
 
-    $this->get(route('dashboard', ['calendar_month' => '2026-10']))
-        ->assertInertia(fn (Assert $page) => $page->where('summary.stats.overdueInspections', 0)
-            ->where('attention.total', 1)->where('attention.data.0.nextServiceDue', '2026-10-10')
-            ->where('calendar.events.total', 1)->where('calendar.events.data.0.source', 'asset')
-            ->where('calendar.events.data.0.dueDate', '2026-10-10')
-            ->has('summary.upcomingDates', 1));
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('kpis.overdue.total', 0)
+            ->where('schedule.totalCount', 1)
+            // Day buckets are contiguous from the start of the window, so the
+            // 10th is the ninth cell rather than the first.
+            ->where('schedule.days.0.date', '2026-10-01')
+            ->where('schedule.days.0.itemCount', 0)
+            ->where('schedule.days.9.date', '2026-10-10')
+            // Strip cells carry a count, not the rows: the rows live in the
+            // grouped agenda so a day cannot repeat one record many times over.
+            ->where('schedule.days.9.itemCount', 1)
+            // 10 Oct is offset 9 from a window starting 1 Oct, which is past the
+            // offset-7 boundary, so the row belongs to "later", not "next".
+            ->has('schedule.groups.2.items', 1)
+            ->where('schedule.groups.2.id', 'later')
+            ->where('schedule.groups.2.items.0.kind', 'asset')
+            ->where('schedule.groups.2.items.0.dueDate', '2026-10-10'));
 });

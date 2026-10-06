@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Actions\BuildScheduleAgenda;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,20 +16,16 @@ class DashboardFilterRequest extends FormRequest
     /** @return array<string, array<mixed>> */
     public function rules(): array
     {
-        $calendarMonths = [];
-        for ($month = today()->startOfMonth(); $month <= today()->addDays(90)->startOfMonth(); $month = $month->addMonth()) {
-            $calendarMonths[] = $month->format('Y-m');
-        }
-
         return [
-            'attention_from' => ['nullable', 'date_format:Y-m-d'],
-            'attention_to' => ['nullable', 'date_format:Y-m-d', Rule::when($this->filled('attention_from'), 'after_or_equal:attention_from')],
-            'attention_page' => ['nullable', 'integer', 'min:1'],
-            'cert_from' => ['nullable', 'date_format:Y-m-d'],
-            'cert_to' => ['nullable', 'date_format:Y-m-d', Rule::when($this->filled('cert_from'), 'after_or_equal:cert_from')],
-            'cert_page' => ['nullable', 'integer', 'min:1'],
-            'calendar_month' => ['nullable', 'date_format:Y-m', Rule::in($calendarMonths)],
-            'calendar_page' => ['nullable', 'integer', 'min:1'],
+            'schedule_from' => ['nullable', 'date_format:Y-m-d'],
+            'schedule_to' => ['nullable', 'date_format:Y-m-d', Rule::when($this->filled('schedule_from'), 'after_or_equal:schedule_from')],
+            'schedule_type' => ['nullable', Rule::in(['all', 'asset', 'certificate'])],
+            'schedule_horizon' => ['nullable', Rule::in(array_keys(BuildScheduleAgenda::horizonPresets()))],
+            'schedule_overdue' => ['nullable', Rule::in(BuildScheduleAgenda::overdueModes())],
+            // Not range-checked against the window: the strip only offers days it
+            // is already showing, and a hand-typed day outside the window is
+            // answered with an empty agenda rather than a validation error.
+            'schedule_day' => ['nullable', 'date_format:Y-m-d'],
         ];
     }
 }

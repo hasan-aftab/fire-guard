@@ -1,0 +1,48 @@
+# Capture matrix for the dashboard in light mode.
+#
+# This file is the spec, not the runner: `shot-scraper multi` cannot set a
+# viewport per shot, and a responsive review needs one. `qa/capture.sh` reads
+# this and calls `shot-scraper shot` per entry instead, so every state is
+# captured at every width from one definition of done.
+#
+# The query strings are the five states the page can be in from a URL alone.
+# There is no client-only state: the query is the whole of it, which is what
+# makes these reproducible.
+#
+# The empty state is not here: there is no per-user data scope, so an account
+# with no records renders the same dashboard as everyone else. A filter
+# combination with no matches is the reachable version of it.
+
+widths:
+    - 1440
+    - 1024
+    - 768
+    - 390
+    - 320
+
+shots:
+    # The page as it loads: 15-day window, three groups, every control live.
+    - name: light-default
+      url: /dashboard
+
+    # A day cell chosen, so the strip shows a pressed day and only that day's
+    # rows are listed.
+    - name: light-selected-day
+      url: /dashboard?schedule_day=2026-10-05
+
+    # Overdue-only, which is the state with no window: no strip, no range, and an
+    # offer to bring the hidden window back.
+    - name: light-overdue-only
+      url: /dashboard?schedule_overdue=only
+
+    # The certificate tile's own scope, which is the invariant the tiles exist to
+    # keep: these rows must be exactly the certificates expiring in 30 days.
+    - name: light-certificates-tile
+      url: /dashboard?schedule_type=certificate&schedule_horizon=30d
+
+    # Nothing due. Every user sees the same tracker data, so a genuinely empty
+    # dashboard is not reachable — but a filter combination with no matches is,
+    # and it is what a new filter combination looks like on arrival. This is the
+    # state that exercises the agenda's empty message.
+    - name: light-nothing-due
+      url: /dashboard?schedule_type=certificate&schedule_horizon=7d&schedule_overdue=exclude

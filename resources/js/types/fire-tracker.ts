@@ -221,62 +221,164 @@ export type TrackerFilters = Partial<
         string
     >
 >;
-export type UpcomingInspection = {
-    assetId: number;
-    serialNumber: string | null;
-    locationDesc: string | null;
-    nextServiceDue: string;
-    serviceStatus: DateStatus;
-    typeName: string;
-    siteName: string;
-};
-export type ExpiringCertificate = {
-    certificateId: number;
-    certificateType: string;
-    expiryDate: string;
-    status: DateStatus;
-    siteName: string;
-};
 export type DashboardSummary = {
     asOfDate: string;
+    /** Rolling window the compliance gauge counts, in months. */
+    complianceMonths: number;
+    /** Inclusive lower bound of the gauge window (YYYY-MM-DD). */
+    complianceSince: string;
+    /** Deep links to the list view each standing count summarises. */
+    links: {
+        activeClients: string;
+        totalAssets: string;
+        /** Inspections inside the gauge's own window, for the pass-rate card. */
+        passRateInspections: string;
+    };
     stats: {
         activeClients: number;
         totalAssets: number;
-        overdueInspections: number;
-        expiringCerts: number;
     };
-    upcomingDates: string[];
-    complianceRate: {
-        pass: number;
-        fail: number;
-        needs_repair: number;
-        total: number;
-    };
-};
-
-export type CalendarDueEvent = {
-    id: string;
-    source: 'asset' | 'inspection';
-    dueDate: string;
-    typeName: string;
-    siteName: string;
-};
-
-export type DashboardCalendar = {
-    month: string;
-    events: Paginated<CalendarDueEvent>;
 };
 
 export type DashboardFilters = Partial<
     Record<
-        | 'attention_from'
-        | 'attention_to'
-        | 'attention_page'
-        | 'cert_from'
-        | 'cert_to'
-        | 'cert_page'
-        | 'calendar_month'
-        | 'calendar_page',
-        string | number
+        | 'schedule_from'
+        | 'schedule_to'
+        | 'schedule_type'
+        | 'schedule_horizon'
+        | 'schedule_overdue'
+        | 'schedule_day',
+        string
     >
 >;
+
+/**
+ * The four dashboard cards. Each count is scoped independently of the Schedule
+ * window — except `dueSoon` and `certificates`, which name the horizon preset
+ * they measure so the panel can select exactly that scope when the card is used.
+ */
+export type DashboardKpis = {
+    overdue: {
+        total: number;
+        byKind: Record<ScheduleItemKind, number>;
+    };
+    dueSoon: {
+        total: number;
+        horizonPreset: string;
+        horizonDays: number;
+    };
+    certificates: {
+        expired: number;
+        expiringSoon: number;
+        total: number;
+        horizonPreset: string;
+    };
+    passRate: {
+        percent: number;
+        band: 'success' | 'warning' | 'danger';
+        pass: number;
+        fail: number;
+        needsRepair: number;
+        total: number;
+    };
+};
+
+export type ScheduleStatus = 'overdue' | 'due_soon' | 'ok';
+
+/**
+ * `asset` is a record whose *asset* service date is due. The UI calls these
+ * "inspections" because servicing an asset is what the visit is for, but the
+ * stored record really is an asset, so the wire value stays honest.
+ */
+export type ScheduleItemKind = 'asset' | 'certificate';
+
+export type ScheduleType = 'all' | ScheduleItemKind;
+
+/**
+ * What the schedule does with the overdue backlog.
+ *
+ * `include` is the default and shows it above the window. `only` drops the
+ * forward window entirely, which is what the "Overdue" tile asks for. `exclude`
+ * hides the backlog and keeps the window, which is what the "Due in 7 days"
+ * tile asks for, so a tile's number and the rows it opens cannot disagree.
+ */
+export type ScheduleOverdueMode = 'include' | 'only' | 'exclude';
+
+export type ScheduleItem = {
+    key: string;
+    kind: ScheduleItemKind;
+    entityId: number;
+    dueDate: string;
+    isOverdue: boolean;
+    /** Server-resolved; the client never recomputes it from the clock. */
+    daysUntil: number;
+    status: ScheduleStatus;
+    typeName: string;
+    siteName: string;
+    clientName: string;
+    reference: string | null;
+    /** Where on the site the record lives; null for certificates. */
+    locationDesc: string | null;
+    href: string;
+};
+
+/**
+ * One of the three fixed agenda sections. All three are always present and in
+ * this order, so neither the view nor a test has to index around a missing
+ * group; a group holding nothing has `itemCount` 0 and an empty `items`.
+ */
+export type ScheduleGroupId = 'overdue' | 'next' | 'later';
+
+export type ScheduleGroup = {
+    id: ScheduleGroupId;
+    label: string;
+    itemCount: number;
+    byKind: Record<ScheduleItemKind, number>;
+    /** Earliest date in the group, or null when it holds nothing. */
+    firstDate: string | null;
+    items: ScheduleItem[];
+};
+
+/** Always an in-window day, never an overdue one. */
+export type ScheduleDay = {
+    date: string;
+    isToday: boolean;
+    itemCount: number;
+};
+
+export type DashboardSchedule = {
+    from: string;
+    to: string;
+    horizonDays: number;
+    /** Inclusive offset from `from` to `to`, so horizonDays is this plus one. */
+    horizonOffset: number;
+    /** The preset this window is, or null when it is a custom range. */
+    horizonPreset: string | null;
+    type: ScheduleType;
+    overdueMode: ScheduleOverdueMode;
+    /** The day narrowed to, or null. Narrows every group at once. */
+    day: string | null;
+    /** True in overdue-only mode, where the strip and range are meaningless. */
+    windowHidden: boolean;
+    /** Offset that separates `next` from `later`. */
+    groupBoundaryDays: number;
+    groups: ScheduleGroup[];
+    counts: Record<'all' | ScheduleItemKind, number>;
+    /** One entry per day of the window, including days with no work. */
+    days: ScheduleDay[];
+    overdueSince: string | null;
+    overdueByKind: Record<ScheduleItemKind, number>;
+    /** The first thing due past the window, so the range can admit the gap. */
+    nextAfter: { date: string; daysUntil: number } | null;
+    overdueCount: number;
+    /** In-window rows only, counted before the row cap is applied. */
+    windowItemCount: number;
+    totalCount: number;
+    returnedCount: number;
+    truncated: boolean;
+    maxItems: number;
+    maxHorizonDays: number;
+    /** Preset key to inclusive offset, so the client never hardcodes a window. */
+    horizonPresets: Record<string, number>;
+    defaultHorizonPreset: string;
+};

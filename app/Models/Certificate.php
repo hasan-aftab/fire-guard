@@ -5,6 +5,8 @@ namespace App\Models;
 use Carbon\CarbonImmutable;
 use Database\Factories\CertificateFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -36,6 +38,25 @@ class Certificate extends Model
 
     /** @use HasFactory<CertificateFactory> */
     use HasFactory;
+
+    /**
+     * The certificate was not entered in error, its site and client are both
+     * actionable, and an attached asset — if any — is actionable.
+     *
+     * @param  Builder<Certificate>  $query
+     */
+    #[Scope]
+    protected function actionable(Builder $query): void
+    {
+        $query->whereNull('entered_in_error_at')
+            ->whereHas('site', fn ($site) => $site->where('is_active', true)
+                ->whereNull('entered_in_error_at')
+                ->whereHas('client', fn ($client) => $client->where('is_active', true)
+                    ->whereNull('entered_in_error_at')))
+            ->where(fn ($query) => $query->whereNull('asset_id')
+                ->orWhereHas('asset', fn ($asset) => $asset->where('status', 'active')
+                    ->whereNull('entered_in_error_at')));
+    }
 
     /** @return array<string, string> */
     protected function casts(): array

@@ -36,11 +36,20 @@ test('archived relationships remain accessible but do not create active work', f
     $this->get(route('inspections.index'))->assertInertia(fn (Assert $page) => $page->where('records.total', 4));
     $this->get(route('certificates.index'))->assertInertia(fn (Assert $page) => $page->where('records.total', 4));
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
-        ->where('summary.stats.overdueInspections', 1)
-        ->where('summary.stats.expiringCerts', 1)
-        ->where('attention.total', 1)
-        ->where('certificates.total', 1)
-        ->where('calendar.events.total', 0));
+        // The one actionable certificate has already expired, so none is still upcoming.
+        ->where('kpis.overdue.total', 2)
+        ->where('kpis.certificates.expired', 1)
+        ->where('kpis.certificates.expiringSoon', 0)
+        ->where('schedule.overdueCount', 2)
+        ->where('schedule.totalCount', 2)
+        // Late work is one aggregate block, not a day bucket of its own.
+        ->where('schedule.days.0.date', '2026-09-30')
+        ->where('schedule.days.0.itemCount', 0)
+        // The flat `overdue` array became the first of the three fixed groups.
+        ->has('schedule.groups.0.items', 2)
+        ->where('schedule.groups.0.id', 'overdue')
+        ->where('schedule.groups.0.items.0.kind', 'asset')
+        ->where('schedule.groups.0.items.1.kind', 'certificate'));
 
     $this->post(route('notifications.generate'))->assertRedirect();
     $this->assertDatabaseCount('fire_notifications', 3);
@@ -195,7 +204,7 @@ test('entered in error records leave normal lists and alerts and can be restored
     $this->assertDatabaseCount('fire_notifications', 0);
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('summary.stats.totalAssets', 0)
-        ->where('summary.complianceRate.total', 0));
+        ->where('kpis.passRate.total', 0));
     $this->get(route('inspections.index'))->assertInertia(fn (Assert $page) => $page->where('records.total', 0));
     $this->get(route('certificates.index'))->assertInertia(fn (Assert $page) => $page->where('records.total', 0));
     $this->get(route('assets.index'))->assertInertia(fn (Assert $page) => $page->where('records.total', 0));
