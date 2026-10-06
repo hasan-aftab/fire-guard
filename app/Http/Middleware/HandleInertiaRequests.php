@@ -75,7 +75,7 @@ class HandleInertiaRequests extends Middleware
                 'assetTypes' => AssetType::query()->count(),
                 'certificateTypes' => CertificateType::query()->count(),
                 'reports' => GeneratedReport::query()->count(),
-                'reminders' => ReminderDelivery::query()->count(),
+                'reminders' => ReminderDelivery::query()->where('channel', 'email')->count(),
             ] : null,
             'fireNotifications' => fn (): ?array => $request->user() ? [
                 'items' => FireNotification::where('user_id', $request->user()->id)
