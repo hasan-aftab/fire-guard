@@ -221,7 +221,8 @@ test('dashboard aggregates actual reminder messages and excludes test sends', fu
     WhatsAppMessage::factory()->for($account, 'account')->create(['is_test' => true, 'status' => 'failed']);
     $this->actingAs($this->admin)->get(route('whatsapp.index', ['status' => 'delivered', 'account_id' => $account->id]))
         ->assertInertia(fn (Assert $page) => $page->component('whatsapp')->has('messages.data', 1)
-            ->where('summary.delivered', 1)->where('summary.failed', 0)->missing('filters.page')->etc());
+            ->where('summary.delivered', 1)->where('summary.failed', 0)->where('counts.whatsapp', 2)
+            ->missing('filters.page')->etc());
 });
 
 test('message history filters are server side and dashboard periods exclude older outcomes', function () {
@@ -257,16 +258,33 @@ test('test sends stay separate and regular users cannot manage WhatsApp credenti
     $template = waTemplate($account);
     $this->get(route('whatsapp.index'))->assertRedirect(route('login'));
     $this->actingAs(User::factory()->create())->get(route('whatsapp.index'))->assertForbidden();
-    $this->post(route('whatsapp.test'), ['account_id' => $account->id, 'template_id' => $template->id, 'recipient' => '+67571234567'])->assertForbidden();
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])->assertForbidden();
     auth()->logout();
     $this->actingAs($this->admin);
     waAccepted();
-    $this->post(route('whatsapp.test'), ['account_id' => $account->id, 'template_id' => $template->id, 'recipient' => '+67571234567'])->assertRedirect();
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])->assertRedirect();
     expect(WhatsAppMessage::query()->sole()->is_test)->toBeTrue();
     expect(WhatsAppMessage::query()->sole()->status)->toBe('submitted');
     expect(ReminderDelivery::query()->count())->toBe(0);
 });
 
+test('admin typed whatsapp test resolves default sender and purpose template', function (): void {
+    $account = waSender();
+    waTemplate($account, 'asset');
+    waTemplate($account, 'certificate');
+    $this->actingAs($this->admin);
+    Http::fakeSequence()
+        ->push(['messages' => [['id' => 'wamid.asset']]], 200)
+        ->push(['messages' => [['id' => 'wamid.certificate']]], 200);
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])->assertRedirect();
+    $message = WhatsAppMessage::query()->where('meta_message_id', 'wamid.asset')->sole();
+    expect($message->is_test)->toBeTrue();
+    expect($message->status)->toBe('submitted');
+    expect(ReminderDelivery::query()->count())->toBe(0);
+    $this->post(route('whatsapp.test'), ['type' => 'certificate', 'recipient' => '+67571234567'])->assertRedirect();
+    expect(WhatsAppMessage::query()->count())->toBe(2);
+    expect(WhatsAppMessage::query()->where('meta_message_id', 'wamid.certificate')->exists())->toBeTrue();
+});
 test('certificate reminders use the configured WABA template and a new due date makes a new cycle', function () {
     $account = waSender();
     waTemplate($account, 'asset');
@@ -290,6 +308,25 @@ test('certificate reminders use the configured WABA template and a new due date 
     $this->travelTo(now()->setDate(2026, 10, 18)->startOfDay());
     $this->artisan('fire-tracker:send-reminders')->assertExitCode(0);
     expect(ReminderDelivery::query()->where('channel', 'whatsapp')->where('asset_id', $asset->id)->count())->toBe(2);
+});
+
+test('template body parameter order is optional and still validated per entry', function () {
+    $account = waSender();
+    $this->actingAs($this->admin);
+    $this->post(route('whatsapp.templates.save'), [
+        'account_id' => $account->id, 'purpose' => 'asset', 'name' => 'plain_notice', 'language' => 'en_US',
+        'is_enabled' => true,
+    ])->assertRedirect();
+    expect(WhatsAppTemplate::query()->sole()->parameter_keys)->toBe([]);
+    $this->post(route('whatsapp.templates.save'), [
+        'account_id' => $account->id, 'purpose' => 'asset', 'name' => 'plain_notice', 'language' => 'en_US',
+        'parameter_keys' => ['not_a_key'], 'is_enabled' => true,
+    ])->assertSessionHasErrors('parameter_keys.0');
+    $this->post(route('whatsapp.templates.save'), [
+        'account_id' => $account->id, 'purpose' => 'asset', 'name' => 'plain_notice', 'language' => 'en_US',
+        'parameter_keys' => ['client_name', 'timing'], 'is_enabled' => true,
+    ])->assertRedirect();
+    expect(WhatsAppTemplate::query()->sole()->parameter_keys)->toBe(['client_name', 'timing']);
 });
 
 test('template sync is scoped to WABA and blocks parameter mismatch', function () {
