@@ -450,8 +450,7 @@ export default function WhatsApp({
         is_enabled: true,
     });
     const [test, setTest] = useState({
-        account_id: '',
-        template_id: '',
+        type: 'asset' as 'asset' | 'certificate',
         recipient: '',
     });
     const apply = (next: Filters, page = 1) =>
@@ -471,6 +470,12 @@ export default function WhatsApp({
                 onFinish: () => setFiltering(false),
             },
         );
+    const sectionCounts: Record<'activity' | 'accounts' | 'templates', number> =
+        {
+            activity: messages.total,
+            accounts: accounts.length,
+            templates: templates.length,
+        };
     const metricCards = [
         {
             label: 'Submitted',
@@ -529,19 +534,24 @@ export default function WhatsApp({
                     </Button>
                 }
             />
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                 {metricCards.map(({ label, value, icon: Icon, hint }) => (
-                    <Card key={label}>
-                        <CardContent className="space-y-2 pt-5">
-                            <Icon
-                                className="size-5 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                {label}
-                            </p>
-                            <p className="text-2xl font-semibold">{value}</p>
-                            <p className="text-xs text-muted-foreground">
+                    <Card key={label} className="gap-0 py-3">
+                        <CardContent className="space-y-1 px-3 pt-0">
+                            <div className="flex items-center gap-1.5">
+                                <Icon
+                                    className="size-4 shrink-0 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                <p className="truncate text-[11px] text-muted-foreground">
+                                    {label}
+                                </p>
+                            </div>
+                            <p className="text-lg font-semibold">{value}</p>
+                            <p
+                                className="truncate text-[10px] text-muted-foreground"
+                                title={hint}
+                            >
                                 {hint}
                             </p>
                         </CardContent>
@@ -588,6 +598,12 @@ export default function WhatsApp({
                             className="capitalize"
                         >
                             {item}
+                            <Badge
+                                variant="secondary"
+                                className="ml-1 tabular-nums"
+                            >
+                                {sectionCounts[item]}
+                            </Badge>
                         </Button>
                     ),
                 )}
@@ -1193,9 +1209,9 @@ export default function WhatsApp({
                                         }
                                     />
                                     <p className="text-xs text-muted-foreground">
-                                        Available: client_name, site_name,
-                                        subject_name, due_date, timing. Separate
-                                        with commas.
+                                        Optional. Available: client_name,
+                                        site_name, subject_name, due_date,
+                                        timing. Separate with commas.
                                     </p>
                                 </div>
                                 <label className="flex items-center gap-2 text-sm">
@@ -1277,19 +1293,19 @@ export default function WhatsApp({
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <p className="text-sm text-muted-foreground">
-                                Sends sample “Test customer / Test site / Test
-                                equipment” values to one number. Test messages
-                                stay outside reminder metrics.
+                                Sends a sample message to one number using the
+                                verified default sender and the approved
+                                template for the selected reminder type. Test
+                                messages stay outside reminder metrics.
                             </p>
                             <form
-                                className="grid gap-3 sm:grid-cols-4"
+                                className="grid gap-3 sm:grid-cols-3"
                                 onSubmit={(event) => {
                                     event.preventDefault();
                                     router.post(
                                         sendTest().url,
                                         {
-                                            account_id: test.account_id,
-                                            template_id: test.template_id,
+                                            type: test.type,
                                             recipient: test.recipient,
                                         },
                                         {
@@ -1302,55 +1318,36 @@ export default function WhatsApp({
                                     );
                                 }}
                             >
-                                <Choice
-                                    label="Sender"
-                                    value={test.account_id}
-                                    options={accounts
-                                        .filter(
-                                            (account) =>
-                                                account.is_active &&
-                                                account.last_verified_at &&
-                                                !account.last_error,
-                                        )
-                                        .map((account) => ({
-                                            value: String(account.id),
-                                            label: account.name,
-                                        }))}
-                                    onChange={(account_id) =>
-                                        setTest({
-                                            ...test,
-                                            account_id,
-                                            template_id: '',
-                                        })
-                                    }
-                                />
-                                <Choice
-                                    label="Approved template"
-                                    value={test.template_id}
-                                    options={templates
-                                        .filter(
-                                            (template) =>
-                                                template.waba_id ===
-                                                    accounts.find(
-                                                        (account) =>
-                                                            String(
-                                                                account.id,
-                                                            ) ===
-                                                            test.account_id,
-                                                    )?.waba_id &&
-                                                template.meta_status ===
-                                                    'APPROVED' &&
-                                                template.is_enabled &&
-                                                !template.last_error,
-                                        )
-                                        .map((template) => ({
-                                            value: String(template.id),
-                                            label: template.name,
-                                        }))}
-                                    onChange={(template_id) =>
-                                        setTest({ ...test, template_id })
-                                    }
-                                />
+                                <div
+                                    className="flex flex-wrap items-center gap-2"
+                                    role="tablist"
+                                    aria-label="WhatsApp test reminder type"
+                                >
+                                    {(['asset', 'certificate'] as const).map(
+                                        (type) => (
+                                            <Button
+                                                key={type}
+                                                type="button"
+                                                role="tab"
+                                                aria-selected={
+                                                    test.type === type
+                                                }
+                                                variant={
+                                                    test.type === type
+                                                        ? 'default'
+                                                        : 'outline'
+                                                }
+                                                onClick={() =>
+                                                    setTest({ ...test, type })
+                                                }
+                                            >
+                                                {type === 'asset'
+                                                    ? 'Equipment'
+                                                    : 'Certificate'}
+                                            </Button>
+                                        ),
+                                    )}
+                                </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="wa-recipient">
                                         Test recipient
@@ -1372,11 +1369,7 @@ export default function WhatsApp({
                                 <div className="flex items-end">
                                     <Button
                                         type="submit"
-                                        disabled={
-                                            testBusy ||
-                                            !test.account_id ||
-                                            !test.template_id
-                                        }
+                                        disabled={testBusy || !test.recipient}
                                     >
                                         {testBusy
                                             ? 'Queueing…'
