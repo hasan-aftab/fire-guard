@@ -22,13 +22,20 @@ test('authenticated users can visit the dashboard', function () {
 
     $response = $this->get(route('dashboard'));
     $response->assertInertia(fn (Assert $page) => $page->component('dashboard')
-        ->where('summary.stats.activeClients', 0)
-        ->where('summary.stats.totalAssets', 0)
+        ->where('summary.isFirstRun', true)
         ->where('schedule.totalCount', 0)
         ->has('schedule.groups.0.items', 0)
         // Even an empty dashboard gets one bucket per day of the window.
         ->has('schedule.days', 15)
         ->where('schedule.days.0.itemCount', 0));
+});
+
+test('an inactive existing client is not mistaken for a first run', function () {
+    Client::factory()->create(['is_active' => false]);
+
+    $this->actingAs(User::factory()->create())->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->component('dashboard')
+            ->where('summary.isFirstRun', false));
 });
 
 test('unverified users are redirected before dashboard data is shown', function () {
@@ -56,8 +63,8 @@ test('the overdue and expiring KPIs use the model thresholds', function () {
             // certificate at thirty days falls outside it.
             ->where('schedule.totalCount', 1)
             ->where('schedule.days.14.date', '2026-10-15')
-            ->where('schedule.groups.2.items.0.entityId', $assetBoundary->id)
-            ->where('schedule.groups.2.items.0.status', 'due_soon'));
+            ->where('schedule.groups.1.items.0.entityId', $assetBoundary->id)
+            ->where('schedule.groups.1.items.0.status', 'due_soon'));
     expect($certificateBoundary->exists)->toBeTrue();
 });
 
@@ -178,13 +185,10 @@ test('sidebar counts and dashboard stats share one eligibility rule', function (
         ->where('counts.assets', 1)
         ->where('counts.inspections', 1)
         ->where('counts.technicians', 1)
-        ->where('summary.stats.activeClients', 1)
-        ->where('summary.stats.totalAssets', 1)
+        ->where('summary.isFirstRun', false)
         ->where('kpis.passRate.total', 1)
         ->where('kpis.overdue.total', 0)
-        // The standing counts still link to the list views they summarise.
         ->where('summary.links.activeClients', route('clients.index'))
-        ->where('summary.links.totalAssets', route('assets.index'))
         ->where('schedule.totalCount', 1)
         ->where('schedule.days.4.date', '2026-10-05')
         ->where('schedule.groups.1.items.0.entityId', $live->id));
@@ -223,8 +227,8 @@ test('the dashboard ships four KPIs with the scope each one counts', function ()
         ->assertInertia(fn (Assert $page) => $page->component('dashboard')
             ->has('kpis.overdue')
             ->has('kpis.overdue.byKind')
-            ->where('kpis.dueSoon.horizonPreset', '7d')
-            ->where('kpis.dueSoon.horizonDays', 8)
+            ->where('kpis.dueSoon.horizonPreset', '14d')
+            ->where('kpis.dueSoon.horizonDays', 15)
             ->where('kpis.certificates.horizonPreset', '30d')
             ->where('kpis.passRate.percent', 0)
             ->where('kpis.passRate.band', 'danger'));
@@ -247,18 +251,18 @@ test('the overdue KPI counts both kinds, not assets alone', function () {
             ->where('kpis.overdue.byKind.certificate', 1));
 });
 
-test('the due soon KPI counts the next seven days inclusively and excludes overdue work', function () {
+test('the due soon KPI counts through day fourteen inclusively and excludes overdue work', function () {
     $this->travelTo(now()->setDate(2026, 10, 4)->startOfDay());
     $site = Site::factory()->create();
     $type = AssetType::factory()->create();
 
-    // Boundaries of the window the card names: today and today plus seven.
+    // Boundaries of the window the card names: today and today plus fourteen.
     Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-10-04']);
-    Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-10-11']);
+    Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-10-18']);
     Certificate::factory()->for($site)->create(['expiry_date' => '2026-10-05']);
     // Just outside on both sides.
     Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-10-03']);
-    Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-10-12']);
+    Asset::factory()->for($site)->for($type)->create(['next_service_due' => '2026-10-19']);
 
     $this->actingAs(User::factory()->create())->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->component('dashboard')
@@ -306,7 +310,7 @@ test('each KPI card counts exactly the rows its Schedule scope shows', function 
             ->where('schedule.truncated', false));
 
     // The due-soon card must equal the window rows of the schedule it selects.
-    $this->actingAs($user)->get(route('dashboard', ['schedule_horizon' => '7d']))
+    $this->actingAs($user)->get(route('dashboard', ['schedule_horizon' => '14d']))
         ->assertInertia(fn (Assert $page) => $page->component('dashboard')
             ->where('kpis.dueSoon.total', 2)
             ->where('schedule.windowItemCount', 2)
@@ -459,10 +463,10 @@ test('each attention tile counts exactly the rows its own preset shows', functio
         'kpis.overdue.total',
         2,
     ],
-    'due in seven days counts the forward window without the overdue rows' => [
-        ['schedule_horizon' => '7d', 'schedule_overdue' => 'exclude'],
+    'due in fourteen days counts the forward window without the overdue rows' => [
+        ['schedule_horizon' => '14d', 'schedule_overdue' => 'exclude'],
         'kpis.dueSoon.total',
-        1,
+        2,
     ],
     'certificates count expiry plus already expired' => [
         ['schedule_type' => 'certificate', 'schedule_horizon' => '30d'],
@@ -500,4 +504,74 @@ test('the rows rendered add up to the count the page reports', function () {
             ->where('schedule.overdueSince', '2026-09-20')
             ->where('schedule.nextAfter.date', '2026-10-24')
             ->where('schedule.nextAfter.daysUntil', 20));
+});
+
+test('inclusive due-date filters return exactly the records in their scope', function (array $query, int $count) {
+    $this->travelTo(now()->setDate(2026, 10, 4)->startOfDay());
+    $site = Site::factory()->create();
+    $type = AssetType::factory()->create();
+    foreach (['2026-09-01', '2026-10-03', '2026-10-04', '2026-10-10', '2026-10-18', '2026-11-05'] as $dueDate) {
+        Asset::factory()->for($site)->for($type)->create(['next_service_due' => $dueDate]);
+    }
+
+    $this->actingAs(User::factory()->create())->get(route('dashboard', $query))
+        ->assertInertia(fn (Assert $page) => $page->component('dashboard')
+            ->where('schedule.totalCount', $count)
+            ->where('schedule.returnedCount', $count)
+            ->has('schedule.days', 0));
+})->with([
+    'through includes the selected day and older overdue work' => [['schedule_date_mode' => 'through', 'schedule_to' => '2026-10-03'], 2],
+    'from includes the selected day without an upper limit' => [['schedule_date_mode' => 'from', 'schedule_from' => '2026-10-10'], 3],
+    'between includes both selected days' => [['schedule_date_mode' => 'between', 'schedule_from' => '2026-10-03', 'schedule_to' => '2026-10-10'], 3],
+]);
+
+test('an incomplete due-date filter is rejected before it can change the agenda', function (array $query, string $field) {
+    $this->actingAs(User::factory()->create())->from(route('dashboard'))->get(route('dashboard', $query))
+        ->assertRedirect(route('dashboard'))
+        ->assertSessionHasErrors($field);
+})->with([
+    'through needs an end' => [['schedule_date_mode' => 'through'], 'schedule_to'],
+    'from needs a start' => [['schedule_date_mode' => 'from'], 'schedule_from'],
+    'between needs both dates' => [['schedule_date_mode' => 'between', 'schedule_from' => '2026-10-03'], 'schedule_to'],
+]);
+
+test('large agendas can be read across pages without losing the total', function () {
+    $this->travelTo(now()->setDate(2026, 10, 4)->startOfDay());
+    $site = Site::factory()->create();
+    $type = AssetType::factory()->create();
+    Asset::factory()->for($site)->for($type)->count(125)->create(['next_service_due' => '2026-10-08']);
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get(route('dashboard', ['schedule_page' => 2]))
+        ->assertInertia(fn (Assert $page) => $page->component('dashboard')
+            ->where('schedule.totalCount', 125)
+            ->where('schedule.returnedCount', 60)
+            ->where('schedule.page', 2)
+            ->where('schedule.lastPage', 3));
+
+    $this->actingAs($user)->get(route('dashboard', ['schedule_page' => 3]))
+        ->assertInertia(fn (Assert $page) => $page->component('dashboard')
+            ->where('schedule.totalCount', 125)
+            ->where('schedule.returnedCount', 5)
+            ->where('schedule.page', 3));
+});
+
+test('the compliance link lists exactly the inspection results counted by its card', function () {
+    $this->travelTo(now()->setDate(2026, 10, 4)->startOfDay());
+    $activeAsset = Asset::factory()->create();
+    $inactiveAsset = Asset::factory()->create(['status' => 'decommissioned']);
+    Inspection::factory()->for($activeAsset)->create(['inspection_date' => '2026-10-01', 'result' => 'pass']);
+    Inspection::factory()->for($activeAsset)->create(['inspection_date' => '2026-09-01', 'result' => 'fail']);
+    Inspection::factory()->for($inactiveAsset)->create(['inspection_date' => '2026-10-01', 'result' => 'pass']);
+    Inspection::factory()->for($activeAsset)->create(['inspection_date' => '2025-09-01', 'result' => 'pass']);
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->component('dashboard')
+            ->where('kpis.passRate.total', 2)
+            ->where('summary.links.passRateInspections', route('inspections.index', ['from' => '2025-10-04', 'dashboard_scope' => 'actionable'])));
+
+    $this->actingAs($user)->get(route('inspections.index', ['from' => '2025-10-04', 'dashboard_scope' => 'actionable']))
+        ->assertInertia(fn (Assert $page) => $page->component('inspections')
+            ->where('records.total', 2));
 });

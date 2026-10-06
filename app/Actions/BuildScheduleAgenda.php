@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\Builder;
  *    Next N days, Later -- because which side of the N-day line a row falls on
  *    is a day-count comparison, and day counts are resolved here rather than in
  *    the browser. The boundary is the NEXT_GROUP_PRESET offset, the same value
- *    the "Due in 7 days" tile counts against.
+ *    the "Due next 14 days" tile counts against.
  * 4. A selected day narrows every group at once, so the strip and the agenda
  *    always describe the same set of rows.
  *
@@ -96,6 +96,8 @@ use Illuminate\Database\Eloquent\Builder;
  *     overdueCount: int,
  *     windowItemCount: int,
  *     totalCount: int,
+ *     page: int,
+ *     lastPage: int,
  *     returnedCount: int,
  *     truncated: bool,
  *     maxItems: int,
@@ -120,10 +122,10 @@ final class BuildScheduleAgenda
     /**
      * Preset whose offset also decides where the "Next N days" group ends and
      * the "Later" group begins. Tying the boundary to the same preset the
-     * "Due in 7 days" tile counts against is what makes that tile's number and
+     * "Due next 14 days" tile counts against is what makes that tile's number and
      * the group's row count the same measurement rather than two that agree.
      */
-    public const NEXT_GROUP_PRESET = '7d';
+    public const NEXT_GROUP_PRESET = '14d';
 
     /**
      * Overdue modes, in the order the request may name them.
@@ -182,6 +184,8 @@ final class BuildScheduleAgenda
         ?string $horizon = null,
         string $overdueMode = 'include',
         ?string $day = null,
+        ?string $dateMode = null,
+        int $page = 1,
     ): array {
         $asOfDate = $asOf->toDateString();
         $windowStart = $this->resolveWindowStart($asOf, $from);
@@ -193,8 +197,15 @@ final class BuildScheduleAgenda
         $mode = in_array($overdueMode, self::overdueModes(), true) ? $overdueMode : 'include';
         $dayKey = $day !== null && CarbonImmutable::hasFormat($day, 'Y-m-d') ? $day : null;
 
-        $assets = $this->assetItems($asOf, $asOfDate, $windowStart, $windowEnd);
-        $certificates = $this->certificateItems($asOf, $asOfDate, $windowStart, $windowEnd);
+        $customBounds = match ($dateMode) {
+            'through' => $to === null ? null : [null, $to],
+            'from' => $from === null ? null : [$from, null],
+            'between' => $from === null || $to === null ? null : [$from, $to],
+            default => null,
+        };
+
+        $assets = $this->assetItems($asOf, $asOfDate, $windowStart, $windowEnd, $customBounds);
+        $certificates = $this->certificateItems($asOf, $asOfDate, $windowStart, $windowEnd, $customBounds);
 
         // Tab counts are resolved against every *other* active dimension, so
         // "Certs 2" stays true while the Asset tab is the selected one. They
@@ -229,7 +240,9 @@ final class BuildScheduleAgenda
         ));
 
         $totalCount = count($items);
-        $capped = array_slice($items, 0, self::MAX_ITEMS);
+        $lastPage = max(1, (int) ceil($totalCount / self::MAX_ITEMS));
+        $currentPage = min(max(1, $page), $lastPage);
+        $capped = array_slice($items, ($currentPage - 1) * self::MAX_ITEMS, self::MAX_ITEMS);
         $groups = $this->buildGroups($capped);
 
         // Overdue-only mode hides the forward window and exclude mode hides the
@@ -253,19 +266,21 @@ final class BuildScheduleAgenda
             'day' => $dayKey,
             // "Overdue only" answers a question that has no window, so the strip
             // and the range control are suppressed rather than shown as inert.
-            'windowHidden' => $mode === 'only',
+            'windowHidden' => $mode === 'only' || $customBounds !== null,
             'groupBoundaryDays' => $this->nextGroupDays(),
             'groups' => $groups,
             'counts' => $counts,
-            'days' => $mode === 'only'
+            'days' => $mode === 'only' || $customBounds !== null
                 ? []
-                : $this->buildDays($capped, $windowStart, $windowEnd, $asOfDate),
+                : $this->buildDays($items, $windowStart, $windowEnd, $asOfDate),
             'overdueSince' => $allOverdue[0]['dueDate'] ?? null,
             'overdueByKind' => $this->countByKind($allOverdue),
             'nextAfter' => $mode === 'only' ? null : $this->nextAfter($asOf, $asOfDate, $windowEnd, $type),
             'overdueCount' => count($allOverdue),
             'windowItemCount' => $windowItemCount,
             'totalCount' => $totalCount,
+            'page' => $currentPage,
+            'lastPage' => $lastPage,
             'returnedCount' => count($capped),
             'truncated' => $totalCount > self::MAX_ITEMS,
             'maxItems' => self::MAX_ITEMS,
@@ -277,7 +292,7 @@ final class BuildScheduleAgenda
 
     /**
      * Days past the as-of date that still count as "soon". Read from the same
-     * preset the "Due in 7 days" tile counts against.
+     * preset the "Due next 14 days" tile counts against.
      */
     public function nextGroupDays(): int
     {
@@ -516,6 +531,7 @@ final class BuildScheduleAgenda
      * window is bounded. A missing due date cannot be grouped under a day, so
      * those records never reach the agenda.
      *
+     * @param  array{?string, ?string}|null  $customBounds
      * @return list<ScheduleItem>
      */
     private function assetItems(
@@ -523,15 +539,26 @@ final class BuildScheduleAgenda
         string $asOfDate,
         CarbonImmutable $windowStart,
         CarbonImmutable $windowEnd,
+        ?array $customBounds = null,
     ): array {
         $items = Asset::query()
             ->actionable()
             ->select(['id', 'site_id', 'asset_type_id', 'serial_number', 'location_desc', 'next_service_due', 'status'])
             ->with(['assetType:id,type_name', 'site:id,site_name,client_id', 'site.client:id,company_name'])
             ->whereNotNull('next_service_due')
-            ->where(function (Builder $query) use ($asOfDate, $windowStart, $windowEnd): void {
-                $query->where('next_service_due', '<', $asOfDate)
-                    ->orWhereBetween('next_service_due', [$windowStart->toDateString(), $windowEnd->toDateString()]);
+            ->when($customBounds !== null, function (Builder $query) use ($customBounds): void {
+                [$from, $to] = $customBounds;
+                if ($from !== null) {
+                    $query->where('next_service_due', '>=', $from);
+                }
+                if ($to !== null) {
+                    $query->where('next_service_due', '<=', $to);
+                }
+            }, function (Builder $query) use ($asOfDate, $windowStart, $windowEnd): void {
+                $query->where(function (Builder $query) use ($asOfDate, $windowStart, $windowEnd): void {
+                    $query->where('next_service_due', '<', $asOfDate)
+                        ->orWhereBetween('next_service_due', [$windowStart->toDateString(), $windowEnd->toDateString()]);
+                });
             })
             ->get()
             ->map(fn (Asset $asset): array => $this->assetItem($asOf, $asset))
@@ -541,6 +568,7 @@ final class BuildScheduleAgenda
     }
 
     /**
+     * @param  array{?string, ?string}|null  $customBounds
      * @return list<ScheduleItem>
      */
     private function certificateItems(
@@ -548,15 +576,26 @@ final class BuildScheduleAgenda
         string $asOfDate,
         CarbonImmutable $windowStart,
         CarbonImmutable $windowEnd,
+        ?array $customBounds = null,
     ): array {
         $items = Certificate::query()
             ->actionable()
             ->select(['id', 'site_id', 'certificate_type_id', 'expiry_date', 'status'])
             ->with(['certificateType:id,name', 'site:id,site_name,client_id', 'site.client:id,company_name'])
             ->whereNotNull('expiry_date')
-            ->where(function (Builder $query) use ($asOfDate, $windowStart, $windowEnd): void {
-                $query->where('expiry_date', '<', $asOfDate)
-                    ->orWhereBetween('expiry_date', [$windowStart->toDateString(), $windowEnd->toDateString()]);
+            ->when($customBounds !== null, function (Builder $query) use ($customBounds): void {
+                [$from, $to] = $customBounds;
+                if ($from !== null) {
+                    $query->where('expiry_date', '>=', $from);
+                }
+                if ($to !== null) {
+                    $query->where('expiry_date', '<=', $to);
+                }
+            }, function (Builder $query) use ($asOfDate, $windowStart, $windowEnd): void {
+                $query->where(function (Builder $query) use ($asOfDate, $windowStart, $windowEnd): void {
+                    $query->where('expiry_date', '<', $asOfDate)
+                        ->orWhereBetween('expiry_date', [$windowStart->toDateString(), $windowEnd->toDateString()]);
+                });
             })
             ->get()
             ->map(function (Certificate $certificate) use ($asOf): array {

@@ -21,6 +21,9 @@ class InspectionController extends Controller
     {
         $query = Inspection::query()->select(['id', 'asset_id', 'technician_id', 'inspection_date', 'result', 'notes', 'next_due_date', 'entered_in_error_at'])
             ->with(['asset:id,site_id,serial_number,location_desc', 'asset.site:id,client_id,site_name', 'asset.site.client:id,company_name', 'technician:id,full_name', 'photos:id,inspection_id,original_name,mime_type,file_size']);
+        if ($request->string('dashboard_scope')->toString() === 'actionable') {
+            $query->actionable();
+        }
         $this->filterRecordState($query, $request);
         if ($request->filled('search')) {
             $pattern = $this->searchPattern($request);

@@ -391,8 +391,8 @@ test('long agendas are capped but still report the true total', function () {
     expect($schedule['totalCount'])->toBe(65)
         ->and($schedule['returnedCount'])->toBe(BuildScheduleAgenda::MAX_ITEMS)
         ->and($schedule['truncated'])->toBeTrue()
-        ->and($schedule['days'][4]['itemCount'])->toBe(BuildScheduleAgenda::MAX_ITEMS)
-        ->and(collect($schedule['days'])->pluck('itemCount')->sum())->toBe(BuildScheduleAgenda::MAX_ITEMS);
+        ->and($schedule['days'][4]['itemCount'])->toBe(65)
+        ->and(collect($schedule['days'])->pluck('itemCount')->sum())->toBe(65);
 });
 
 test('the overdue count stays true when the overdue rows alone are capped', function () {
@@ -471,30 +471,30 @@ test('all three agenda groups are always present in a fixed order', function () 
         ->and($groups[1]['firstDate'])->toBe('2026-10-06');
 });
 
-test('the group boundary comes from the same preset the due soon tile counts against', function () {
+test('the agenda next group shares the two-week KPI boundary', function () {
     $schedule = ($this->agenda)();
 
     expect($schedule['groupBoundaryDays'])
         ->toBe(BuildScheduleAgenda::horizonPresets()[BuildScheduleAgenda::NEXT_GROUP_PRESET])
-        ->and(BuildDashboardKpis::DUE_SOON_PRESET)->toBe(BuildScheduleAgenda::NEXT_GROUP_PRESET)
-        ->and($schedule['groups'][1]['label'])->toBe('Next 7 days');
+        ->and(BuildDashboardKpis::DUE_SOON_PRESET)->toBe('14d')
+        ->and($schedule['groups'][1]['label'])->toBe('Next 14 days');
 });
 
 test('rows are split into overdue, next and later by their distance from today', function (int $offset, string $group, int $index) {
     scheduleAsset(today()->addDays($offset)->toDateString());
 
-    $groups = ($this->agenda)()['groups'];
+    $groups = ($this->agenda)(null, null, 'all', '30d')['groups'];
 
     expect($groups[$index]['id'])->toBe($group)
         ->and($groups[$index]['itemCount'])->toBe(1);
 })->with([
-    // The boundary is inclusive at both ends: today + 7 is still "next", and
-    // only today + 8 falls out of it.
+    // The boundary is inclusive at both ends: today + 14 is still "next", and
+    // only today + 15 falls out of it.
     'yesterday is overdue' => [-1, 'overdue', 0],
     'today is next' => [0, 'next', 1],
-    'day seven is still next' => [7, 'next', 1],
-    'day eight is later' => [8, 'later', 2],
-    'day fourteen is later' => [14, 'later', 2],
+    'day seven is next' => [7, 'next', 1],
+    'day fourteen is still next' => [14, 'next', 1],
+    'day fifteen is later' => [15, 'later', 2],
 ]);
 
 test('each group reports its own kind breakdown and first date', function () {

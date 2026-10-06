@@ -33,8 +33,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 final class BuildDashboardKpis
 {
-    /** Preset whose window the "Due in 7 days" card covers. */
-    public const DUE_SOON_PRESET = '7d';
+    /** Preset whose window covers the asset due-soon status boundary. */
+    public const DUE_SOON_PRESET = '14d';
 
     /** Preset whose window the certificate card's expiring-soon count covers. */
     public const CERTIFICATE_PRESET = '30d';

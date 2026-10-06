@@ -10,6 +10,7 @@ class InspectionFilterRequest extends TrackerFilterRequest
     public function rules(): array
     {
         return array_replace(parent::rules(), [
+            'dashboard_scope' => ['nullable', Rule::in(['actionable'])],
             'technician_id' => ['nullable', 'integer', Rule::exists('technicians', 'id')],
             'sort' => ['nullable', Rule::in(['all', 'newest', 'oldest'])],
         ]);
