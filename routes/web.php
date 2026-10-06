@@ -16,13 +16,27 @@ use App\Http\Controllers\ReminderRecipientController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\TechnicianController;
+use App\Http\Controllers\WhatsAppController;
+use App\Http\Controllers\WhatsAppWebhookController;
 use App\Http\Middleware\SyncFireNotificationsAfterWrite;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
+Route::get('webhooks/whatsapp', [WhatsAppWebhookController::class, 'verify'])->name('whatsapp.webhook.verify');
+Route::post('webhooks/whatsapp', [WhatsAppWebhookController::class, 'receive'])->name('whatsapp.webhook.receive');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('can:manage-reference-data')->group(function (): void {
+        Route::get('whatsapp', [WhatsAppController::class, 'index'])->name('whatsapp.index');
+        Route::post('whatsapp/accounts', [WhatsAppController::class, 'storeAccount'])->name('whatsapp.accounts.store');
+        Route::put('whatsapp/accounts/{account}', [WhatsAppController::class, 'updateAccount'])->name('whatsapp.accounts.update');
+        Route::patch('whatsapp/accounts/{account}/default', [WhatsAppController::class, 'setDefault'])->name('whatsapp.accounts.default');
+        Route::patch('whatsapp/accounts/{account}/active', [WhatsAppController::class, 'toggleActive'])->name('whatsapp.accounts.active');
+        Route::post('whatsapp/accounts/{account}/verify', [WhatsAppController::class, 'verify'])->name('whatsapp.accounts.verify');
+        Route::post('whatsapp/accounts/{account}/sync-templates', [WhatsAppController::class, 'syncTemplates'])->name('whatsapp.templates.sync');
+        Route::post('whatsapp/templates', [WhatsAppController::class, 'saveTemplate'])->name('whatsapp.templates.save');
+        Route::post('whatsapp/test', [WhatsAppController::class, 'sendTest'])->middleware('throttle:3,1')->name('whatsapp.test');
+        Route::post('whatsapp/messages/{message}/retry', [WhatsAppController::class, 'retry'])->name('whatsapp.messages.retry');
         Route::resource('asset-types', AssetTypeController::class)->parameters(['asset-types' => 'assetType'])->only(['index', 'store', 'update', 'destroy']);
         Route::patch('asset-types/{assetType}/restore', [AssetTypeController::class, 'restore'])->name('asset-types.restore');
         Route::resource('certificate-types', CertificateTypeController::class)->parameters(['certificate-types' => 'certificateType'])->only(['index', 'store', 'update', 'destroy']);
