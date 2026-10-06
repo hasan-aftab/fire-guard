@@ -17,6 +17,7 @@ class ReminderHistoryController extends Controller
     {
         $filters = $request->safe()->except(['page']);
         $records = ReminderDelivery::query()
+            ->where('channel', 'email')
             ->when($filters['status'] ?? null, fn ($query, $value) => $query->where('status', $value))
             ->when($filters['type'] ?? null, fn ($query, $value) => $query->where('reminder_type', $value))
             ->when($filters['audience'] ?? null, fn ($query, $value) => $query->where('audience', $value))
@@ -29,7 +30,7 @@ class ReminderHistoryController extends Controller
             return to_route('reminders.index', $filters + ['page' => $records->lastPage()]);
         }
 
-        $statusCounts = ReminderDelivery::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+        $statusCounts = ReminderDelivery::query()->where('channel', 'email')->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
 
         return Inertia::render('reminders', [
             'records' => $records->through(fn (ReminderDelivery $delivery): array => [
