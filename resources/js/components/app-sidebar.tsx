@@ -10,6 +10,7 @@ import {
     Files,
     ShieldCheck,
     Users,
+    MessageCircle,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { index as assets } from '@/actions/App/Http/Controllers/AssetController';
@@ -21,6 +22,7 @@ import { index as inspections } from '@/actions/App/Http/Controllers/InspectionC
 import { index as technicians } from '@/actions/App/Http/Controllers/TechnicianController';
 import { index as reports } from '@/actions/App/Http/Controllers/ReportController';
 import { index as reminders } from '@/actions/App/Http/Controllers/ReminderHistoryController';
+import { index as whatsapp } from '@/actions/App/Http/Controllers/WhatsAppController';
 import AppLogo from '@/components/app-logo';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -110,6 +112,7 @@ const navGroups: NavGroup[] = [
         label: 'Configuration',
         adminOnly: true,
         items: [
+            { title: 'WhatsApp', href: whatsapp(), icon: MessageCircle },
             {
                 title: 'Asset Types',
                 href: assetTypes(),
