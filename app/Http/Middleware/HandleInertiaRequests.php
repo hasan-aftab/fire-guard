@@ -13,6 +13,7 @@ use App\Models\Inspection;
 use App\Models\ReminderDelivery;
 use App\Models\Site;
 use App\Models\Technician;
+use App\Models\WhatsAppMessage;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -76,6 +77,7 @@ class HandleInertiaRequests extends Middleware
                 'certificateTypes' => CertificateType::query()->count(),
                 'reports' => GeneratedReport::query()->count(),
                 'reminders' => ReminderDelivery::query()->where('channel', 'email')->count(),
+                'whatsapp' => WhatsAppMessage::query()->count(),
             ] : null,
             'fireNotifications' => fn (): ?array => $request->user() ? [
                 'items' => FireNotification::where('user_id', $request->user()->id)
