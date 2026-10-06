@@ -18,6 +18,8 @@ use Illuminate\Support\Carbon;
  * @property string $company_name
  * @property string|null $contact_name
  * @property string|null $phone
+ * @property string|null $whatsapp_phone
+ * @property bool $whatsapp_reminders_enabled
  * @property string|null $email
  * @property string|null $billing_address
  * @property string|null $notes
@@ -27,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Site> $sites
  */
-#[Fillable(['company_name', 'contact_name', 'phone', 'email', 'billing_address', 'notes', 'is_active'])]
+#[Fillable(['company_name', 'contact_name', 'phone', 'whatsapp_phone', 'whatsapp_reminders_enabled', 'email', 'billing_address', 'notes', 'is_active'])]
 class Client extends Model
 {
     /** @use HasFactory<ClientFactory> */
@@ -53,6 +55,7 @@ class Client extends Model
     {
         return [
             'is_active' => 'boolean',
+            'whatsapp_reminders_enabled' => 'boolean',
             'entered_in_error_at' => 'immutable_datetime',
         ];
     }
