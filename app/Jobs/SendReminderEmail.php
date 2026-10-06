@@ -2,10 +2,9 @@
 
 namespace App\Jobs;
 
+use App\Actions\ReminderEligibility;
 use App\Mail\AssetInspectionReminderMail;
 use App\Mail\CertificateExpiryReminderMail;
-use App\Models\Asset;
-use App\Models\Certificate;
 use App\Models\ReminderDelivery;
 use App\Models\ReminderRecipient;
 use App\Models\User;
@@ -38,7 +37,7 @@ class SendReminderEmail implements ShouldQueue
             return;
         }
 
-        if (! $this->stillEligible($delivery)) {
+        if (! app(ReminderEligibility::class)->current($delivery) || ! $this->recipientEligible($delivery)) {
             ReminderDelivery::query()->whereKey($delivery->id)->whereIn('status', ['pending', 'failed'])
                 ->update(['status' => 'skipped', 'last_error' => self::INELIGIBLE_REASON, 'updated_at' => now()]);
 
@@ -70,27 +69,13 @@ class SendReminderEmail implements ShouldQueue
             ->update(['status' => 'uncertain', 'last_error' => 'Worker stopped during delivery; confirm the provider outcome before retrying.', 'updated_at' => now()]);
     }
 
-    private function stillEligible(ReminderDelivery $delivery): bool
+    private function recipientEligible(ReminderDelivery $delivery): bool
     {
         if (filter_var($delivery->recipient, FILTER_VALIDATE_EMAIL) === false
             || ReminderRecipient::isClientContactEmail($delivery->recipient)) {
             return false;
         }
 
-        $subject = $delivery->reminder_type === 'asset'
-            ? Asset::query()->with('site.client')->find($delivery->subject_id)
-            : Certificate::query()->with(['site.client', 'asset'])->find($delivery->subject_id);
-        if ($subject === null || $subject->entered_in_error_at !== null) {
-            return false;
-        }
-        $site = $subject->site;
-        $client = $site->client;
-        if (! $site->is_active || $site->entered_in_error_at !== null || ! $client->is_active || $client->entered_in_error_at !== null) {
-            return false;
-        }
-        if ($client->id !== $delivery->client_id || $site->id !== $delivery->site_id) {
-            return false;
-        }
         if ($delivery->audience === 'configured') {
             if (! ReminderRecipient::query()->where('email', $delivery->recipient)->exists()) {
                 return false;
@@ -104,11 +89,7 @@ class SendReminderEmail implements ShouldQueue
         } else {
             return false;
         }
-        if ($subject instanceof Asset) {
-            return $subject->status === 'active' && $subject->next_service_due?->toDateString() === $delivery->due_date->toDateString();
-        }
 
-        return $subject->expiry_date->toDateString() === $delivery->due_date->toDateString()
-            && ($subject->asset === null || ($subject->asset->status === 'active' && $subject->asset->entered_in_error_at === null));
+        return true;
     }
 }
