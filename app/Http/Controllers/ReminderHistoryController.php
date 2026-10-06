@@ -2,17 +2,48 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\SendSampleReminderEmail;
 use App\Http\Requests\ReminderHistoryRequest;
 use App\Models\Client;
 use App\Models\ReminderDelivery;
 use App\Models\ReminderRecipient;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Throwable;
 
 class ReminderHistoryController extends Controller
 {
+    public function sendTestEmail(Request $request, SendSampleReminderEmail $sender): RedirectResponse
+    {
+        $data = $request->validate([
+            'type' => ['required', Rule::in(['asset', 'certificate'])],
+            'email' => ['required', 'email', 'max:254', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (ReminderRecipient::isClientContactEmail((string) $value)) {
+                    $fail('Client contact addresses cannot receive internal reminders.');
+                }
+            }],
+        ]);
+        $email = strtolower(trim($data['email']));
+
+        try {
+            $sender->run($data['type'], $email);
+        } catch (Throwable $exception) {
+            Log::warning('Reminder test email failed', ['type' => $data['type'], 'error_type' => class_basename($exception)]);
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'The test email could not be sent. Check mail settings and logs.']);
+
+            return back();
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Test reminder sent to '.$email.'. It stays out of delivery history.']);
+
+        return back();
+    }
+
     public function index(ReminderHistoryRequest $request): InertiaResponse|RedirectResponse
     {
         $filters = $request->safe()->except(['page']);
