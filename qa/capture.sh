@@ -48,7 +48,7 @@ for shot in plan["shots"]:
                 # Wait for the agenda to have rendered, not just for `load`:
                 # the rows arrive with the Inertia payload, and a screenshot
                 # taken at `load` catches an empty card.
-                "--wait-for", "document.querySelectorAll('h3').length > 0",
+                "--wait-for", "document.querySelector('[data-agenda]') || document.querySelector('[data-empty]')",
                 "-o", target,
             ],
             capture_output=True,

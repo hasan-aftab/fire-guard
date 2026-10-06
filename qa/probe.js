@@ -110,6 +110,10 @@
         scrollWidth: document.documentElement.scrollWidth,
         docHeight: document.documentElement.scrollHeight,
         h1: document.querySelector('h1')?.innerText ?? null,
+        dueDateLabel:
+            document
+                .querySelector('[aria-label^="Due date:"]')
+                ?.getAttribute('aria-label') ?? null,
         cards: document.querySelectorAll('[data-tile]').length,
         rowCount: rows.length,
         rowKinds: [

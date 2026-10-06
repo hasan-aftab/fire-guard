@@ -12,7 +12,7 @@
 //   2. nothing sticking out past the viewport outside a scroll container
 //   3. every interactive target at least 24x24 (WCAG 2.2 AA, 2.5.8)
 //   4. no text clipped without an ellipsis (a lost label, not a chosen one)
-//   5. every group heading at least 24px tall, and every day cell too
+//   5. every group heading at least 24px tall
 //   6. state agrees with the URL: rows present when data exists, an empty
 //      state when it does not
 //   7. the certificates tile lists only certificates — the invariant the tiles
@@ -111,16 +111,6 @@ for (const theme of THEMES) {
                 );
             }
 
-            const undersizedDay = m.dayCells.filter(
-                (c) => c.w < MIN_TARGET || c.h < MIN_TARGET,
-            );
-            check(
-                where,
-                'day cells >= 24px',
-                undersizedDay.length === 0,
-                undersizedDay.map((c) => `${c.day} ${c.w}x${c.h}`).join(', '),
-            );
-
             if (shot.name.endsWith('nothing-due')) {
                 // The empty message is the point of this state: no matches must
                 // still say so, not leave a blank card.
@@ -147,9 +137,9 @@ for (const theme of THEMES) {
             if (shot.name.endsWith('overdue-only')) {
                 check(
                     where,
-                    'overdue-only hides the day strip',
-                    m.dayCells.length === 0,
-                    `${m.dayCells.length} day cells present`,
+                    'overdue-only date control is named',
+                    m.dueDateLabel === 'Due date: Overdue',
+                    m.dueDateLabel ?? 'missing due-date control',
                 );
                 check(
                     where,
@@ -166,13 +156,12 @@ for (const theme of THEMES) {
                 );
             }
 
-            if (shot.name.endsWith('selected-day')) {
-                const selected = m.dayCells.filter((c) => c.selected);
+            if (shot.name.endsWith('custom-range')) {
                 check(
                     where,
-                    'exactly one day selected',
-                    selected.length === 1,
-                    `${selected.length} selected`,
+                    'custom date control is named',
+                    m.dueDateLabel?.includes('6 Oct – 20 Oct') === true,
+                    m.dueDateLabel ?? 'missing due-date control',
                 );
             }
 

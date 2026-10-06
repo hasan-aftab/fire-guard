@@ -25,13 +25,11 @@ shots:
     - name: dark-default
       url: /dashboard
 
-    # A day cell chosen, so the strip shows a pressed day and only that day's
-    # rows are listed.
-    - name: dark-selected-day
-      url: /dashboard?schedule_day=2026-10-05
+    # Inclusive custom bounds remain shareable even after the demo dates age.
+    - name: dark-custom-range
+      url: /dashboard?schedule_date_mode=between&schedule_from=2026-10-06&schedule_to=2026-10-20
 
-    # Overdue-only, which is the state with no window: no strip, no range, and an
-    # offer to bring the hidden window back.
+    # Overdue-only keeps the backlog accessible from a preset.
     - name: dark-overdue-only
       url: /dashboard?schedule_overdue=only
 
