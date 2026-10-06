@@ -184,7 +184,8 @@ export type Counts = Record<
     | 'assetTypes'
     | 'certificateTypes'
     | 'reports'
-    | 'reminders',
+    | 'reminders'
+    | 'whatsapp',
     number
 >;
 export type NotificationData = {
