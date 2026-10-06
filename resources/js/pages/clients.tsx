@@ -333,6 +333,8 @@ export default function Clients({
                     company_name: '',
                     contact_name: '',
                     phone: '',
+                    whatsapp_phone: '',
+                    whatsapp_reminders_enabled: '0',
                     email: '',
                     billing_address: '',
                     notes: '',
@@ -371,6 +373,23 @@ export default function Clients({
                         placeholder: 'Email address',
                         maxLength: 255,
                         autoComplete: 'email',
+                    },
+                    {
+                        name: 'whatsapp_phone',
+                        label: 'WhatsApp number',
+                        type: 'tel',
+                        placeholder: '+675 7123 4567',
+                        description:
+                            'Use an international number beginning with +. Saved in E.164 format.',
+                        maxLength: 24,
+                        autoComplete: 'tel',
+                    },
+                    {
+                        name: 'whatsapp_reminders_enabled',
+                        label: 'Send WhatsApp reminders',
+                        type: 'checkbox',
+                        description:
+                            'Enable only after the client has agreed to receive operational reminders at this number.',
                     },
                     {
                         name: 'billing_address',
