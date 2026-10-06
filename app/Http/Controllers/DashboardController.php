@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\BuildDashboardKpis;
 use App\Actions\BuildScheduleAgenda;
 use App\Http\Requests\DashboardFilterRequest;
+use App\Models\Asset;
 use App\Models\Client;
 use Carbon\CarbonImmutable;
 use Inertia\Inertia;
@@ -53,12 +54,17 @@ class DashboardController extends Controller
             'complianceSince' => $complianceSince,
             'links' => [
                 'activeClients' => route('clients.index'),
+                'totalAssets' => route('assets.index'),
                 // Built here rather than in the browser so the pass rate keeps
                 // pointing at the exact window and result filter it measures.
                 'passRateInspections' => route('inspections.index', [
                     'from' => $complianceSince,
                     'dashboard_scope' => 'actionable',
                 ]),
+            ],
+            'stats' => [
+                'activeClients' => Client::actionable()->count(),
+                'totalAssets' => Asset::actionable()->count(),
             ],
         ];
     }

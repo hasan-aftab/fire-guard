@@ -198,10 +198,10 @@ test('a completed inspection updates dashboard due status without duplicate cale
             // Strip cells carry a count, not the rows: the rows live in the
             // grouped agenda so a day cannot repeat one record many times over.
             ->where('schedule.days.9.itemCount', 1)
-            // 10 Oct is offset 9 from a window starting 1 Oct, which is past the
-            // offset-7 boundary, so the row belongs to "later", not "next".
-            ->has('schedule.groups.2.items', 1)
-            ->where('schedule.groups.2.id', 'later')
-            ->where('schedule.groups.2.items.0.kind', 'asset')
-            ->where('schedule.groups.2.items.0.dueDate', '2026-10-10'));
+            // 10 Oct is offset 9 from a window starting 1 Oct, inside the
+            // two-week boundary shared with the due-soon KPI.
+            ->has('schedule.groups.1.items', 1)
+            ->where('schedule.groups.1.id', 'next')
+            ->where('schedule.groups.1.items.0.kind', 'asset')
+            ->where('schedule.groups.1.items.0.dueDate', '2026-10-10'));
 });

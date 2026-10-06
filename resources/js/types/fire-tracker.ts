@@ -231,11 +231,16 @@ export type DashboardSummary = {
     complianceMonths: number;
     /** Inclusive lower bound of the gauge window (YYYY-MM-DD). */
     complianceSince: string;
-    /** Links used by setup and the compliance card. */
+    /** List links retained for dashboard summary consumers. */
     links: {
         activeClients: string;
+        totalAssets: string;
         /** Inspections inside the gauge's own window, for the pass-rate card. */
         passRateInspections: string;
+    };
+    stats: {
+        activeClients: number;
+        totalAssets: number;
     };
 };
 
