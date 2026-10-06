@@ -258,14 +258,14 @@ class WhatsAppController extends Controller
             'purpose' => ['required', Rule::in(['asset', 'certificate'])],
             'name' => ['required', 'regex:/^[a-z0-9_]{1,512}$/'],
             'language' => ['required', 'regex:/^[a-z]{2,3}(?:_[A-Z]{2})?$/'],
-            'parameter_keys' => ['required', 'array', 'max:10'],
+            'parameter_keys' => ['nullable', 'array', 'max:10'],
             'parameter_keys.*' => ['required', Rule::in(['client_name', 'site_name', 'subject_name', 'due_date', 'timing'])],
             'is_enabled' => ['required', 'boolean'],
         ]);
         $account = WhatsAppAccount::query()->findOrFail((int) $data['account_id']);
         WhatsAppTemplate::query()->updateOrCreate(
             ['waba_id' => $account->waba_id, 'purpose' => $data['purpose']],
-            ['name' => $data['name'], 'language' => $data['language'], 'parameter_keys' => $data['parameter_keys'],
+            ['name' => $data['name'], 'language' => $data['language'], 'parameter_keys' => $data['parameter_keys'] ?? [],
                 'is_enabled' => $data['is_enabled'], 'meta_status' => null, 'category' => null, 'last_synced_at' => null, 'last_error' => null],
         );
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Template mapping saved. Sync with Meta before use.']);
@@ -329,8 +329,7 @@ class WhatsAppController extends Controller
     public function sendTest(Request $request, WhatsAppPhone $phone): RedirectResponse
     {
         $data = $request->validate([
-            'account_id' => ['required', 'integer', Rule::exists('whatsapp_accounts', 'id')],
-            'template_id' => ['required', 'integer', Rule::exists('whatsapp_templates', 'id')],
+            'type' => ['required', Rule::in(['asset', 'certificate'])],
             'recipient' => ['required', 'string', function (string $attribute, mixed $value, \Closure $fail) use ($phone): void {
                 try {
                     $phone->normalize((string) $value);
@@ -339,16 +338,19 @@ class WhatsAppController extends Controller
                 }
             }],
         ]);
-        $account = WhatsAppAccount::query()->findOrFail((int) $data['account_id']);
-        $template = WhatsAppTemplate::query()->findOrFail((int) $data['template_id']);
-        if (! $account->is_active || $account->last_verified_at === null || $account->last_error !== null
-            || $template->waba_id !== $account->waba_id || ! $template->is_enabled || $template->meta_status !== 'APPROVED' || $template->last_error !== null) {
-            throw ValidationException::withMessages(['template_id' => 'Choose an approved template for a verified active sender.']);
+        $account = WhatsAppAccount::query()->where('is_active', true)->where('is_test', false)
+            ->where('is_default', true)->whereNotNull('last_verified_at')->whereNull('last_error')->first();
+        $template = $account === null ? null : WhatsAppTemplate::query()->where('waba_id', $account->waba_id)
+            ->where('purpose', $data['type'])->where('is_enabled', true)
+            ->where('meta_status', 'APPROVED')->whereNull('last_error')->first();
+        if ($account === null || $template === null) {
+            throw ValidationException::withMessages(['type' => 'No verified default sender with an approved template is available for this reminder type.']);
         }
         $message = WhatsAppMessage::query()->create([
             'whatsapp_account_id' => $account->id, 'whatsapp_template_id' => $template->id,
             'recipient' => $phone->normalize($data['recipient']), 'is_test' => true, 'status' => 'queued',
-            'test_values' => ['client_name' => 'Test customer', 'site_name' => 'Test site', 'subject_name' => 'Test equipment',
+            'test_values' => ['client_name' => 'Test customer', 'site_name' => 'Test site',
+                'subject_name' => $data['type'] === 'asset' ? 'Test equipment' : 'Test certificate',
                 'due_date' => today()->format('j F Y'), 'timing' => 'Test reminder'],
         ]);
         SendWhatsAppReminder::dispatch(null, $message->id);
