@@ -6,11 +6,15 @@ import {
     Flame,
     Mail,
     Plus,
+    Send,
     Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { index } from '@/actions/App/Http/Controllers/ReminderHistoryController';
+import {
+    index,
+    sendTestEmail,
+} from '@/actions/App/Http/Controllers/ReminderHistoryController';
 import {
     destroy as destroyRecipient,
     store as storeRecipient,
@@ -220,6 +224,10 @@ export default function Reminders({
     const [removingRecipientId, setRemovingRecipientId] = useState<
         number | null
     >(null);
+    const [testType, setTestType] = useState<ReminderType>('asset');
+    const [testEmail, setTestEmail] = useState('');
+    const [testError, setTestError] = useState('');
+    const [sendingTest, setSendingTest] = useState(false);
     const appliedFilterCount = Object.values(filters).filter(Boolean).length;
     const activeRecipientCount = recipients.filter(
         (recipient) => !recipient.excluded,
@@ -274,6 +282,25 @@ export default function Reminders({
             onError: () => toast.error('Could not remove this email address.'),
             onFinish: () => setRemovingRecipientId(null),
         });
+    };
+    const submitTestEmail = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setTestError('');
+        router.post(
+            sendTestEmail().url,
+            { type: testType, email: testEmail.trim() },
+            {
+                preserveScroll: true,
+                onStart: () => setSendingTest(true),
+                onError: (errors) =>
+                    setTestError(
+                        errors.email ??
+                            errors.type ??
+                            'Could not send the test email.',
+                    ),
+                onFinish: () => setSendingTest(false),
+            },
+        );
     };
     return (
         <div className="space-y-6">
@@ -450,6 +477,87 @@ export default function Reminders({
                                 </p>
                             )}
                         </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card className="gap-0 overflow-hidden py-0">
+                <CardHeader className="border-b px-5 py-5 sm:px-6">
+                    <CardTitle className="text-lg">Send a test email</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                        Send a labeled sample reminder to one address for the
+                        selected reminder type. Test copies stay out of delivery
+                        history.
+                    </p>
+                </CardHeader>
+                <CardContent className="space-y-4 px-5 py-5 sm:px-6">
+                    <div
+                        className="flex flex-wrap gap-2"
+                        role="tablist"
+                        aria-label="Test reminder type"
+                    >
+                        {(['asset', 'certificate'] as const).map((type) => (
+                            <Button
+                                key={type}
+                                type="button"
+                                role="tab"
+                                aria-selected={testType === type}
+                                variant={
+                                    testType === type ? 'default' : 'outline'
+                                }
+                                onClick={() => {
+                                    setTestType(type);
+                                    setTestError('');
+                                }}
+                            >
+                                {type === 'asset' ? 'Equipment' : 'Certificate'}
+                            </Button>
+                        ))}
+                    </div>
+                    <form
+                        onSubmit={submitTestEmail}
+                        className="flex flex-col gap-2 sm:flex-row sm:items-end"
+                    >
+                        <div className="w-full max-w-md space-y-1.5">
+                            <label
+                                htmlFor="reminder-test-email"
+                                className="text-xs font-medium text-muted-foreground"
+                            >
+                                Send to
+                            </label>
+                            <Input
+                                id="reminder-test-email"
+                                type="email"
+                                autoComplete="email"
+                                placeholder="name@example.com"
+                                value={testEmail}
+                                onChange={(event) => {
+                                    setTestEmail(event.target.value);
+                                    setTestError('');
+                                }}
+                                required
+                                maxLength={254}
+                                aria-invalid={Boolean(testError)}
+                                aria-describedby={
+                                    testError
+                                        ? 'reminder-test-error'
+                                        : undefined
+                                }
+                            />
+                        </div>
+                        <Button type="submit" disabled={sendingTest}>
+                            <Send data-icon="inline-start" />
+                            {sendingTest ? 'Sending…' : 'Send test email'}
+                        </Button>
+                    </form>
+                    {testError && (
+                        <p
+                            id="reminder-test-error"
+                            role="alert"
+                            className="text-sm text-destructive"
+                        >
+                            {testError}
+                        </p>
                     )}
                 </CardContent>
             </Card>
