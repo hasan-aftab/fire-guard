@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use App\Jobs\SendReminderEmail;
+use App\Jobs\SendWhatsAppReminder;
 use App\Models\Asset;
 use App\Models\Certificate;
 use App\Models\Client;
@@ -10,6 +11,8 @@ use App\Models\ReminderDelivery;
 use App\Models\ReminderRecipient;
 use App\Models\Site;
 use App\Models\User;
+use App\Models\WhatsAppMessage;
+use App\Services\WhatsAppPhone;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -21,12 +24,12 @@ class DiscoverFireReminders
         ReminderDelivery::query()->where('status', 'processing')
             ->where('updated_at', '<', now()->subMinutes(config('fire-tracker.reminders.processing_review_after_minutes')))
             ->update(['status' => 'uncertain', 'last_error' => 'Worker stopped during delivery; confirm the provider outcome before retrying.', 'updated_at' => now()]);
+        WhatsAppMessage::query()->where('status', 'processing')
+            ->where('updated_at', '<', now()->subMinutes(config('fire-tracker.reminders.processing_review_after_minutes')))
+            ->update(['status' => 'uncertain', 'last_error' => 'Worker stopped during Meta handoff; review before retrying.', 'updated_at' => now()]);
 
         $created = 0;
         $recipients = $this->recipients();
-        if ($recipients === []) {
-            return 0;
-        }
 
         foreach (config('fire-tracker.reminders.asset_offsets') as $offset) {
             $created += $this->assets($today->addDays($offset)->toDateString(), $offset, $recipients);
@@ -129,8 +132,60 @@ class DiscoverFireReminders
             $created += $this->createDelivery($type, $subject, $client, $site, $dueDate, $offset, $name,
                 $recipient['email'], $recipient['name'], $recipient['audience']);
         }
+        if ($client->whatsapp_reminders_enabled) {
+            $created += $this->createWhatsAppDelivery($type, $subject, $client, $site, $dueDate, $offset, $name);
+        }
 
         return $created;
+    }
+
+    private function createWhatsAppDelivery(string $type, Asset|Certificate $subject, Client $client, Site $site,
+        string $dueDate, int $offset, string $name): int
+    {
+        $recipient = $client->whatsapp_phone ?? '';
+        $valid = false;
+        try {
+            $valid = $recipient !== '' && app(WhatsAppPhone::class)->normalize($recipient) === $recipient;
+        } catch (\InvalidArgumentException) {
+            // Invalid stored values remain visible as skipped reminders.
+        }
+        $identity = [
+            'channel' => 'whatsapp', 'reminder_type' => $type, 'subject_id' => $subject->id,
+            'due_date' => $dueDate, 'reminder_offset' => $offset, 'recipient' => $recipient,
+        ];
+        $snapshot = [
+            'client_id' => $client->id, 'site_id' => $site->id,
+            'asset_id' => $type === 'asset' ? $subject->id : null,
+            'certificate_id' => $type === 'certificate' ? $subject->id : null,
+            'audience' => 'client', 'recipient_name' => $client->contact_name,
+            'client_name' => $client->company_name, 'site_name' => $site->site_name,
+            'client_contact_name' => $client->contact_name, 'client_phone' => $client->phone,
+            'client_email' => $client->email, 'site_address' => $site->address,
+            'subject_name' => $name, 'status' => $valid ? 'pending' : 'skipped',
+            'failed_at' => null, 'last_error' => $valid ? null : 'Client WhatsApp number is missing or invalid.',
+        ];
+        $delivery = ReminderDelivery::query()->createOrFirst($identity, $snapshot);
+        if (! $delivery->wasRecentlyCreated) {
+            if (! $valid || $delivery->status !== 'skipped' || $delivery->last_error !== SendWhatsAppReminder::CONFIG_REASON) {
+                return 0;
+            }
+            $updated = ReminderDelivery::query()->whereKey($delivery->id)->where('status', 'skipped')
+                ->where('last_error', SendWhatsAppReminder::CONFIG_REASON)
+                ->update(['status' => 'pending', 'last_error' => null, 'updated_at' => now()]);
+            if ($updated === 0) {
+                return 0;
+            }
+        }
+        if ($valid) {
+            try {
+                SendWhatsAppReminder::dispatch($delivery->id);
+            } catch (Throwable $exception) {
+                $delivery->update(['status' => 'failed', 'failed_at' => now(), 'last_error' => 'Queue dispatch failed.']);
+                Log::warning('WhatsApp reminder queue dispatch failed', ['delivery_id' => $delivery->id, 'error_type' => class_basename($exception)]);
+            }
+        }
+
+        return 1;
     }
 
     private function createDelivery(string $type, Asset|Certificate $subject, Client $client, Site $site,
