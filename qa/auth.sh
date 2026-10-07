@@ -10,7 +10,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BASE_URL="${QA_BASE_URL:-http://127.0.0.1:8000}"
-EMAIL="${1:-${QA_EMAIL:-hasanaftab007@gmail.com}}"
+EMAIL="${1:-${QA_EMAIL:-muhammadwebdeveloper281@gmail.com}}"
 PASSWORD="${2:-${QA_PASSWORD:-$EMAIL}}"
 JAR="$(mktemp)"
 trap 'rm -f "$JAR"' EXIT
