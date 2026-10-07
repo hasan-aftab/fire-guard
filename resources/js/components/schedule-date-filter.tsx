@@ -160,8 +160,8 @@ export function ScheduleDateFilter({
                         </Button>
                     ))}
                 </div>
-                <div className="border-t px-3 pt-3">
-                    <p className="mb-2 text-xs font-medium text-muted-foreground">
+                <div className="border-t border-border px-3 pt-3">
+                    <p className="mb-2 flex items-center text-xs font-medium text-muted-foreground">
                         Choose dates · inclusive
                     </p>
                     <ToggleGroup
@@ -179,14 +179,17 @@ export function ScheduleDateFilter({
                         }}
                         variant="outline"
                         size="sm"
+                        orientation="vertical"
                         aria-label="Due date range"
-                        className="w-full flex-wrap sm:flex-col"
+                        className="w-full items-stretch sm:flex-col sm:flex-nowrap"
                     >
-                        <ToggleGroupItem value="through">
+                        <ToggleGroupItem value="through" className="sm:w-full">
                             Through
                         </ToggleGroupItem>
-                        <ToggleGroupItem value="from">From</ToggleGroupItem>
-                        <ToggleGroupItem value="between">
+                        <ToggleGroupItem value="from" className="sm:w-full">
+                            From
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="between" className="sm:w-full">
                             Between
                         </ToggleGroupItem>
                     </ToggleGroup>
