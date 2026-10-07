@@ -58,7 +58,10 @@ function ToggleGroupItem({
           variant: context.variant || variant,
           size: context.size || size,
         }),
-        "min-w-0 shrink-0 rounded-none shadow-none first:rounded-l-md last:rounded-r-md focus:z-10 focus-visible:z-10 data-[variant=outline]:border-l-0 data-[variant=outline]:first:border-l",
+        "min-w-0 shrink-0 rounded-none shadow-none focus:z-10 focus-visible:z-10",
+        // Rounding
+        "group-data-[orientation=horizontal]:first:rounded-l-md group-data-[orientation=horizontal]:last:rounded-r-md group-data-[orientation=horizontal]:not-first:border-l-0",
+        "group-data-[orientation=vertical]:first:rounded-t-md group-data-[orientation=vertical]:last:rounded-b-md group-data-[orientation=vertical]:not-first:border-t-0",
         className
       )}
       {...props}
