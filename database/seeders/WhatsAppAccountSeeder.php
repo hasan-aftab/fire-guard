@@ -8,11 +8,15 @@ use Illuminate\Database\Seeder;
 
 /**
  * Recreates the Meta sandbox sending number and its two reminder template
- * mappings, already verified and active, so `migrate:fresh --seed` restores a
- * working test-send configuration.
+ * mappings so `migrate:fresh --seed` restores a working test-send setup.
  *
- * The access token reuses the existing WHATSAPP_APP_SECRET value in `.env` and
- * is never written into this file or into `.env.example`. Without it the seeder
+ * Verification is deliberately never claimed. `last_verified_at` is what makes a
+ * sender eligible to send, and only the verify route has actually spoken to
+ * Meta, so a token written here leaves the account unverified for the admin to
+ * confirm against live credentials.
+ *
+ * The access token reuses the existing WHATSAPP_APP_SECRET value in `.env` and is
+ * never written into this file or into `.env.example`. Without it the seeder
  * refreshes the account's non-secret fields when the account already exists and
  * skips cleanly on a database that has never had one.
  */
@@ -40,11 +44,11 @@ class WhatsAppAccountSeeder extends Seeder
             'is_test' => true,
             'is_default' => false,
             'default_slot' => null,
-            'last_verified_at' => now(),
-            'last_error' => null,
         ];
         if ($token !== '') {
             $data['access_token'] = $token;
+            $data['last_verified_at'] = null;
+            $data['last_error'] = null;
         }
 
         if ($existing === null) {
