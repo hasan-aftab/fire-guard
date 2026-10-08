@@ -124,7 +124,7 @@ test('connection verification matches WABA number and sanitizes Meta errors', fu
         && $request->hasHeader('Authorization', 'Bearer test-only-access-token'));
     $this->post(route('whatsapp.accounts.verify', $account))->assertRedirect();
     expect($account->fresh()->last_verified_at)->toBeNull();
-    expect($account->fresh()->last_error)->toContain('190')->not->toContain('private-token-leak');
+    expect($account->fresh()->last_error)->toContain('190')->toContain('expiry set to Never')->not->toContain('private-token-leak');
 });
 
 test('email and WhatsApp share discovery but submit independently and only once', function () {
