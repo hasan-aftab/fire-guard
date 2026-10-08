@@ -22,12 +22,12 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('muhammadwebdeveloper281@gmail.com'),
         ]);
 
-        User::factory()->create([
-            'name' => 'Rory',
-            'email' => 'rwilliamstewart@gmail.com',
-            'role' => User::ROLE_ADMIN,
-            'password' => bcrypt('rwilliamstewart@gmail.com'),
-        ]);
+        // User::factory()->create([
+        //     'name' => 'Rory',
+        //     'email' => 'rwilliamstewart@gmail.com',
+        //     'role' => User::ROLE_ADMIN,
+        //     'password' => bcrypt('rwilliamstewart@gmail.com'),
+        // ]);
 
         $this->call([
             AssetTypeSeeder::class,
