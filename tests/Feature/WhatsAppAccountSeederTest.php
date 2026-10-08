@@ -19,7 +19,7 @@ test('whatsapp sender seeder stores the verified active account and both approve
     expect($account->is_test)->toBeTrue();
     expect($account->is_default)->toBeFalse();
     expect($account->default_slot)->toBeNull();
-    expect($account->last_verified_at)->not->toBeNull();
+    expect($account->last_verified_at)->toBeNull();
     expect($account->last_error)->toBeNull();
 
     expect(WhatsAppTemplate::query()->count())->toBe(2);
@@ -43,4 +43,35 @@ test('whatsapp sender seeder skips cleanly when no token and no account exist', 
 
     expect(WhatsAppAccount::query()->count())->toBe(0);
     expect(WhatsAppTemplate::query()->count())->toBe(0);
+});
+
+test('reseeded sender token clears a stale verification', function (): void {
+    config()->set('services.whatsapp.app_secret', 'first-token');
+    $this->seed(WhatsAppAccountSeeder::class);
+    WhatsAppAccount::query()->sole()->update([
+        'last_verified_at' => now(),
+        'last_error' => 'Meta connection failed (code 190).',
+    ]);
+
+    config()->set('services.whatsapp.app_secret', 'rotated-token');
+    $this->seed(WhatsAppAccountSeeder::class);
+
+    $account = WhatsAppAccount::query()->sole();
+    expect($account->access_token)->toBe('rotated-token');
+    expect($account->last_verified_at)->toBeNull();
+    expect($account->last_error)->toBeNull();
+});
+
+test('reseed without a token keeps an established verification', function (): void {
+    config()->set('services.whatsapp.app_secret', 'only-token');
+    $this->seed(WhatsAppAccountSeeder::class);
+    $verifiedAt = now()->subMinutes(5)->startOfSecond();
+    WhatsAppAccount::query()->sole()->update(['last_verified_at' => $verifiedAt]);
+
+    config()->set('services.whatsapp.app_secret', null);
+    $this->seed(WhatsAppAccountSeeder::class);
+
+    $account = WhatsAppAccount::query()->sole();
+    expect($account->access_token)->toBe('only-token');
+    expect($account->last_verified_at->equalTo($verifiedAt))->toBeTrue();
 });
