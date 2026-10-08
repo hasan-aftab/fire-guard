@@ -1,10 +1,13 @@
 <?php
 
 use App\Mail\AssetInspectionReminderMail;
+use App\Mail\BrevoTransport;
 use App\Mail\CertificateExpiryReminderMail;
 use App\Models\Client;
 use App\Models\ReminderDelivery;
 use App\Models\User;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 
 beforeEach(function (): void {
@@ -90,7 +93,35 @@ test('test email succeeds and redirects back', function (): void {
     Mail::assertSent(AssetInspectionReminderMail::class);
 });
 
-test('brevo mailer name resolves to the smtp transport', function (): void {
-    expect(config('mail.mailers.brevo.transport'))->toBe('smtp');
-    expect(fn (): mixed => Mail::mailer('brevo'))->not->toThrow(InvalidArgumentException::class);
+test('brevo mailer sends the test reminder through the transactional API', function (): void {
+    Http::fake(['api.brevo.com/*' => Http::response(['messageId' => 99], 201)]);
+    config()->set('mail.default', 'brevo');
+    config()->set('mail.mailers.brevo.key', 'test-api-key');
+    $this->actingAs($this->user);
+
+    $this->post(route('reminders.test-email'), ['type' => 'asset', 'email' => 'team@example.com'])
+        ->assertRedirect()
+        ->assertInertiaFlash('toast', [
+            'type' => 'success',
+            'message' => 'Test reminder sent to team@example.com. It stays out of delivery history.',
+        ]);
+
+    Http::assertSent(function (Request $request): bool {
+        return $request->url() === BrevoTransport::ENDPOINT
+            && $request->hasHeader('Authorization', 'Bearer test-api-key')
+            && $request['sender']['email'] === 'firetracker@local.test'
+            && $request['to'][0]['email'] === 'team@example.com'
+            && str_starts_with((string) $request['subject'], 'TEST COPY')
+            && str_contains((string) $request['htmlContent'], 'TEST COPY');
+    });
+    expect(ReminderDelivery::count())->toBe(0);
+});
+
+test('brevo-smtp mailer is configured for Brevo SMTP relay', function (): void {
+    config()->set('mail.default', 'brevo-smtp');
+    config()->set('mail.mailers.brevo-smtp.username', 'smtp-user');
+    config()->set('mail.mailers.brevo-smtp.password', 'smtp-pass');
+
+    $transport = Mail::mailer('brevo-smtp')->getSymfonyTransport();
+    expect((string) $transport)->toContain('smtp-relay.brevo.com');
 });
