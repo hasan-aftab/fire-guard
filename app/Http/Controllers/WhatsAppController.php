@@ -240,7 +240,7 @@ class WhatsAppController extends Controller
             }
             $matches = $result['ok'] && $actual !== null
                 && $phone->normalize((string) ($actual['display_phone_number'] ?? ''), $account->is_test) === $account->display_phone_number;
-            $error = $matches ? null : ($result['ok'] ? 'Phone Number ID or display number does not match this WABA.' : 'Meta connection failed (code '.$result['code'].').');
+            $error = $matches ? null : ($result['ok'] ? 'Phone Number ID or display number does not match this WABA.' : 'Meta connection failed (code '.$result['code'].'.)'.MetaWhatsAppClient::suffix($result['code']));
         } catch (Throwable) {
             $matches = false;
             $error = 'Meta connection could not be verified.';
