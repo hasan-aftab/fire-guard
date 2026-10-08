@@ -40,7 +40,7 @@ class SendReminderTestEmail extends Command
         try {
             $sender->run($type, $email);
         } catch (Throwable $exception) {
-            Log::warning('Reminder test email failed', ['type' => $type, 'error_type' => class_basename($exception)]);
+            Log::warning('Reminder test email failed', ['type' => $type, 'error_type' => class_basename($exception), 'message' => $exception->getMessage()]);
             $this->error('The test email could not be sent. Check mail settings and logs.');
 
             return self::FAILURE;
