@@ -108,7 +108,7 @@ class SendWhatsAppReminder implements ShouldQueue
         }
 
         if (! $result['ok']) {
-            $reason = 'Meta rejected the request (code '.$result['code'].').';
+            $reason = 'Meta rejected the request (code '.$result['code'].'.)'.MetaWhatsAppClient::suffix($result['code']);
             $message->update(['status' => 'failed', 'failed_at' => now(), 'failure_code' => $result['code'], 'last_error' => $reason]);
             $delivery?->update(['status' => 'failed', 'failed_at' => now(), 'last_error' => $reason]);
 
