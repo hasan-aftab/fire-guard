@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         $this->call([
+            WhatsAppAccountSeeder::class,
             AssetTypeSeeder::class,
             CertificateTypeSeeder::class,
             FireTrackerDemoSeeder::class,
