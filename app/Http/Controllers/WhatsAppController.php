@@ -326,6 +326,20 @@ class WhatsAppController extends Controller
         return back();
     }
 
+    /**
+     * Test sends go through the verified production default when one exists, so the
+     * message comes from the same number production uses. With no default configured
+     * they fall back to a verified test account, which is the documented local
+     * development path. A test account can never become the default itself.
+     */
+    private function verifiedTestSender(): ?WhatsAppAccount
+    {
+        return WhatsAppAccount::query()->where('is_active', true)->where('is_test', false)
+            ->where('is_default', true)->whereNotNull('last_verified_at')->whereNull('last_error')->first()
+            ?? WhatsAppAccount::query()->where('is_active', true)->where('is_test', true)
+                ->whereNotNull('last_verified_at')->whereNull('last_error')->orderBy('id')->first();
+    }
+
     public function sendTest(Request $request, WhatsAppPhone $phone): RedirectResponse
     {
         $data = $request->validate([
@@ -338,13 +352,15 @@ class WhatsAppController extends Controller
                 }
             }],
         ]);
-        $account = WhatsAppAccount::query()->where('is_active', true)->where('is_test', false)
-            ->where('is_default', true)->whereNotNull('last_verified_at')->whereNull('last_error')->first();
-        $template = $account === null ? null : WhatsAppTemplate::query()->where('waba_id', $account->waba_id)
+        $account = $this->verifiedTestSender();
+        if ($account === null) {
+            throw ValidationException::withMessages(['type' => 'No verified active sender is available. Verify the default sender, or an active test account, on this page.']);
+        }
+        $template = WhatsAppTemplate::query()->where('waba_id', $account->waba_id)
             ->where('purpose', $data['type'])->where('is_enabled', true)
             ->where('meta_status', 'APPROVED')->whereNull('last_error')->first();
-        if ($account === null || $template === null) {
-            throw ValidationException::withMessages(['type' => 'No verified default sender with an approved template is available for this reminder type.']);
+        if ($template === null) {
+            throw ValidationException::withMessages(['type' => 'No approved, enabled template is mapped for this reminder type. Sync templates with Meta.']);
         }
         $message = WhatsAppMessage::query()->create([
             'whatsapp_account_id' => $account->id, 'whatsapp_template_id' => $template->id,
