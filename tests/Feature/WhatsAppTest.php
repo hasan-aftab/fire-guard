@@ -285,6 +285,44 @@ test('admin typed whatsapp test resolves default sender and purpose template', f
     expect(WhatsAppMessage::query()->count())->toBe(2);
     expect(WhatsAppMessage::query()->where('meta_message_id', 'wamid.certificate')->exists())->toBeTrue();
 });
+
+test('test sends fall back to a verified test account when no production default exists', function (): void {
+    $account = WhatsAppAccount::factory()->create(['is_test' => true]);
+    waTemplate($account, 'asset');
+    $this->actingAs($this->admin);
+    Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.asset']]], 200)]);
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])->assertRedirect();
+    $message = WhatsAppMessage::query()->sole();
+    expect($message->whatsapp_account_id)->toBe($account->id);
+    expect($message->is_test)->toBeTrue();
+    expect($message->status)->toBe('submitted');
+    expect(ReminderDelivery::query()->count())->toBe(0);
+});
+
+test('test sends prefer the verified production default over a test account', function (): void {
+    $testAccount = WhatsAppAccount::factory()->create(['is_test' => true]);
+    $default = waSender();
+    waTemplate($testAccount, 'asset');
+    waTemplate($default, 'asset');
+    $this->actingAs($this->admin);
+    Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.asset']]], 200)]);
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])->assertRedirect();
+    expect(WhatsAppMessage::query()->sole()->whatsapp_account_id)->toBe($default->id);
+});
+
+test('test sends name the missing sender or template in the validation error', function (): void {
+    $this->actingAs($this->admin);
+    Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.certificate']]], 200)]);
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])
+        ->assertSessionHasErrors(['type' => 'No verified active sender is available. Verify the default sender, or an active test account, on this page.']);
+    $account = waSender();
+    $this->post(route('whatsapp.test'), ['type' => 'certificate', 'recipient' => '+67571234567'])
+        ->assertSessionHasErrors(['type' => 'No approved, enabled template is mapped for this reminder type. Sync templates with Meta.']);
+    expect(WhatsAppMessage::query()->count())->toBe(0);
+    waTemplate($account, 'certificate');
+    $this->post(route('whatsapp.test'), ['type' => 'certificate', 'recipient' => '+67571234567'])->assertRedirect();
+    expect(WhatsAppMessage::query()->count())->toBe(1);
+});
 test('certificate reminders use the configured WABA template and a new due date makes a new cycle', function () {
     $account = waSender();
     waTemplate($account, 'asset');
