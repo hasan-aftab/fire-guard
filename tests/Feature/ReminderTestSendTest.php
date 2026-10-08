@@ -89,3 +89,8 @@ test('test email succeeds and redirects back', function (): void {
         ->assertRedirect();
     Mail::assertSent(AssetInspectionReminderMail::class);
 });
+
+test('brevo mailer name resolves to the smtp transport', function (): void {
+    expect(config('mail.mailers.brevo.transport'))->toBe('smtp');
+    expect(fn (): mixed => Mail::mailer('brevo'))->not->toThrow(InvalidArgumentException::class);
+});
