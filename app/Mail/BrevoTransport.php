@@ -41,8 +41,11 @@ class BrevoTransport extends AbstractTransport
             throw new TransportException('BREVO_API_KEY is not configured.');
         }
 
-        $response = Http::withToken($this->key)
-            ->acceptJson()
+        $response = Http::withHeaders([
+            'api-key' => $this->key,
+            'accept' => 'application/json',
+        ])
+            ->asJson()
             ->connectTimeout(5)
             ->timeout($this->timeout)
             ->post(self::ENDPOINT, $this->payload($email));
@@ -103,7 +106,7 @@ class BrevoTransport extends AbstractTransport
     protected function addresses(array $addresses): array
     {
         return array_map(
-            fn (Address $address): array => ['email' => $address->getAddress(), 'name' => $address->getName()],
+            fn (Address $address): array => ['email' => $address->getAddress(), 'name' => $address->getName() === '' ? null : $address->getName()],
             array_values($addresses),
         );
     }
