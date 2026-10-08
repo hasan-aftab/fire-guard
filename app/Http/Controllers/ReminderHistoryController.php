@@ -33,7 +33,7 @@ class ReminderHistoryController extends Controller
         try {
             $sender->run($data['type'], $email);
         } catch (Throwable $exception) {
-            Log::warning('Reminder test email failed', ['type' => $data['type'], 'error_type' => class_basename($exception)]);
+            Log::warning('Reminder test email failed', ['type' => $data['type'], 'error_type' => class_basename($exception), 'message' => $exception->getMessage()]);
             Inertia::flash('toast', ['type' => 'error', 'message' => 'The test email could not be sent. Check mail settings and logs.']);
 
             return back();
