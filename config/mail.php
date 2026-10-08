@@ -56,18 +56,6 @@ return [
             'timeout' => (int) env('MAIL_TIMEOUT', 30),
         ],
 
-        'brevo-smtp' => [
-            'transport' => 'smtp',
-            'scheme' => env('BREVO_SMTP_SCHEME'),
-            'host' => env('BREVO_SMTP_HOST', 'smtp-relay.brevo.com'),
-            'port' => (int) env('BREVO_SMTP_PORT', 587),
-            'username' => env('BREVO_SMTP_USERNAME'),
-            'password' => env('BREVO_SMTP_PASSWORD'),
-            'timeout' => (int) env('MAIL_TIMEOUT', 30),
-            'require_tls' => (bool) env('BREVO_SMTP_REQUIRE_TLS', true),
-            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
-        ],
-
         'ses' => [
             'transport' => 'ses',
         ],
