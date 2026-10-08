@@ -33,6 +33,22 @@ class MetaWhatsAppClient
     }
 
     /**
+     * The follow-up a human should act on for a Meta error code, prefixed with a
+     * space, or an empty string when there is nothing useful to add. Meta's own
+     * message text is deliberately never included: it echoes request data back
+     * into stored errors and the UI.
+     */
+    public static function suffix(string $code): string
+    {
+        $hint = match ($code) {
+            '190' => 'The access token is invalid or expired. Replace it with a System User token generated in Meta Business Settings with its expiry set to Never, then verify again.',
+            default => null,
+        };
+
+        return $hint === null ? '' : ' '.$hint;
+    }
+
+    /**
      * @param  list<array{type: string, parameters: list<array{type: string, text: string}>}>  $components
      * @return array{ok: bool, code: string|null, data: array<string, mixed>}
      */
