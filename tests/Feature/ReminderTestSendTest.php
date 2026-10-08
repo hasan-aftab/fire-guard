@@ -110,7 +110,7 @@ test('brevo mailer sends the test reminder through the transactional API', funct
 
     Http::assertSent(function (Request $request): bool {
         return $request->url() === BrevoTransport::ENDPOINT
-            && $request->hasHeader('Authorization', 'Bearer test-api-key')
+            && $request->hasHeader('api-key', 'test-api-key')
             && $request['sender']['email'] === 'firetracker@local.test'
             && $request['to'][0]['email'] === 'team@example.com'
             && str_starts_with((string) $request['subject'], 'TEST COPY')
