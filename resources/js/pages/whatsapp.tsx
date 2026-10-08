@@ -1294,9 +1294,11 @@ export default function WhatsApp({
                         <CardContent className="space-y-3">
                             <p className="text-sm text-muted-foreground">
                                 Sends a sample message to one number using the
-                                verified default sender and the approved
-                                template for the selected reminder type. Test
-                                messages stay outside reminder metrics.
+                                verified default sender, or a verified test
+                                account when no default is configured, with the
+                                approved template for the selected reminder
+                                type. Test messages stay outside reminder
+                                metrics.
                             </p>
                             <form
                                 className="grid gap-3 sm:grid-cols-3"
