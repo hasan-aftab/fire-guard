@@ -477,7 +477,7 @@ test('sample reminder command sends each internal design without a delivery reco
     Mail::assertSent($mailClass, function ($mail): bool {
         $mail->assertSeeInHtml('TEST COPY');
         $mail->assertSeeInHtml('Hello team');
-        $mail->assertSeeInHtml('Waigani Office');
+        $mail->assertSeeInHtml('Riverside Office');
 
         return $mail->hasTo('internal@example.test') && $mail->preview
             && str_contains($mail->envelope()->subject, 'TEST COPY');

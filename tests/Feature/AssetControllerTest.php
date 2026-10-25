@@ -85,19 +85,19 @@ test('asset list retains a decommissioned record on its original page', function
     $user = User::factory()->create();
     $site = Site::factory()->create();
     $type = AssetType::factory()->create();
-    $assets = Asset::factory()->count(11)->for($site)->for($type)->create(['serial_number' => 'PNG-ASSET']);
-    $filteredUrl = route('assets.index', ['search' => 'PNG-ASSET']);
+    $assets = Asset::factory()->count(11)->for($site)->for($type)->create(['serial_number' => 'FX-ASSET']);
+    $filteredUrl = route('assets.index', ['search' => 'FX-ASSET']);
 
-    $this->actingAs($user)->get(route('assets.index', ['search' => 'PNG-ASSET', 'page' => 2]))
+    $this->actingAs($user)->get(route('assets.index', ['search' => 'FX-ASSET', 'page' => 2]))
         ->assertInertia(fn (Assert $page) => $page->component('assets')
             ->has('records.data', 1)
             ->where('records.current_page', 2)
             ->missing('filters.page'));
-    $this->from(route('assets.index', ['search' => 'PNG-ASSET', 'page' => 2]))
+    $this->from(route('assets.index', ['search' => 'FX-ASSET', 'page' => 2]))
         ->delete(route('assets.destroy', $assets->last()))
         ->assertRedirect();
 
-    $this->get(route('assets.index', ['search' => 'PNG-ASSET', 'page' => 2]))
+    $this->get(route('assets.index', ['search' => 'FX-ASSET', 'page' => 2]))
         ->assertInertia(fn (Assert $page) => $page->component('assets')
             ->has('records.data', 1)
             ->where('records.data.0.status', 'decommissioned')

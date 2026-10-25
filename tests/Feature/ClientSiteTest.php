@@ -153,10 +153,10 @@ test('site updates preserve client ownership and related records', function () {
         'client_id' => $client->id,
         'site_name' => 'Updated Site',
         'address' => 'New address',
-        'suburb_region' => 'Port Moresby',
+        'suburb_region' => 'Metro City',
         'access_notes' => 'Use the side gate',
         'site_contact' => 'Site Manager',
-        'site_phone' => '+675 7000 0000',
+        'site_phone' => '+1 202 555 0106',
     ])->assertRedirect();
 
     $this->assertDatabaseHas('sites', [
@@ -164,10 +164,10 @@ test('site updates preserve client ownership and related records', function () {
         'client_id' => $client->id,
         'site_name' => 'Updated Site',
         'address' => 'New address',
-        'suburb_region' => 'Port Moresby',
+        'suburb_region' => 'Metro City',
         'access_notes' => 'Use the side gate',
         'site_contact' => 'Site Manager',
-        'site_phone' => '+675 7000 0000',
+        'site_phone' => '+1 202 555 0106',
     ]);
     $this->assertModelExists($asset);
 });
@@ -190,13 +190,13 @@ test('client forms reject malformed contact details and retain the existing reco
     $this->put(route('clients.update', $client), [
         'company_name' => 'Updated Client',
         'email' => 'manager@example.com',
-        'phone' => '+675 7000 0000',
+        'phone' => '+1 202 555 0106',
     ])->assertSessionHasNoErrors();
 
     $this->assertDatabaseHas('clients', [
         'id' => $client->id,
         'company_name' => 'Updated Client',
-        'phone' => '+675 7000 0000',
+        'phone' => '+1 202 555 0106',
     ]);
 });
 
@@ -216,14 +216,14 @@ test('site forms reject malformed phone numbers and blank required fields', func
     $this->post(route('sites.store'), [
         'client_id' => $client->id,
         'site_name' => 'Warehouse',
-        'address' => 'Port Moresby',
-        'site_phone' => '(675) 7000 0000 ext. 12',
+        'address' => 'Metro City',
+        'site_phone' => '(202) 555 0106 ext. 12',
     ])->assertSessionHasNoErrors();
 
     $this->assertDatabaseHas('sites', [
         'client_id' => $client->id,
         'site_name' => 'Warehouse',
-        'site_phone' => '(675) 7000 0000 ext. 12',
+        'site_phone' => '(202) 555 0106 ext. 12',
     ]);
 });
 
@@ -241,7 +241,7 @@ test('client field limits and formats reject invalid input', function (string $f
     'long company' => ['company_name', str_repeat('C', 256)],
     'long contact' => ['contact_name', str_repeat('C', 256)],
     'short phone' => ['phone', '123'],
-    'unbalanced phone' => ['phone', '(675 7000 0000'],
+    'unbalanced phone' => ['phone', '(202 555 0106'],
     'long phone' => ['phone', str_repeat('7', 21)],
     'invalid email' => ['email', 'not-an-email'],
     'long address' => ['billing_address', str_repeat('A', 5001)],
@@ -270,23 +270,23 @@ test('site field limits and formats reject invalid input', function (string $fie
     'long suburb' => ['suburb_region', str_repeat('S', 256)],
     'long access notes' => ['access_notes', str_repeat('N', 10001)],
     'long contact' => ['site_contact', str_repeat('C', 256)],
-    'unbalanced phone' => ['site_phone', '(675 7000 0000'],
+    'unbalanced phone' => ['site_phone', '(202 555 0106'],
 ]);
 
 test('client and site edits can clear optional details without changing site ownership', function () {
     $user = User::factory()->create();
     $client = Client::factory()->create([
         'contact_name' => 'Existing Contact',
-        'phone' => '+675 7000 0000',
+        'phone' => '+1 202 555 0106',
         'email' => 'existing@example.test',
         'billing_address' => 'Previous address',
         'notes' => 'Previous notes',
     ]);
     $site = Site::factory()->for($client)->create([
-        'suburb_region' => 'Boroko',
+        'suburb_region' => 'Harbourview',
         'access_notes' => 'Previous access',
         'site_contact' => 'Existing Manager',
-        'site_phone' => '+675 7111 2222',
+        'site_phone' => '+1 202 555 0107',
     ]);
 
     $this->actingAs($user)->put(route('clients.update', $client), [

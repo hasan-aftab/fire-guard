@@ -378,7 +378,7 @@ export default function Clients({
                         name: 'whatsapp_phone',
                         label: 'WhatsApp number',
                         type: 'tel',
-                        placeholder: '+675 7123 4567',
+                        placeholder: '+1 202 555 0143',
                         description:
                             'Use an international number beginning with +. Saved in E.164 format.',
                         maxLength: 24,
@@ -620,7 +620,7 @@ export default function Clients({
                                                     required: true,
                                                     type: 'textarea',
                                                     placeholder:
-                                                        'e.g. Section 45, Badili',
+                                                        'e.g. Section 45, Harbourview',
                                                     maxLength: 5000,
                                                     autoComplete:
                                                         'street-address',
@@ -629,7 +629,7 @@ export default function Clients({
                                                     name: 'suburb_region',
                                                     label: 'Suburb / Region',
                                                     placeholder:
-                                                        'e.g. Port Moresby, NCD',
+                                                        'e.g. Riverside, Central District',
                                                     maxLength: 255,
                                                 },
                                                 {

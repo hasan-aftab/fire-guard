@@ -264,7 +264,7 @@ export function ScheduleDateFilter({
                     <DialogHeader className="px-3 pt-3 text-left">
                         <DialogTitle>Due date</DialogTitle>
                         <DialogDescription>
-                            Today is {shortDate(today)} in Port Moresby.
+                            Today is {shortDate(today)}.
                         </DialogDescription>
                     </DialogHeader>
                     {body}
@@ -283,7 +283,7 @@ export function ScheduleDateFilter({
                 <PopoverHeader className="p-3 pb-0">
                     <PopoverTitle>Due date</PopoverTitle>
                     <PopoverDescription>
-                        Today is {shortDate(today)} in Port Moresby.
+                        Today is {shortDate(today)}.
                     </PopoverDescription>
                 </PopoverHeader>
                 {body}

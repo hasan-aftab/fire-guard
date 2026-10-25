@@ -15,7 +15,7 @@ const features = [
         icon: Building2,
         title: 'Clients & Sites',
         description:
-            'Keep your PNG businesses and their fire safety sites together.',
+            'Keep your businesses and their fire safety sites together.',
     },
     {
         icon: Flame,
@@ -73,7 +73,7 @@ export default function Welcome() {
                         </h1>
                         <p className="text-lg text-muted-foreground">
                             Manage clients, equipment, inspections, and
-                            compliance certificates across Papua New Guinea.
+                            compliance certificates across every site.
                         </p>
                         <div>
                             <Button size="lg" asChild>

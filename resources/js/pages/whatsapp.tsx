@@ -266,7 +266,7 @@ function AccountEditor({
                             id="wa-display"
                             type="tel"
                             required
-                            placeholder="+675 7123 4567"
+                            placeholder="+1 202 555 0143"
                             value={data.display_phone_number}
                             onChange={(event) =>
                                 setData({
@@ -1358,7 +1358,7 @@ export default function WhatsApp({
                                         id="wa-recipient"
                                         type="tel"
                                         required
-                                        placeholder="+675 7123 4567"
+                                        placeholder="+1 202 555 0143"
                                         value={test.recipient}
                                         onChange={(event) =>
                                             setTest({

@@ -105,7 +105,8 @@ test('the boundary is not affected by the time of day the record is read at', fu
 
 test('today is read in the application timezone rather than utc', function () {
     // Both instants are still the 3rd of October in UTC, but already the 4th
-    // and the 1st of January in Pacific/Port_Moresby (UTC+10).
+    // and the 1st of January in the application timezone (pinned to UTC+10 for
+    // the test suite in phpunit.xml).
     $this->travelTo(CarbonImmutable::parse('2026-10-03 20:00:00', 'UTC'));
     expect(today()->toDateString())->toBe('2026-10-04');
 
@@ -123,7 +124,7 @@ test('the shared today prop is the application timezone date', function () {
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->where('today', today()->toDateString()));
 
-    expect(config('app.timezone'))->toBe('Pacific/Port_Moresby');
+    expect(config('app.timezone'))->toBe('Etc/GMT-10');
 });
 
 test('status computed for an instant just after midnight in utc uses the application date', function () {

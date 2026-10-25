@@ -435,7 +435,7 @@ test('the page is given the timezone its dates were resolved in', function () {
 
     $this->actingAs(User::factory()->create())->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->component('dashboard')
-            ->where('timezone', 'Pacific/Port_Moresby')
+            ->where('timezone', 'Etc/GMT-10')
             ->where('today', '2026-10-04'));
 });
 

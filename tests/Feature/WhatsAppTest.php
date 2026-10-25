@@ -41,7 +41,7 @@ function waTemplate(WhatsAppAccount $account, string $purpose = 'asset', array $
 function waAsset(int $days = 7, array $client = [], array $site = [], array $asset = []): Asset
 {
     $clientModel = Client::factory()->create(array_replace([
-        'whatsapp_phone' => '+67571234567', 'whatsapp_reminders_enabled' => true,
+        'whatsapp_phone' => '+12025550143', 'whatsapp_reminders_enabled' => true,
     ], $client));
     $siteModel = Site::factory()->for($clientModel)->create($site);
 
@@ -77,15 +77,15 @@ function postWaWebhook(string $body): TestResponse
 
 test('admin manages multiple accounts with encrypted hidden tokens and a single default', function () {
     $this->actingAs($this->admin);
-    $payload = ['name' => 'Main', 'display_phone_number' => '+675 7123 4567', 'phone_number_id' => '1311503608720043',
+    $payload = ['name' => 'Main', 'display_phone_number' => '+1 202 555 0143', 'phone_number_id' => '1311503608720043',
         'waba_id' => '2054627991879504', 'access_token' => 'private-token-first', 'is_active' => true,
         'is_test' => false, 'is_default' => true];
     $this->post(route('whatsapp.accounts.store'), $payload)->assertRedirect();
     $first = WhatsAppAccount::query()->sole();
-    expect($first->display_phone_number)->toBe('+67571234567');
+    expect($first->display_phone_number)->toBe('+12025550143');
     expect(DB::table('whatsapp_accounts')->value('access_token'))->not->toContain('private-token-first');
     $this->get(route('whatsapp.index'))->assertInertia(fn (Assert $page) => $page->component('whatsapp')
-        ->where('accounts.0.display_phone_number', '+67571234567')->missing('accounts.0.access_token')->etc());
+        ->where('accounts.0.display_phone_number', '+12025550143')->missing('accounts.0.access_token')->etc());
     $this->post(route('whatsapp.accounts.store'), array_replace($payload, ['name' => 'Secondary',
         'display_phone_number' => '+16505551234', 'phone_number_id' => '1311503608720044', 'access_token' => 'private-token-second']))->assertRedirect();
     expect(WhatsAppAccount::query()->count())->toBe(2);
@@ -103,11 +103,11 @@ test('phone numbers, Meta IDs, and explicit client consent have separate validat
         'waba_id' => '2054627991879504', 'access_token' => 'test-token', 'is_active' => true, 'is_test' => true, 'is_default' => false];
     $this->post(route('whatsapp.accounts.store'), $payload)->assertRedirect();
     expect(WhatsAppAccount::query()->sole()->display_phone_number)->toBe('+15556323967');
-    $this->post(route('whatsapp.accounts.store'), array_replace($payload, ['phone_number_id' => '+67571234567']))->assertSessionHasErrors('phone_number_id');
-    $this->post(route('whatsapp.accounts.store'), array_replace($payload, ['waba_id' => '+67571234567']))->assertSessionHasErrors('waba_id');
+    $this->post(route('whatsapp.accounts.store'), array_replace($payload, ['phone_number_id' => '+12025550143']))->assertSessionHasErrors('phone_number_id');
+    $this->post(route('whatsapp.accounts.store'), array_replace($payload, ['waba_id' => '+12025550143']))->assertSessionHasErrors('waba_id');
     $this->post(route('whatsapp.accounts.store'), array_replace($payload, ['display_phone_number' => 'bad']))->assertSessionHasErrors('display_phone_number');
-    $this->post(route('clients.store'), ['company_name' => 'Customer', 'whatsapp_phone' => '+675 7123 4567', 'whatsapp_reminders_enabled' => true])->assertRedirect();
-    expect(Client::query()->sole()->whatsapp_phone)->toBe('+67571234567');
+    $this->post(route('clients.store'), ['company_name' => 'Customer', 'whatsapp_phone' => '+1 202 555 0143', 'whatsapp_reminders_enabled' => true])->assertRedirect();
+    expect(Client::query()->sole()->whatsapp_phone)->toBe('+12025550143');
     $this->post(route('clients.store'), ['company_name' => 'Bad', 'whatsapp_phone' => '071234567', 'whatsapp_reminders_enabled' => true])->assertSessionHasErrors('whatsapp_phone');
     $this->post(route('clients.store'), ['company_name' => 'Bad', 'whatsapp_phone' => '', 'whatsapp_reminders_enabled' => true])->assertSessionHasErrors('whatsapp_phone');
 });
@@ -143,7 +143,7 @@ test('email and WhatsApp share discovery but submit independently and only once'
     expect(WhatsAppMessage::query()->sole()->delivered_at)->toBeNull();
     Http::assertSentCount(1);
     Http::assertSent(fn ($request) => $request->method() === 'POST' && str_ends_with($request->url(), '/v25.0/'.$account->phone_number_id.'/messages')
-        && $request['to'] === '67571234567' && $request['type'] === 'template'
+        && $request['to'] === '12025550143' && $request['type'] === 'template'
         && $request['template']['components'][0]['parameters'][0]['text'] === $asset->site->client->company_name);
 });
 
@@ -258,11 +258,11 @@ test('test sends stay separate and regular users cannot manage WhatsApp credenti
     $template = waTemplate($account);
     $this->get(route('whatsapp.index'))->assertRedirect(route('login'));
     $this->actingAs(User::factory()->create())->get(route('whatsapp.index'))->assertForbidden();
-    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])->assertForbidden();
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+12025550143'])->assertForbidden();
     auth()->logout();
     $this->actingAs($this->admin);
     waAccepted();
-    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])->assertRedirect();
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+12025550143'])->assertRedirect();
     expect(WhatsAppMessage::query()->sole()->is_test)->toBeTrue();
     expect(WhatsAppMessage::query()->sole()->status)->toBe('submitted');
     expect(ReminderDelivery::query()->count())->toBe(0);
@@ -276,12 +276,12 @@ test('admin typed whatsapp test resolves default sender and purpose template', f
     Http::fakeSequence()
         ->push(['messages' => [['id' => 'wamid.asset']]], 200)
         ->push(['messages' => [['id' => 'wamid.certificate']]], 200);
-    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])->assertRedirect();
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+12025550143'])->assertRedirect();
     $message = WhatsAppMessage::query()->where('meta_message_id', 'wamid.asset')->sole();
     expect($message->is_test)->toBeTrue();
     expect($message->status)->toBe('submitted');
     expect(ReminderDelivery::query()->count())->toBe(0);
-    $this->post(route('whatsapp.test'), ['type' => 'certificate', 'recipient' => '+67571234567'])->assertRedirect();
+    $this->post(route('whatsapp.test'), ['type' => 'certificate', 'recipient' => '+12025550143'])->assertRedirect();
     expect(WhatsAppMessage::query()->count())->toBe(2);
     expect(WhatsAppMessage::query()->where('meta_message_id', 'wamid.certificate')->exists())->toBeTrue();
 });
@@ -291,7 +291,7 @@ test('test sends fall back to a verified test account when no production default
     waTemplate($account, 'asset');
     $this->actingAs($this->admin);
     Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.asset']]], 200)]);
-    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])->assertRedirect();
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+12025550143'])->assertRedirect();
     $message = WhatsAppMessage::query()->sole();
     expect($message->whatsapp_account_id)->toBe($account->id);
     expect($message->is_test)->toBeTrue();
@@ -306,21 +306,21 @@ test('test sends prefer the verified production default over a test account', fu
     waTemplate($default, 'asset');
     $this->actingAs($this->admin);
     Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.asset']]], 200)]);
-    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])->assertRedirect();
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+12025550143'])->assertRedirect();
     expect(WhatsAppMessage::query()->sole()->whatsapp_account_id)->toBe($default->id);
 });
 
 test('test sends name the missing sender or template in the validation error', function (): void {
     $this->actingAs($this->admin);
     Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.certificate']]], 200)]);
-    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+67571234567'])
+    $this->post(route('whatsapp.test'), ['type' => 'asset', 'recipient' => '+12025550143'])
         ->assertSessionHasErrors(['type' => 'No verified active sender is available. Verify the default sender, or an active test account, on this page.']);
     $account = waSender();
-    $this->post(route('whatsapp.test'), ['type' => 'certificate', 'recipient' => '+67571234567'])
+    $this->post(route('whatsapp.test'), ['type' => 'certificate', 'recipient' => '+12025550143'])
         ->assertSessionHasErrors(['type' => 'No approved, enabled template is mapped for this reminder type. Sync templates with Meta.']);
     expect(WhatsAppMessage::query()->count())->toBe(0);
     waTemplate($account, 'certificate');
-    $this->post(route('whatsapp.test'), ['type' => 'certificate', 'recipient' => '+67571234567'])->assertRedirect();
+    $this->post(route('whatsapp.test'), ['type' => 'certificate', 'recipient' => '+12025550143'])->assertRedirect();
     expect(WhatsAppMessage::query()->count())->toBe(1);
 });
 test('certificate reminders use the configured WABA template and a new due date makes a new cycle', function () {

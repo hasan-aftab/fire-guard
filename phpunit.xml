@@ -20,6 +20,9 @@
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <!-- A non-UTC zone proves the calendar date comes from the app timezone
+             rather than the browser or UTC. Not a country or city reference. -->
+        <env name="APP_TIMEZONE" value="Etc/GMT-10"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>

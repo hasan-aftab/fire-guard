@@ -156,18 +156,18 @@ test('technician edits retain licence data and deactivation keeps inspection att
     $inspection = Inspection::factory()->for($technician)->create();
 
     $this->actingAs($user)->put(route('technicians.update', $technician), [
-        'full_name' => 'Ruth Ovia',
-        'phone' => '+675 7000 0000',
+        'full_name' => 'Ruth Calloway',
+        'phone' => '+1 202 555 0106',
         'email' => 'ruth@example.test',
-        'license_number' => 'PNG-417',
+        'license_number' => 'FS-417',
         'license_expiry' => '2027-04-30',
         'is_active' => '0',
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $this->assertDatabaseHas('technicians', [
         'id' => $technician->id,
-        'full_name' => 'Ruth Ovia',
-        'license_number' => 'PNG-417',
+        'full_name' => 'Ruth Calloway',
+        'license_number' => 'FS-417',
         'license_expiry' => '2027-04-30',
         'is_active' => false,
     ]);

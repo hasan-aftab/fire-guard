@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "laravel/react-starter-kit",
     "type": "project",
-    "description": "FireGuard - fire safety compliance tracker for PNG businesses.",
+    "description": "FireGuard - fire safety compliance tracker for businesses.",
     "keywords": [
         "laravel",
         "framework"

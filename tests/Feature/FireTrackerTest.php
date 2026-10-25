@@ -50,7 +50,7 @@ test('staff can create and update tracker records', function (string $model, str
 
     $this->assertModelExists($record);
 })->with([
-    'client' => [Client::class, 'clients', 'company_name', 'Updated PNG Company', 'clients.index'],
+    'client' => [Client::class, 'clients', 'company_name', 'Updated Test Company', 'clients.index'],
     'site' => [Site::class, 'sites', 'site_name', 'Updated Warehouse', 'clients.index'],
     'asset' => [Asset::class, 'assets', 'serial_number', 'UPDATED-675', 'assets.index'],
     'inspection' => [Inspection::class, 'inspections', 'notes', 'Follow-up inspection', 'inspections.index'],
@@ -165,7 +165,7 @@ test('asset filters respect the fourteen day boundary and missing dates', functi
 
 test('clients can be searched by contact and have stable pagination', function () {
     $user = User::factory()->create();
-    Client::factory()->count(11)->create(['company_name' => 'PNG Company']);
+    Client::factory()->count(11)->create(['company_name' => 'Test Company']);
     $target = Client::factory()->create(['contact_name' => "O'Brien"]);
 
     $this->actingAs($user)->get(route('clients.index', ['search' => "O'Brien"]))
@@ -274,8 +274,8 @@ test('demo data and private artifacts are seeded repeatedly without duplicates o
     $this->assertDatabaseCount('reminder_deliveries', 4);
 
     $this->assertDatabaseHas('clients', [
-        'company_name' => 'Moresby Central Bank Tower',
-        'email' => 'simon.aitsi@example.test',
+        'company_name' => 'Central Bank Tower',
+        'email' => 'simon.whitfield@example.test',
         'is_active' => false,
     ]);
     $this->assertDatabaseHas('asset_types', [
@@ -287,7 +287,7 @@ test('demo data and private artifacts are seeded repeatedly without duplicates o
         'is_active' => false,
     ]);
     $this->assertDatabaseHas('technicians', [
-        'full_name' => 'Michael Doa',
+        'full_name' => 'Michael Grant',
         'license_number' => null,
         'license_expiry' => null,
         'is_active' => false,
@@ -409,7 +409,7 @@ test('the seeder completes a recognized demo dataset already in the database', f
         'email' => null,
     ]);
     $site = Site::factory()->for($client)->create([
-        'site_name' => 'Port Moresby Warehouse',
+        'site_name' => 'Metro City Warehouse',
     ]);
     $type = AssetType::query()
         ->where('type_name', 'Fire Extinguisher - Dry Chemical')
@@ -424,7 +424,7 @@ test('the seeder completes a recognized demo dataset already in the database', f
 
     $this->seed(FireTrackerDemoSeeder::class);
 
-    expect($client->fresh()->email)->toBe('peter.kaupa@example.test');
+    expect($client->fresh()->email)->toBe('daniel.mercer@example.test');
     $this->assertModelExists($asset);
     $this->assertModelExists($inspection);
     $this->assertDatabaseCount('clients', 3);

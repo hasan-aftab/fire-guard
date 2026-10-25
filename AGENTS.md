@@ -1,6 +1,6 @@
 # FireGuard
 
-Fire-safety compliance tracker for PNG businesses. Inertia v3 + React SPA, MySQL,
+Fire-safety compliance tracker for businesses. Inertia v3 + React SPA, MySQL,
 no API layer, no queue workers for domain logic.
 
 **Local dev is MySQL 9 (`DB_CONNECTION=mysql`, database `laravel` on 127.0.0.1:3306);

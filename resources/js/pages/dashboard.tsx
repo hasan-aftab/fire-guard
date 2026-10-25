@@ -31,11 +31,13 @@ export default function Dashboard({
     kpis,
     schedule,
     filters,
+    timezone,
 }: {
     summary: DashboardSummary | null;
     kpis: DashboardKpis | null;
     schedule: DashboardSchedule | null;
     filters: DashboardFilters;
+    timezone: string;
 }) {
     const [loadingSchedule, setLoadingSchedule] = useState(false);
     const [scheduleError, setScheduleError] = useState('');
@@ -44,7 +46,7 @@ export default function Dashboard({
     usePoll(60_000, { only: ['summary', 'kpis', 'schedule'] });
 
     // Inertia throttles polling in background tabs. Refresh as soon as the
-    // dashboard is visible again, including after Port Moresby midnight.
+    // dashboard is visible again, including after midnight in the app timezone.
     useEffect(() => {
         const refreshOnReturn = () => {
             if (!document.hidden) {
@@ -84,7 +86,7 @@ export default function Dashboard({
                 <Head title="Dashboard" />
                 <PageHeader
                     title="Dashboard"
-                    description={`As of ${formatLongDate(summary.asOfDate)} · Port Moresby time`}
+                    description={`As of ${formatLongDate(summary.asOfDate)} · ${timezone}`}
                 />
                 <EmptyState
                     icon={ShieldCheck}
@@ -151,7 +153,7 @@ export default function Dashboard({
             <Head title="Dashboard" />
             <PageHeader
                 title="Dashboard"
-                description={`As of ${formatLongDate(summary.asOfDate)} · Port Moresby time`}
+                description={`As of ${formatLongDate(summary.asOfDate)} · ${timezone}`}
             />
 
             <div className="mb-4 grid grid-cols-2 gap-2.5 xl:grid-cols-4 xl:gap-4">
