@@ -118,5 +118,3 @@ test('brevo mailer sends the test reminder through the transactional API', funct
     });
     expect(ReminderDelivery::count())->toBe(0);
 });
-
-test('brevo-smtp mailer is configured for Brevo SMTP relay', function (): void {});

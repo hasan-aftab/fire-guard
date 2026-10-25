@@ -573,11 +573,11 @@ test('recipient editor rejects invalid and duplicate addresses and requires veri
     $this->assertDatabaseCount('reminder_recipients', 2);
 });
 
-test('seeded users have admin roles while newly registered users default to regular role', function () {
+test('seeded admin has the admin role while newly registered users default to regular role', function () {
     $regular = User::factory()->create();
     $this->seed(DatabaseSeeder::class);
 
     expect($regular->role)->toBe(User::ROLE_USER);
-    expect(User::query()->whereIn('email', ['muhammadwebdeveloper281@gmail.com', 'rwilliamstewart@gmail.com'])
-        ->where('role', User::ROLE_ADMIN)->count())->toBe(2);
+    expect(User::query()->where('email', 'webdevelopermuhammad281@gmail.com')
+        ->where('role', User::ROLE_ADMIN)->exists())->toBeTrue();
 });
