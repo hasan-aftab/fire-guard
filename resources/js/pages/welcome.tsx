@@ -41,7 +41,7 @@ export default function Welcome() {
     const { auth } = usePage().props;
     return (
         <>
-            <Head title="FireTrack PNG" />
+            <Head title="FireGuard" />
             <div className="flex min-h-screen flex-col bg-background">
                 <header className="flex items-center justify-between gap-4 border-b px-6 py-4">
                     <Link
@@ -49,7 +49,7 @@ export default function Welcome() {
                         className="flex items-center gap-2 font-semibold"
                     >
                         <Flame className="size-6 text-warning" />
-                        FireTrack PNG
+                        FireGuard
                     </Link>
                     <nav className="flex gap-2" aria-label="Account navigation">
                         {auth.user ? (
@@ -80,7 +80,7 @@ export default function Welcome() {
                                 <Link href={auth.user ? dashboard() : login()}>
                                     {auth.user
                                         ? 'Open dashboard'
-                                        : 'Log in to FireTrack'}
+                                        : 'Log in to FireGuard'}
                                 </Link>
                             </Button>
                         </div>

@@ -13,7 +13,7 @@
     <tr><td style="padding:25px 34px;background:#202725;color:#fffefa">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse">
             <tr>
-                <td valign="middle" width="42"><div style="height:38px;width:38px;line-height:38px;text-align:center;background:#d89936;color:#202725;font-size:16px;font-weight:800;letter-spacing:-1px">FT</div></td>
+                <td valign="middle" width="42"><div style="height:38px;width:38px;line-height:38px;text-align:center;background:#d89936;color:#202725;font-size:16px;font-weight:800;letter-spacing:-1px">FG</div></td>
                 <td valign="middle" style="padding-left:12px;font-size:16px;font-weight:700;letter-spacing:.2px">{{ config('fire-tracker.report.company_name') }}<br><span style="font-size:11px;font-weight:400;color:#bfc7c0">Service schedule notice</span></td>
                 <td valign="middle" align="right" style="font-size:11px;color:#d89936;font-weight:700">@yield('eyebrow')</td>
             </tr>
@@ -59,7 +59,7 @@
         <strong style="color:#202725">{{ config('fire-tracker.report.company_name') }}</strong><br>
         @if (config('fire-tracker.report.company_phone')){{ config('fire-tracker.report.company_phone') }}<br>@endif
         @if (config('fire-tracker.report.company_email')){{ config('fire-tracker.report.company_email') }}<br>@endif
-        This reminder reflects the current schedule recorded in Fire Tracker.
+        This reminder reflects the current schedule recorded in FireGuard.
     </td></tr>
 </table>
 </td></tr></table>

@@ -578,6 +578,6 @@ test('seeded admin has the admin role while newly registered users default to re
     $this->seed(DatabaseSeeder::class);
 
     expect($regular->role)->toBe(User::ROLE_USER);
-    expect(User::query()->where('email', 'webdevelopermuhammad281@gmail.com')
+    expect(User::query()->where('email', 'test@test.com')
         ->where('role', User::ROLE_ADMIN)->exists())->toBeTrue();
 });

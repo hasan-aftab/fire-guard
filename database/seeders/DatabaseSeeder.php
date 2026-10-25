@@ -16,18 +16,18 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         User::factory()->create([
-            'name' => 'Muhammad Web',
-            'email' => 'webdevelopermuhammad281@gmail.com',
+            'name' => 'Hasan Aftab',
+            'email' => 'hasanaftab007@gmail.com',
             'role' => User::ROLE_ADMIN,
-            'password' => bcrypt('webdevelopermuhammad281@gmail.com'),
+            'password' => bcrypt('hasanaftab007@gmail.com'),
         ]);
 
-        // User::factory()->create([
-        //     'name' => 'Rory',
-        //     'email' => 'rwilliamstewart@gmail.com',
-        //     'role' => User::ROLE_ADMIN,
-        //     'password' => bcrypt('rwilliamstewart@gmail.com'),
-        // ]);
+        User::factory()->create([
+            'name' => 'test',
+            'email' => 'test@test.com',
+            'role' => User::ROLE_ADMIN,
+            'password' => bcrypt('test@test.com'),
+        ]);
 
         $this->call([
             WhatsAppAccountSeeder::class,

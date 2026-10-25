@@ -938,7 +938,7 @@ export default function Reports({
                                         />
                                     </span>
                                     <span className="text-xs font-semibold tracking-wide">
-                                        Fire Tracker
+                                        FireGuard
                                     </span>
                                 </div>
                                 <div className="min-h-56 py-8">

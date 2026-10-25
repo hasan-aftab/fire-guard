@@ -1,4 +1,4 @@
-# Fire Tracker PNG
+# FireGuard
 
 Fire safety compliance tracker for PNG businesses. Local development uses MySQL; automated tests use SQLite in memory. See [AGENTS.md](AGENTS.md) for setup and verification commands.
 

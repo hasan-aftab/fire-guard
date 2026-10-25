@@ -98,7 +98,7 @@ test('brevo mailer sends the test reminder through the transactional API', funct
     config()->set('mail.default', 'brevo');
     config()->set('mail.mailers.brevo.key', 'test-api-key');
     config()->set('mail.from.address', 'firetracker@local.test');
-    config()->set('mail.from.name', 'Fire Tracker');
+    config()->set('mail.from.name', 'FireGuard');
     $this->actingAs($this->user);
 
     $this->post(route('reminders.test-email'), ['type' => 'asset', 'email' => 'team@example.com'])

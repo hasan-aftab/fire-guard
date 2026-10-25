@@ -39,7 +39,7 @@ return [
     ],
     'report' => [
         'disk' => env('REPORT_DISK'),
-        'company_name' => env('REPORT_COMPANY_NAME', 'Fire Tracker'),
+        'company_name' => env('REPORT_COMPANY_NAME', 'FireGuard'),
         'company_phone' => env('REPORT_COMPANY_PHONE'),
         'company_email' => env('REPORT_COMPANY_EMAIL'),
         'logo_disk' => env('REPORT_LOGO_DISK', env('FIRE_TRACKER_DISK', 'local')),
